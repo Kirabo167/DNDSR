@@ -44,4 +44,7 @@ stubs/
 *.pyi
 # temporary compile_commands.json for clangd generated with compile db
 /compile_commands.json
+# in-source cmake configure artifacts at repo root
+/CMakeCache.txt
+/CMakeFiles/
 /DNDSR
