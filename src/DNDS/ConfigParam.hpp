@@ -135,6 +135,27 @@ namespace DNDS
         static constexpr ConfigTypeTag value = ConfigTypeTag::Json;
     };
 
+    /// Eigen matrix/vector types serialize as JSON arrays, so map them to Array.
+    /// Detection uses the `Scalar` typedef and `RowsAtCompileTime` enum that
+    /// all Eigen matrix expressions expose — no Eigen headers needed here.
+    namespace detail
+    {
+        template <typename T, typename = void>
+        struct is_eigen_type : std::false_type {};
+
+        template <typename T>
+        struct is_eigen_type<T, std::void_t<
+            typename T::Scalar,
+            decltype(static_cast<int>(T::RowsAtCompileTime)),
+            decltype(static_cast<int>(T::ColsAtCompileTime))>> : std::true_type {};
+    } // namespace detail
+
+    template <typename T>
+    struct ConfigTypeTagOf<T, std::enable_if_t<detail::is_eigen_type<T>::value>>
+    {
+        static constexpr ConfigTypeTag value = ConfigTypeTag::Array;
+    };
+
     inline std::string schemaTypeString(ConfigTypeTag tag)
     {
         switch (tag)
@@ -385,7 +406,9 @@ namespace DNDS
             meta.typeTag = ConfigTypeTag::Object;
             meta.readField = [member, jsonKey](const nlohmann::ordered_json &j, void *obj)
             {
-                static_cast<T *>(obj)->*member = j.at(jsonKey).template get<S>();
+                // In-place deserialization preserves non-serialized members
+                // (e.g. EulerEvaluatorSettings::_nVars set by the constructor).
+                from_json(j.at(jsonKey), static_cast<T *>(obj)->*member);
             };
             meta.writeField = [member, jsonKey](nlohmann::ordered_json &j, const void *obj)
             {
@@ -486,6 +509,45 @@ namespace DNDS
                 nlohmann::ordered_json s;
                 s["description"] = desc;
                 return s;
+            };
+            detail::applyTags(meta, std::forward<Tags>(tags)...);
+            ConfigRegistry<T>::registerField(std::move(meta));
+        }
+
+        // ---- field_json_schema(): opaque JSON blob with explicit schema ----
+
+        /// @brief Register an opaque `nlohmann::ordered_json` field with a
+        ///        user-supplied schema generator.
+        ///
+        /// Use this for heterogeneous structures (e.g. arrays of discriminated
+        /// union objects) where automatic schema inference is not possible.
+        ///
+        /// @param member       Pointer-to-member.
+        /// @param jsonKey      JSON key name.
+        /// @param desc         Human-readable description.
+        /// @param schemaFn     Callable `() -> ordered_json` returning the
+        ///                     full JSON Schema for this field.
+        /// @param tags         Optional tag objects.
+        template <typename FSchema, typename... Tags>
+        void field_json_schema(nlohmann::ordered_json T::*member,
+                               const char *jsonKey, const char *desc,
+                               FSchema &&schemaFn, Tags &&...tags)
+        {
+            FieldMeta meta;
+            meta.name = jsonKey;
+            meta.description = desc;
+            meta.typeTag = ConfigTypeTag::Json;
+            meta.readField = [member, jsonKey](const nlohmann::ordered_json &j, void *obj)
+            {
+                static_cast<T *>(obj)->*member = j.at(jsonKey);
+            };
+            meta.writeField = [member, jsonKey](nlohmann::ordered_json &j, const void *obj)
+            {
+                j[jsonKey] = static_cast<const T *>(obj)->*member;
+            };
+            meta.schemaEntry = [fn = std::forward<FSchema>(schemaFn)]() -> nlohmann::ordered_json
+            {
+                return fn();
             };
             detail::applyTags(meta, std::forward<Tags>(tags)...);
             ConfigRegistry<T>::registerField(std::move(meta));
