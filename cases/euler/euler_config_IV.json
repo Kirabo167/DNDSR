@@ -46,7 +46,7 @@
     "dataIOControl": {
         "uniqueStamps": false,
         "meshRotZ": 0.0,
-        "meshDirectBisect": 3,
+        "meshDirectBisect": 0,
         "meshElevation": 0,
         "meshReorderCells": true,
         "meshFile": "../data/mesh/IV10_20.cgns",
@@ -182,7 +182,7 @@
         "uRecBetaCompressPower": 1.0,
         "ppEpsIsRelaxed": true,
         // "forceVolURecBeta": false,
-        "specialBuiltinInitializer": 203, // 2 is IV, 203 is PPIV
+        "specialBuiltinInitializer": 2, // 2 is IV, 203 is PPIV
         // "exprtkInitializers": [
         //     {
         //         "exprs": [
