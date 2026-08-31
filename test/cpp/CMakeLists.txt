@@ -416,6 +416,78 @@ foreach(T ${EULER_TEST_TARGETS})
 endforeach()
 
 # ===================================================================
+# ACM tests. Modifier: Runzhi Ma.
+# ===================================================================
+
+# @brief Register one serial doctest executable for the ACM module.
+# @param TEST_NAME Short suffix used for the target and CTest names.
+# @param SRC_FILE Source file relative to test/cpp.
+# @param LIBS Semicolon-separated libraries linked by the test executable.
+# @note Modifier: Runzhi Ma.
+function(acm_add_unit_test TEST_NAME SRC_FILE LIBS)
+    set(TARGET_NAME "acm_test_${TEST_NAME}")
+    add_executable(${TARGET_NAME} ${SRC_FILE})
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${DNDS_EXTERNAL_INCLUDE_DOCTEST}
+        ${DNDS_EXTERNAL_INCLUDES}
+        ${DNDS_INCLUDES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBS} ${DNDS_EXTERNAL_LIBS})
+    if(DNDS_USE_CCACHE)
+        set_property(TARGET ${TARGET_NAME} PROPERTY CXX_COMPILER_LAUNCHER ${DNDS_CCACHE_EXEC})
+    endif()
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        EXCLUDE_FROM_ALL ON)
+    add_test(NAME acm_${TEST_NAME} COMMAND ${TARGET_NAME})
+    set_tests_properties(acm_${TEST_NAME} PROPERTIES
+        TIMEOUT 120
+        ENVIRONMENT "OMP_NUM_THREADS=${DNDS_TEST_OMP_THREADS}")
+endfunction()
+
+# @brief Register one ACM MPI doctest executable at every configured rank count.
+# @param TEST_NAME Short suffix used for the target and CTest names.
+# @param SRC_FILE Source file relative to test/cpp.
+# @param LIBS Semicolon-separated libraries linked by the test executable.
+# @note Modifier: Runzhi Ma.
+function(acm_add_mpi_test TEST_NAME SRC_FILE LIBS)
+    set(TARGET_NAME "acm_test_${TEST_NAME}")
+    add_executable(${TARGET_NAME} ${SRC_FILE})
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${DNDS_EXTERNAL_INCLUDE_DOCTEST}
+        ${DNDS_EXTERNAL_INCLUDES}
+        ${DNDS_INCLUDES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBS} ${DNDS_EXTERNAL_LIBS})
+    if(DNDS_USE_CCACHE)
+        set_property(TARGET ${TARGET_NAME} PROPERTY CXX_COMPILER_LAUNCHER ${DNDS_CCACHE_EXEC})
+    endif()
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        EXCLUDE_FROM_ALL ON)
+    foreach(NP ${DNDS_TEST_NP_LIST})
+        _dnds_np_timeout(${NP} _TIMEOUT)
+        add_test(NAME acm_${TEST_NAME}_np${NP}
+            COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${NP}
+                    ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${TARGET_NAME}> ${MPIEXEC_POSTFLAGS})
+        set_tests_properties(acm_${TEST_NAME}_np${NP} PROPERTIES
+            TIMEOUT ${_TIMEOUT}
+            PROCESSORS ${NP}
+            ENVIRONMENT "OMP_NUM_THREADS=${DNDS_TEST_OMP_THREADS}")
+    endforeach()
+endfunction()
+
+add_custom_target(acm_unit_tests)
+add_dependencies(all_unit_tests acm_unit_tests)
+
+acm_add_unit_test(core "ACM/test_ACMCore.cpp" "acm;dnds")
+acm_add_unit_test(time "ACM/test_ACMTime.cpp" "acm;dnds")
+acm_add_mpi_test(parallel "ACM/test_ACMParallel.cpp" "acm;dnds")
+
+add_dependencies(acm_unit_tests
+    acm_test_core
+    acm_test_time
+    acm_test_parallel)
+
+# ===================================================================
 # Solver tests (ODE, Linear, Direct, Scalar)
 # ===================================================================
 

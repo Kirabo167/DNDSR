@@ -1,0 +1,10 @@
+{
+    "timeMarchSettings": {
+        "integrator": "ImplicitEulerBlockJacobi",
+        "nSteps": 20,
+        "pseudoTimeStep": 0.05,
+        "maxImplicitIterations": 30,
+        "implicitTolerance": 1e-10,
+        "implicitRelaxation": 1.0
+    }
+}

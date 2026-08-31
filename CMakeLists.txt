@@ -105,6 +105,8 @@ set(DNDS_Euler_Models_List
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/DNDS)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/Geom)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/CFV)
+# Constant-density ACM module integration. Modifier: Runzhi Ma.
+add_subdirectory(${CMAKE_SOURCE_DIR}/src/ACM)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/Euler)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/EulerP)
 

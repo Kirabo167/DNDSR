@@ -1,0 +1,178 @@
+/**
+ * @file ACMFlux.hpp
+ * @brief Inviscid, viscous, preconditioning, and Riemann-flux interfaces for constant-density ACM.
+ *
+ * @details All inviscid algebra is evaluated in a face-local coordinate system. InviscidFlux()
+ * performs the global/local transformations and exposes the resulting global face flux.
+ *
+ * @author Runzhi Ma
+ * @date 2026-08-31
+ * @note Modifier: Runzhi Ma.
+ */
+#pragma once
+
+#include "ACMSettings.hpp"
+#include "ACMState.hpp"
+
+namespace DNDS::ACM
+{
+    /// Three distinct characteristic speeds of the four-variable ACM system.
+    struct Eigenvalues
+    {
+        real lambdaMinus = 0;
+        real lambdaTangential = 0;
+        real lambdaPlus = 0;
+
+        /**
+         * @brief Compute the largest characteristic-speed magnitude.
+         * @return `max(abs(lambdaMinus), abs(lambdaTangential), abs(lambdaPlus))`.
+         */
+        real SpectralRadius() const;
+    };
+
+    /// Numerical face flux together with the characteristic speeds used by its dissipation.
+    struct FluxResult
+    {
+        State flux = State::Zero();
+        Eigenvalues eigenvalues;
+    };
+
+    /**
+     * @brief Evaluate the physical inviscid flux in face-local coordinates.
+     * @param localState Local state `[u_n,u_t1,u_t2,p]`.
+     * @param rho0 Positive constant density.
+     * @return Local physical flux `[u_n^2+p/rho0,u_n*u_t1,u_n*u_t2,u_n]`.
+     */
+    State PhysicalFluxLocal(const State &localState, real rho0);
+
+    /**
+     * @brief Evaluate the state Jacobian of PhysicalFluxLocal().
+     * @param localState Local linearization state `[u_n,u_t1,u_t2,p]`.
+     * @param rho0 Positive constant density.
+     * @return Four-by-four physical-flux Jacobian in local coordinates.
+     */
+    Matrix4 PhysicalFluxJacobianLocal(const State &localState, real rho0);
+
+    /**
+     * @brief Construct the Scheme-A primitive preconditioning matrix Gamma.
+     * @param meanLocalState Mean face state used by velocity-pressure coupling terms.
+     * @param beta2 Positive artificial-compressibility parameter.
+     * @param alpha Turkel coupling parameter.
+     * @return Four-by-four local preconditioning matrix.
+     */
+    Matrix4 GammaLocal(const State &meanLocalState, real beta2, real alpha);
+
+    /**
+     * @brief Construct the analytic inverse of GammaLocal().
+     * @param meanLocalState Mean face state used by velocity-pressure coupling terms.
+     * @param beta2 Positive artificial-compressibility parameter.
+     * @param alpha Turkel coupling parameter.
+     * @return Four-by-four inverse preconditioning matrix.
+     */
+    Matrix4 GammaInvLocal(const State &meanLocalState, real beta2, real alpha);
+
+    /**
+     * @brief Apply the local preconditioning matrix to a state increment or eigenvector.
+     * @param meanLocalState Mean state defining Gamma.
+     * @param increment Vector to which Gamma is applied.
+     * @param beta2 Positive artificial-compressibility parameter.
+     * @param alpha Turkel coupling parameter.
+     * @return `GammaLocal(meanLocalState, beta2, alpha) * increment`.
+     */
+    State ApplyGammaLocal(
+        const State &meanLocalState,
+        const State &increment,
+        real beta2,
+        real alpha);
+
+    /**
+     * @brief Build the preconditioned local flux Jacobian `Gamma^{-1} A`.
+     * @param meanLocalState Local linearization state.
+     * @param rho0 Positive constant density.
+     * @param beta2 Positive artificial-compressibility parameter.
+     * @param alpha Turkel coupling parameter.
+     * @return Four-by-four preconditioned Jacobian.
+     */
+    Matrix4 PreconditionedJacobianLocal(
+        const State &meanLocalState,
+        real rho0,
+        real beta2,
+        real alpha);
+
+    /**
+     * @brief Compute the minus, repeated tangential, and plus characteristic speeds.
+     * @param qn Mean normal velocity.
+     * @param rho0 Positive constant density.
+     * @param beta2 Positive artificial-compressibility parameter.
+     * @param alpha Turkel coupling parameter.
+     * @return Characteristic speeds ordered as minus, tangential, and plus.
+     */
+    Eigenvalues ComputeEigenvalues(real qn, real rho0, real beta2, real alpha);
+
+    /**
+     * @brief Apply a quadratic entropy fix to an absolute characteristic speed.
+     * @param lambda Signed characteristic speed.
+     * @param delta Positive entropy-fix width; a non-positive value disables the smoothing.
+     * @return Entropy-corrected approximation of `abs(lambda)`.
+     */
+    real EntropyFixedAbs(real lambda, real delta);
+
+    /**
+     * @brief Evaluate scalar Rusanov dissipation in face-local coordinates.
+     * @param leftLocal Left reconstructed local state.
+     * @param rightLocal Right reconstructed local state.
+     * @param settings Validated physical and numerical settings.
+     * @param eigenvalues Output characteristic speeds evaluated at the arithmetic mean state.
+     * @return Local dissipative vector to subtract from the centered two-state flux.
+     */
+    State RusanovDissipationLocal(
+        const State &leftLocal,
+        const State &rightLocal,
+        const Settings &settings,
+        Eigenvalues &eigenvalues);
+
+    /**
+     * @brief Evaluate characteristic Roe-type dissipation for the supported `alpha = 0` system.
+     * @param leftLocal Left reconstructed local state.
+     * @param rightLocal Right reconstructed local state.
+     * @param settings Validated settings; `settings.alpha` must be zero.
+     * @param eigenvalues Output characteristic speeds evaluated at the arithmetic mean state.
+     * @return Local characteristic dissipative vector including the configured entropy fix.
+     */
+    State RoeDissipationLocalAlpha0(
+        const State &leftLocal,
+        const State &rightLocal,
+        const Settings &settings,
+        Eigenvalues &eigenvalues);
+
+    /**
+     * @brief Evaluate a complete two-state inviscid numerical flux on a three-dimensional face.
+     * @param type Rusanov or Roe dissipation selection.
+     * @param left Left reconstructed global state `[u,v,w,p]`.
+     * @param right Right reconstructed global state `[u,v,w,p]`.
+     * @param unitNormal Face-normal direction, normalized internally.
+     * @param settings Physical and numerical settings.
+     * @return Global numerical flux and its mean-state characteristic speeds.
+     */
+    FluxResult InviscidFlux(
+        RiemannSolverType type,
+        const State &left,
+        const State &right,
+        const Vector3 &unitNormal,
+        const Settings &settings);
+
+    /**
+     * @brief Evaluate the constant-density Newtonian laminar viscous flux through a face.
+     * @param stateGradient Gradient matrix with convention `stateGradient(i,j)=d(state[j])/d(x[i])`.
+     * The pressure-gradient column is accepted for layout compatibility and is not used.
+     * @param unitNormal Face-normal direction, normalized internally.
+     * @param rho0 Positive constant density used to convert stress to velocity flux.
+     * @param dynamicViscosity Non-negative dynamic viscosity.
+     * @return Global viscous flux; its continuity/pressure component is zero.
+     */
+    State ViscousFlux(
+        const Eigen::Matrix<real, 3, 4> &stateGradient,
+        const Vector3 &unitNormal,
+        real rho0,
+        real dynamicViscosity);
+}
