@@ -7,9 +7,13 @@ set(LIBNAME acm)
 set(CPPS
     ACM.cpp
     ACMTime.cpp
+    acm2D.cpp
+    acm3D.cpp
 )
 
 set(LINKS
+    cfv
+    geom
     dnds
     ${DNDS_EXTERNAL_LIBS}
 )

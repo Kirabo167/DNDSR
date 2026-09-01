@@ -26,6 +26,8 @@ namespace DNDS::ACM
     {
         ExplicitSSPRK3,
         ImplicitEulerBlockJacobi,
+        ImplicitEulerLUSGS,
+        ImplicitEulerGMRES,
     };
 
     DNDS_DEFINE_ENUM_JSON(
@@ -33,17 +35,43 @@ namespace DNDS::ACM
         {
             {TimeIntegratorType::ExplicitSSPRK3, "ExplicitSSPRK3"},
             {TimeIntegratorType::ImplicitEulerBlockJacobi, "ImplicitEulerBlockJacobi"},
+            {TimeIntegratorType::ImplicitEulerLUSGS, "ImplicitEulerLUSGS"},
+            {TimeIntegratorType::ImplicitEulerGMRES, "ImplicitEulerGMRES"},
+        })
+
+    /// Left preconditioners available to the generic GMRES algorithm.
+    enum class GMRESPreconditionerType
+    {
+        BlockJacobi,
+        LUSGS,
+    };
+
+    DNDS_DEFINE_ENUM_JSON(
+        GMRESPreconditionerType,
+        {
+            {GMRESPreconditionerType::BlockJacobi, "BlockJacobi"},
+            {GMRESPreconditionerType::LUSGS, "LUSGS"},
         })
 
     /// Runtime controls shared by explicit SSPRK3 and implicit backward-Euler stepping.
     struct TimeMarchSettings
     {
         TimeIntegratorType integrator = TimeIntegratorType::ExplicitSSPRK3; ///< Selected algorithm.
-        int nSteps = 0;                                                     ///< Number of preview steps.
+        int nSteps = 0;                                                     ///< Number of pseudo-time steps.
         real pseudoTimeStep = 0.01;                                         ///< Positive fixed pseudo-time step.
-        int maxImplicitIterations = 20;                                     ///< Block-Jacobi iterations per implicit step.
+        bool useCFLTimeStep = false;                                        ///< Recompute spectral-radius time steps.
+        bool useLocalTimeStep = true;                                       ///< Keep cell-local CFL steps instead of MPI minimum.
+        real cfl = 0.5;                                                      ///< CFL multiplier for spectral-radius stepping.
+        real maximumPseudoTimeStep = 1e100;                                 ///< Upper clamp for a CFL-derived step.
+        int maxImplicitIterations = 20;                                     ///< Nonlinear defect-correction iterations per implicit step.
         real implicitTolerance = 1e-10;                                     ///< Global RMS backward-Euler defect tolerance.
         real implicitRelaxation = 1.0;                                      ///< Damping applied to every implicit correction.
+        int lusgsSweeps = 2;                                                 ///< Forward/backward sweep pairs per solve.
+        int gmresSubspace = 10;                                              ///< Arnoldi vectors per GMRES restart.
+        int gmresRestarts = 3;                                               ///< Maximum generic-GMRES restart count.
+        real gmresRelativeTolerance = 1e-6;                                 ///< Relative preconditioned linear residual target.
+        GMRESPreconditionerType gmresPreconditioner =
+            GMRESPreconditionerType::LUSGS;                                 ///< Left preconditioner used by GMRES.
 
         DNDS_DECLARE_CONFIG(TimeMarchSettings)
         {
@@ -51,11 +79,21 @@ namespace DNDS::ACM
                 integrator,
                 "ACM pseudo-time integrator",
                 DNDS::Config::enum_values(DNDS_ENUM_ALLOWED_VALUES(TimeIntegratorType)));
-            DNDS_FIELD(nSteps, "Number of pseudo-time preview steps", DNDS::Config::range(0));
+            DNDS_FIELD(nSteps, "Number of pseudo-time steps", DNDS::Config::range(0));
             DNDS_FIELD(pseudoTimeStep, "Fixed pseudo-time step", DNDS::Config::range(0.0));
-            DNDS_FIELD(maxImplicitIterations, "Maximum implicit block-Jacobi iterations", DNDS::Config::range(1));
+            DNDS_FIELD(useCFLTimeStep, "Use Euler-style local CFL pseudo-time steps");
+            DNDS_FIELD(useLocalTimeStep, "Use cell-local rather than globally uniform CFL steps");
+            DNDS_FIELD(cfl, "ACM CFL number", DNDS::Config::range(0.0));
+            DNDS_FIELD(maximumPseudoTimeStep, "Maximum CFL-derived pseudo-time step", DNDS::Config::range(0.0));
+            DNDS_FIELD(maxImplicitIterations, "Maximum nonlinear iterations per implicit step", DNDS::Config::range(1));
             DNDS_FIELD(implicitTolerance, "Implicit global RMS defect tolerance", DNDS::Config::range(0.0));
             DNDS_FIELD(implicitRelaxation, "Implicit correction relaxation", DNDS::Config::range(0.0, 1.0));
+            DNDS_FIELD(lusgsSweeps, "ACM LU-SGS forward/backward sweep pairs", DNDS::Config::range(1));
+            DNDS_FIELD(gmresSubspace, "ACM GMRES Krylov subspace size", DNDS::Config::range(2));
+            DNDS_FIELD(gmresRestarts, "ACM GMRES restart count", DNDS::Config::range(0));
+            DNDS_FIELD(gmresRelativeTolerance, "ACM GMRES relative residual tolerance", DNDS::Config::range(0.0));
+            DNDS_FIELD(gmresPreconditioner, "ACM GMRES left preconditioner",
+                       DNDS::Config::enum_values(DNDS_ENUM_ALLOWED_VALUES(GMRESPreconditionerType)));
             config.post_read([](T &settings)
                              { settings.Validate(); });
         }

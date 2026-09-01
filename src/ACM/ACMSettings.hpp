@@ -2,8 +2,8 @@
  * @file ACMSettings.hpp
  * @brief Runtime settings and validation rules for the constant-density ACM kernels.
  *
- * @details The settings use the DNDS configuration registry so existing default-file, merge-patch,
- * command-line override, and JSON-schema workflows remain reusable by the new ACM module.
+ * @details The settings use the DNDS configuration registry so a complete case JSON,
+ * command-line overrides, and JSON-schema workflows remain reusable by the ACM module.
  *
  * @author Runzhi Ma
  * @date 2026-08-31
@@ -26,7 +26,7 @@ namespace DNDS::ACM
     {
         real rho0 = 1.0;                                              ///< Positive constant density used by momentum fluxes.
         real beta2 = 1.0;                                             ///< Positive artificial-compressibility parameter, beta squared.
-        real alpha = 0.0;                                             ///< Turkel coupling parameter; the initial module supports zero only.
+        real alpha = 0.0;                                             ///< Arbitrary finite Turkel coupling parameter read from JSON.
         real dynamicViscosity = 0.0;                                  ///< Non-negative laminar dynamic viscosity.
         RiemannSolverType riemannSolverType = RiemannSolverType::Roe; ///< Selected inviscid flux.
         PressureStorage pressureStorage = PressureStorage::PhysicalP; ///< Pressure representation in `State`.
@@ -39,7 +39,7 @@ namespace DNDS::ACM
         {
             DNDS_FIELD(rho0, "Constant density", DNDS::Config::range(0.0));
             DNDS_FIELD(beta2, "Artificial-compressibility beta squared", DNDS::Config::range(0.0));
-            DNDS_FIELD(alpha, "Turkel alpha; the initial implementation requires zero");
+            DNDS_FIELD(alpha, "Turkel alpha used by Gamma, characteristics, fluxes, and boundaries");
             DNDS_FIELD(dynamicViscosity, "Dynamic viscosity", DNDS::Config::range(0.0));
             DNDS_FIELD(
                 riemannSolverType,
@@ -66,8 +66,7 @@ namespace DNDS::ACM
         {
             DNDS_check_throw_info(std::isfinite(rho0) && rho0 > 0, "ACM rho0 must be finite and positive");
             DNDS_check_throw_info(std::isfinite(beta2) && beta2 > 0, "ACM beta2 must be finite and positive");
-            DNDS_check_throw_info(std::isfinite(alpha) && std::abs(alpha) <= 1e-14,
-                                  "the initial ACM implementation only supports alpha = 0");
+            DNDS_check_throw_info(std::isfinite(alpha), "ACM alpha must be finite");
             DNDS_check_throw_info(std::isfinite(dynamicViscosity) && dynamicViscosity >= 0,
                                   "ACM dynamicViscosity must be finite and non-negative");
             DNDS_check_throw_info(std::isfinite(entropyFixRatio) && entropyFixRatio >= 0,

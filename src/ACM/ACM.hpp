@@ -20,6 +20,7 @@ namespace DNDS::ACM
     /// Available artificial-compressibility equation sets.
     enum class ACMModel
     {
+        ConstantDensity2D,
         ConstantDensity3D,
     };
 
@@ -51,20 +52,48 @@ namespace DNDS::ACM
             {RiemannSolverType::Roe, "Roe"},
         })
 
-    /// Boundary conditions supported by the ACM ghost-state generator.
+    /**
+     * @brief Boundary families mirrored from the Euler solver and adapted to `[u,v,w,p]`.
+     * @details The legacy names are aliases retained for existing ACM case files. They do not
+     * introduce density, energy, temperature, or turbulence variables into the ACM state.
+     * @note Modifier: Runzhi Ma.
+     */
     enum class BoundaryType
     {
-        FarField,
-        VelocityInlet,
-        PressureOutlet,
-        NoSlipWall,
-        SlipWall,
-        Symmetry,
+        BCUnknown = 0,
+        BCFar,
+        BCWall,
+        BCWallInvis,
+        BCWallIsothermal,
+        BCOut,
+        BCOutP,
+        BCIn,
+        BCInPsTs,
+        BCSym,
+        BCSpecial,
+
+        FarField = BCFar,
+        NoSlipWall = BCWall,
+        SlipWall = BCWallInvis,
+        PressureOutlet = BCOutP,
+        VelocityInlet = BCInPsTs,
+        Symmetry = BCSym,
     };
 
     DNDS_DEFINE_ENUM_JSON(
         BoundaryType,
         {
+            {BoundaryType::BCUnknown, nullptr},
+            {BoundaryType::BCFar, "BCFar"},
+            {BoundaryType::BCWall, "BCWall"},
+            {BoundaryType::BCWallInvis, "BCWallInvis"},
+            {BoundaryType::BCWallIsothermal, "BCWallIsothermal"},
+            {BoundaryType::BCOut, "BCOut"},
+            {BoundaryType::BCOutP, "BCOutP"},
+            {BoundaryType::BCIn, "BCIn"},
+            {BoundaryType::BCInPsTs, "BCInPsTs"},
+            {BoundaryType::BCSym, "BCSym"},
+            {BoundaryType::BCSpecial, "BCSpecial"},
             {BoundaryType::FarField, "FarField"},
             {BoundaryType::VelocityInlet, "VelocityInlet"},
             {BoundaryType::PressureOutlet, "PressureOutlet"},
@@ -79,6 +108,18 @@ namespace DNDS::ACM
      */
     template <ACMModel model>
     struct ModelTraits;
+
+    /// Compile-time layout of the constant-density three-dimensional state `[u, v, w, p]`.
+    template <>
+    struct ModelTraits<ACMModel::ConstantDensity2D>
+    {
+        static constexpr int dim = 2;
+        static constexpr int gDim = 2;
+        static constexpr int nVarsFixed = 4;
+        static constexpr int velocityBegin = 0;
+        static constexpr int pressureIndex = 3;
+        static constexpr int nExtraVars = 0;
+    };
 
     /// Compile-time layout of the constant-density three-dimensional state `[u, v, w, p]`.
     template <>

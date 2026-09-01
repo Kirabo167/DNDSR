@@ -100,6 +100,55 @@ namespace DNDS::ACM
         real alpha);
 
     /**
+     * @brief Try to construct global left/right eigenvectors of the general-alpha ACM operator.
+     * @param meanState Mean global state `[u,v,w,p]`.
+     * @param unitNormal Face-normal direction, normalized internally.
+     * @param settings Validated ACM settings containing arbitrary finite Turkel alpha.
+     * @param left Output matrix whose rows are the left characteristic vectors.
+     * @param right Output matrix whose columns are minus-acoustic, two tangential, and plus-acoustic modes.
+     * @param minimumRelativeSeparation Relative tolerance used to detect an acoustic/tangential
+     * eigenvalue collision, where the general-alpha operator can become defective.
+     * @return True when a complete, numerically invertible characteristic basis was constructed.
+     * @note Modifier: Runzhi Ma.
+     */
+    bool TryCharacteristicMatricesGlobal(
+        const State &meanState,
+        const Vector3 &unitNormal,
+        const Settings &settings,
+        Matrix4 &left,
+        Matrix4 &right,
+        real minimumRelativeSeparation = 1e-11);
+
+    /**
+     * @brief Construct global right eigenvectors of the general-alpha ACM normal operator.
+     * @param meanState Mean global state `[u,v,w,p]`.
+     * @param unitNormal Face-normal direction, normalized internally.
+     * @param settings Validated ACM settings containing arbitrary finite Turkel alpha.
+     * @return Matrix whose columns are minus-acoustic, two tangential, and plus-acoustic modes.
+     * @throws std::runtime_error If an acoustic eigenvalue collides with the tangential eigenvalue
+     * and the operator has no complete eigenbasis.
+     * @note Modifier: Runzhi Ma.
+     */
+    Matrix4 RightEigenvectorsGlobal(
+        const State &meanState,
+        const Vector3 &unitNormal,
+        const Settings &settings);
+
+    /**
+     * @brief Construct global left eigenvectors of the general-alpha ACM normal operator.
+     * @param meanState Mean global state `[u,v,w,p]`.
+     * @param unitNormal Face-normal direction, normalized internally.
+     * @param settings Validated ACM settings containing arbitrary finite Turkel alpha.
+     * @return Inverse of RightEigenvectorsGlobal().
+     * @throws std::runtime_error If the normal operator has no complete eigenbasis.
+     * @note Modifier: Runzhi Ma.
+     */
+    Matrix4 LeftEigenvectorsGlobal(
+        const State &meanState,
+        const Vector3 &unitNormal,
+        const Settings &settings);
+
+    /**
      * @brief Compute the minus, repeated tangential, and plus characteristic speeds.
      * @param qn Mean normal velocity.
      * @param rho0 Positive constant density.
@@ -132,14 +181,16 @@ namespace DNDS::ACM
         Eigenvalues &eigenvalues);
 
     /**
-     * @brief Evaluate characteristic Roe-type dissipation for the supported `alpha = 0` system.
+     * @brief Evaluate characteristic Roe-type dissipation for the general-alpha ACM system.
      * @param leftLocal Left reconstructed local state.
      * @param rightLocal Right reconstructed local state.
-     * @param settings Validated settings; `settings.alpha` must be zero.
+     * @param settings Validated physical and Turkel-preconditioning settings.
      * @param eigenvalues Output characteristic speeds evaluated at the arithmetic mean state.
-     * @return Local characteristic dissipative vector including the configured entropy fix.
+     * @return Local characteristic dissipative vector `Gamma R |Lambda| L deltaU` including the
+     * configured entropy fix. A clustered spectral formula is used at defective eigenvalue collisions.
+     * @note Modifier: Runzhi Ma.
      */
-    State RoeDissipationLocalAlpha0(
+    State RoeDissipationLocal(
         const State &leftLocal,
         const State &rightLocal,
         const Settings &settings,

@@ -18,9 +18,12 @@
 #include "DNDS/Errors.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <limits>
+
+#include <Eigen/SVD>
 
 namespace DNDS::ACM
 {
@@ -209,8 +212,142 @@ namespace DNDS::ACM
         DNDS_check_throw_info(std::isfinite(alpha), "ACM alpha must be finite");
         const real centeredVelocity = (1 - alpha) * qn;
         const real discriminant = centeredVelocity * centeredVelocity + 4 * beta2 / rho0;
+        DNDS_check_throw_info(std::isfinite(discriminant), "ACM characteristic discriminant overflowed");
         const real root = std::sqrt(discriminant);
         return {(centeredVelocity - root) * 0.5, qn, (centeredVelocity + root) * 0.5};
+    }
+
+    namespace
+    {
+        /**
+         * @brief Construct one pressure-normalized general-alpha acoustic right eigenvector.
+         * @param meanLocalState Local mean state `[q_n,q_t1,q_t2,p]`.
+         * @param lambda Acoustic eigenvalue associated with the requested vector.
+         * @param beta2 Positive artificial-compressibility parameter.
+         * @param alpha Turkel coupling parameter.
+         * @return Right eigenvector with pressure component equal to one.
+         * @note Modifier: Runzhi Ma.
+         */
+        State AcousticRightEigenvectorLocal(
+            const State &meanLocalState,
+            real lambda,
+            real beta2,
+            real alpha)
+        {
+            const real qn = meanLocalState(0);
+            const real separation = qn - lambda;
+            DNDS_check_throw_info(
+                std::abs(separation) > std::numeric_limits<real>::epsilon(),
+                "ACM acoustic and tangential eigenvalues are inseparable");
+            State right = State::Zero();
+            right(0) = lambda / beta2;
+            right(1) = alpha * meanLocalState(1) * right(0) / separation;
+            right(2) = alpha * meanLocalState(2) * right(0) / separation;
+            right(3) = 1;
+            return right;
+        }
+
+        /**
+         * @brief Build a complete local characteristic basis when the operator is diagonalizable.
+         * @param meanLocalState Local mean state `[q_n,q_t1,q_t2,p]`.
+         * @param settings General-alpha ACM settings.
+         * @param left Output left characteristic matrix.
+         * @param right Output right characteristic matrix.
+         * @param minimumRelativeSeparation Relative eigenvalue and singular-value tolerance.
+         * @return False at an acoustic/tangential collision or an ill-conditioned basis.
+         * @note Modifier: Runzhi Ma.
+         */
+        bool TryCharacteristicMatricesLocal(
+            const State &meanLocalState,
+            const Settings &settings,
+            Matrix4 &left,
+            Matrix4 &right,
+            real minimumRelativeSeparation)
+        {
+            const Eigenvalues eigenvalues = ComputeEigenvalues(
+                meanLocalState(0), settings.rho0, settings.beta2, settings.alpha);
+            const real scale = std::max(
+                {real(1), std::abs(meanLocalState(0)), eigenvalues.SpectralRadius()});
+            if (std::abs(meanLocalState(0) - eigenvalues.lambdaMinus) <=
+                    minimumRelativeSeparation * scale ||
+                std::abs(meanLocalState(0) - eigenvalues.lambdaPlus) <=
+                    minimumRelativeSeparation * scale)
+                return false;
+
+            right.setZero();
+            right.col(0) = AcousticRightEigenvectorLocal(
+                meanLocalState, eigenvalues.lambdaMinus, settings.beta2, settings.alpha);
+            right(1, 1) = 1;
+            right(2, 2) = 1;
+            right.col(3) = AcousticRightEigenvectorLocal(
+                meanLocalState, eigenvalues.lambdaPlus, settings.beta2, settings.alpha);
+
+            const Eigen::JacobiSVD<Matrix4> svd(right);
+            const auto singularValues = svd.singularValues();
+            if (!(singularValues(0) > 0) ||
+                singularValues(3) <= minimumRelativeSeparation * singularValues(0))
+                return false;
+            left = right.fullPivLu().inverse();
+            return left.allFinite() && right.allFinite();
+        }
+    }
+
+    /** @copydoc TryCharacteristicMatricesGlobal */
+    bool TryCharacteristicMatricesGlobal(
+        const State &meanState,
+        const Vector3 &unitNormal,
+        const Settings &settings,
+        Matrix4 &left,
+        Matrix4 &right,
+        real minimumRelativeSeparation)
+    {
+        settings.Validate();
+        DNDS_check_throw_info(
+            std::isfinite(minimumRelativeSeparation) && minimumRelativeSeparation > 0,
+            "ACM characteristic separation tolerance must be finite and positive");
+        const Matrix3 basis = BuildLocalBasis(unitNormal);
+        const State meanLocal = ToLocalState(meanState, basis);
+        Matrix4 leftLocal;
+        Matrix4 rightLocal;
+        if (!TryCharacteristicMatricesLocal(
+                meanLocal, settings, leftLocal, rightLocal, minimumRelativeSeparation))
+            return false;
+
+        Matrix4 localToGlobal = Matrix4::Identity();
+        localToGlobal.block<3, 3>(0, 0) = basis;
+        Matrix4 globalToLocal = Matrix4::Identity();
+        globalToLocal.block<3, 3>(0, 0) = basis.transpose();
+        right = localToGlobal * rightLocal;
+        left = leftLocal * globalToLocal;
+        return left.allFinite() && right.allFinite();
+    }
+
+    /** @copydoc RightEigenvectorsGlobal */
+    Matrix4 RightEigenvectorsGlobal(
+        const State &meanState,
+        const Vector3 &unitNormal,
+        const Settings &settings)
+    {
+        Matrix4 left;
+        Matrix4 right;
+        DNDS_check_throw_info(
+            TryCharacteristicMatricesGlobal(meanState, unitNormal, settings, left, right),
+            "ACM normal operator is defective at an acoustic/tangential eigenvalue collision");
+        return right;
+    }
+
+    /** @copydoc LeftEigenvectorsGlobal */
+    Matrix4 LeftEigenvectorsGlobal(
+        const State &meanState,
+        const Vector3 &unitNormal,
+        const Settings &settings)
+    {
+        Matrix4 left;
+        Matrix4 right;
+        DNDS_check_throw_info(
+            TryCharacteristicMatricesGlobal(meanState, unitNormal, settings, left, right),
+            "ACM normal operator is defective at an acoustic/tangential eigenvalue collision");
+        return left;
     }
 
     /** @copydoc EntropyFixedAbs */
@@ -236,20 +373,18 @@ namespace DNDS::ACM
                ApplyGammaLocal(meanState, rightLocal - leftLocal, settings.beta2, settings.alpha);
     }
 
-    /** @copydoc RoeDissipationLocalAlpha0 */
-    State RoeDissipationLocalAlpha0(
+    /** @copydoc RoeDissipationLocal */
+    State RoeDissipationLocal(
         const State &leftLocal,
         const State &rightLocal,
         const Settings &settings,
         Eigenvalues &eigenvalues)
     {
         settings.Validate();
-        DNDS_check_throw_info(std::abs(settings.alpha) <= 1e-14,
-                              "RoeDissipationLocalAlpha0 requires alpha = 0");
-
         const State meanState = 0.5 * (leftLocal + rightLocal);
         const State increment = rightLocal - leftLocal;
-        eigenvalues = ComputeEigenvalues(meanState(0), settings.rho0, settings.beta2, 0);
+        eigenvalues = ComputeEigenvalues(
+            meanState(0), settings.rho0, settings.beta2, settings.alpha);
 
         const real entropyDelta = settings.entropyFixRatio *
                                   std::max({eigenvalues.SpectralRadius(),
@@ -266,24 +401,51 @@ namespace DNDS::ACM
         const real amplitudePlus =
             (settings.beta2 * increment(0) - eigenvalues.lambdaMinus * increment(3)) / denominator;
 
-        State rightMinus;
-        rightMinus << eigenvalues.lambdaMinus / settings.beta2, 0, 0, 1;
-        State rightPlus;
-        rightPlus << eigenvalues.lambdaPlus / settings.beta2, 0, 0, 1;
-        State rightTangential1 = State::Zero();
-        rightTangential1(1) = 1;
-        State rightTangential2 = State::Zero();
-        rightTangential2(2) = 1;
+        Matrix4 leftEigenvectors;
+        Matrix4 rightEigenvectors;
+        State preconditionedDissipation;
+        if (TryCharacteristicMatricesLocal(
+                meanState, settings, leftEigenvectors, rightEigenvectors, 1e-10))
+        {
+            Matrix4 absoluteEigenvalues = Matrix4::Zero();
+            absoluteEigenvalues.diagonal() << lambdaMinusAbs,
+                lambdaTangentialAbs,
+                lambdaTangentialAbs,
+                lambdaPlusAbs;
+            preconditionedDissipation =
+                rightEigenvectors * absoluteEigenvalues * leftEigenvectors * increment;
+        }
+        else
+        {
+            // At alpha*q_n^2=beta^2/rho one acoustic eigenvalue collides with q_n and
+            // the operator can be defective. The absolute-value matrix remains finite because
+            // the collided modes share one eigenvalue; evaluate it as a spectral cluster using
+            // only the separated acoustic mode.
+            const real minusSeparation = std::abs(meanState(0) - eigenvalues.lambdaMinus);
+            const real plusSeparation = std::abs(meanState(0) - eigenvalues.lambdaPlus);
+            if (minusSeparation < plusSeparation)
+            {
+                const State rightPlus = AcousticRightEigenvectorLocal(
+                    meanState, eigenvalues.lambdaPlus, settings.beta2, settings.alpha);
+                preconditionedDissipation =
+                    lambdaTangentialAbs * increment +
+                    (lambdaPlusAbs - lambdaTangentialAbs) * amplitudePlus * rightPlus;
+            }
+            else
+            {
+                const State rightMinus = AcousticRightEigenvectorLocal(
+                    meanState, eigenvalues.lambdaMinus, settings.beta2, settings.alpha);
+                preconditionedDissipation =
+                    lambdaTangentialAbs * increment +
+                    (lambdaMinusAbs - lambdaTangentialAbs) * amplitudeMinus * rightMinus;
+            }
+        }
 
-        State dissipation =
-            lambdaMinusAbs * amplitudeMinus *
-                ApplyGammaLocal(meanState, rightMinus, settings.beta2, 0) +
-            lambdaPlusAbs * amplitudePlus *
-                ApplyGammaLocal(meanState, rightPlus, settings.beta2, 0) +
-            lambdaTangentialAbs * increment(1) *
-                ApplyGammaLocal(meanState, rightTangential1, settings.beta2, 0) +
-            lambdaTangentialAbs * increment(2) *
-                ApplyGammaLocal(meanState, rightTangential2, settings.beta2, 0);
+        const State dissipation = ApplyGammaLocal(
+            meanState,
+            preconditionedDissipation,
+            settings.beta2,
+            settings.alpha);
         DNDS_check_throw_info(dissipation.allFinite(), "ACM Roe dissipation is non-finite");
         return dissipation;
     }
@@ -309,7 +471,7 @@ namespace DNDS::ACM
         if (type == RiemannSolverType::Rusanov)
             dissipation = RusanovDissipationLocal(leftLocal, rightLocal, settings, eigenvalues);
         else if (type == RiemannSolverType::Roe)
-            dissipation = RoeDissipationLocalAlpha0(leftLocal, rightLocal, settings, eigenvalues);
+            dissipation = RoeDissipationLocal(leftLocal, rightLocal, settings, eigenvalues);
         else
             DNDS_check_throw_info(false, "unknown ACM Riemann solver");
 
@@ -345,35 +507,237 @@ namespace DNDS::ACM
     }
 
     /** @copydoc GenerateBoundaryState */
+    State BoundaryCondition::ValueState() const
+    {
+        return Eigen::Map<const State>(value.data());
+    }
+
+    /** @copydoc BoundaryHandler::BoundaryHandler */
+    BoundaryHandler::BoundaryHandler(
+        BoundaryType defaultType,
+        const State &defaultValue,
+        const std::vector<BoundaryCondition> &configuredConditions)
+    {
+        DNDS_check_throw_info(defaultType != BoundaryType::BCUnknown,
+                              "ACM default boundary type cannot be BCUnknown");
+        DNDS_check_throw_info(defaultValue.allFinite(), "ACM default boundary value is non-finite");
+
+        _defaultCondition.type = defaultType;
+        _defaultCondition.name = "__ACM_DEFAULT__";
+        Eigen::Map<State>(_defaultCondition.value.data()) = defaultValue;
+        _nameToID = Geom::GetFaceName2IDDefault();
+        _conditions.assign(Geom::BC_ID_DEFAULT_MAX, _defaultCondition);
+
+        // Preserve the same built-in zone semantics as Euler. A default wall is stationary,
+        // whereas far/special zones inherit the configured ACM default state.
+        BoundaryCondition stationaryWall = _defaultCondition;
+        stationaryWall.type = BoundaryType::BCWall;
+        stationaryWall.value = {0, 0, 0, 0};
+        _conditions[Geom::BC_ID_DEFAULT_WALL] = stationaryWall;
+        stationaryWall.type = BoundaryType::BCWallInvis;
+        _conditions[Geom::BC_ID_DEFAULT_WALL_INVIS] = stationaryWall;
+        _conditions[Geom::BC_ID_DEFAULT_FAR].type = BoundaryType::BCFar;
+        _conditions[Geom::BC_ID_DEFAULT_SPECIAL_DMR_FAR].type = BoundaryType::BCSpecial;
+        _conditions[Geom::BC_ID_DEFAULT_SPECIAL_RT_FAR].type = BoundaryType::BCSpecial;
+        _conditions[Geom::BC_ID_DEFAULT_SPECIAL_IV_FAR].type = BoundaryType::BCSpecial;
+        _conditions[Geom::BC_ID_DEFAULT_SPECIAL_2DRiemann_FAR].type = BoundaryType::BCSpecial;
+
+        for (const auto &condition : configuredConditions)
+        {
+            DNDS_check_throw_info(!condition.name.empty(), "ACM boundary condition has an empty zone name");
+            DNDS_check_throw_info(condition.type != BoundaryType::BCUnknown,
+                                  "ACM configured boundary type cannot be BCUnknown");
+            DNDS_check_throw_info(condition.ValueState().allFinite(),
+                                  "ACM configured boundary value is non-finite: " + condition.name);
+            DNDS_check_throw_info(
+                std::all_of(condition.valueExtra.begin(), condition.valueExtra.end(),
+                            [](real value)
+                            { return std::isfinite(value); }),
+                "ACM boundary valueExtra is non-finite: " + condition.name);
+
+            Geom::t_index id;
+            const auto found = _nameToID.find(condition.name);
+            if (found != _nameToID.end())
+                id = found->second;
+            else
+            {
+                id = static_cast<Geom::t_index>(_conditions.size());
+                _nameToID.emplace(condition.name, id);
+                _conditions.push_back(_defaultCondition);
+            }
+            DNDS_check_throw_info(Geom::FaceIDIsExternalBC(id),
+                                  "ACM boundary configuration cannot override an internal/periodic zone");
+            if (id >= static_cast<Geom::t_index>(_conditions.size()))
+                _conditions.resize(static_cast<std::size_t>(id + 1), _defaultCondition);
+            _conditions[static_cast<std::size_t>(id)] = condition;
+        }
+    }
+
+    /** @copydoc BoundaryHandler::GetIDFromName */
+    Geom::t_index BoundaryHandler::GetIDFromName(const std::string &name)
+    {
+        const auto found = _nameToID.find(name);
+        if (found != _nameToID.end())
+            return found->second;
+        const Geom::t_index id = static_cast<Geom::t_index>(_conditions.size());
+        _nameToID.emplace(name, id);
+        BoundaryCondition appended = _defaultCondition;
+        appended.name = name;
+        _conditions.push_back(std::move(appended));
+        return id;
+    }
+
+    /** @copydoc BoundaryHandler::GetConditionFromID */
+    const BoundaryCondition &BoundaryHandler::GetConditionFromID(Geom::t_index id) const
+    {
+        if (!Geom::FaceIDIsExternalBC(id) || id >= static_cast<Geom::t_index>(_conditions.size()))
+            return _defaultCondition;
+        return _conditions[static_cast<std::size_t>(id)];
+    }
+
+    /** @copydoc BoundaryHandler::GetTypeFromID */
+    BoundaryType BoundaryHandler::GetTypeFromID(Geom::t_index id) const
+    {
+        return GetConditionFromID(id).type;
+    }
+
+    /** @copydoc BoundaryHandler::GetValueFromID */
+    State BoundaryHandler::GetValueFromID(Geom::t_index id) const
+    {
+        return GetConditionFromID(id).ValueState();
+    }
+
+    /** @copydoc GenerateBoundaryState */
+    State GenerateBoundaryState(
+        const BoundaryCondition &condition,
+        const State &interiorState,
+        const Vector3 &unitNormal,
+        const Settings &settings,
+        const Vector3 &point,
+        real time)
+    {
+        (void)point;
+        (void)time;
+        settings.Validate();
+        const State boundaryValue = condition.ValueState();
+        DNDS_check_throw_info(interiorState.allFinite() && boundaryValue.allFinite(),
+                              "ACM boundary state contains a non-finite value");
+        const Vector3 normal = NormalizedNormal(unitNormal);
+        State ghost = interiorState;
+
+        if (condition.type == BoundaryType::BCFar)
+        {
+            // Project onto the general-alpha modes of Gamma^{-1} A_n and import only
+            // characteristics entering through the outward face. At a defective collision,
+            // import the complete collided cluster and retain the separated outgoing mode.
+            const Matrix3 basis = BuildLocalBasis(normal);
+            const State interiorLocal = ToLocalState(interiorState, basis);
+            const State farLocal = ToLocalState(boundaryValue, basis);
+            const State increment = farLocal - interiorLocal;
+            const Eigenvalues eigenvalues = ComputeEigenvalues(
+                interiorLocal(0), settings.rho0, settings.beta2, settings.alpha);
+            const real denominator = eigenvalues.lambdaPlus - eigenvalues.lambdaMinus;
+            DNDS_check_throw_info(denominator > std::numeric_limits<real>::epsilon(),
+                                  "ACM far-field eigenvalues are degenerate");
+            const real amplitudeMinus =
+                (eigenvalues.lambdaPlus * increment(3) - settings.beta2 * increment(0)) / denominator;
+            const real amplitudePlus =
+                (settings.beta2 * increment(0) - eigenvalues.lambdaMinus * increment(3)) / denominator;
+            State exteriorLocal = interiorLocal;
+            Matrix4 leftEigenvectors;
+            Matrix4 rightEigenvectors;
+            if (TryCharacteristicMatricesLocal(
+                    interiorLocal, settings, leftEigenvectors, rightEigenvectors, 1e-10))
+            {
+                const State amplitudes = leftEigenvectors * increment;
+                const std::array<real, 4> waveSpeeds{
+                    eigenvalues.lambdaMinus,
+                    eigenvalues.lambdaTangential,
+                    eigenvalues.lambdaTangential,
+                    eigenvalues.lambdaPlus};
+                for (int wave = 0; wave < 4; wave++)
+                    if (waveSpeeds[static_cast<std::size_t>(wave)] < 0)
+                        exteriorLocal += amplitudes(wave) * rightEigenvectors.col(wave);
+            }
+            else
+            {
+                const real minusSeparation =
+                    std::abs(interiorLocal(0) - eigenvalues.lambdaMinus);
+                const real plusSeparation =
+                    std::abs(interiorLocal(0) - eigenvalues.lambdaPlus);
+                if (minusSeparation < plusSeparation)
+                {
+                    // q_n=lambda_minus<0: the collided acoustic/tangential cluster enters.
+                    const State rightPlus = AcousticRightEigenvectorLocal(
+                        interiorLocal,
+                        eigenvalues.lambdaPlus,
+                        settings.beta2,
+                        settings.alpha);
+                    exteriorLocal += increment - amplitudePlus * rightPlus;
+                }
+                else
+                {
+                    // q_n=lambda_plus>0: only the separated minus-acoustic mode enters.
+                    const State rightMinus = AcousticRightEigenvectorLocal(
+                        interiorLocal,
+                        eigenvalues.lambdaMinus,
+                        settings.beta2,
+                        settings.alpha);
+                    exteriorLocal += amplitudeMinus * rightMinus;
+                }
+            }
+            ghost.head<3>() = basis * exteriorLocal.head<3>();
+            ghost(3) = exteriorLocal(3);
+        }
+        else if (condition.type == BoundaryType::BCWall ||
+                 condition.type == BoundaryType::BCWallIsothermal)
+        {
+            // Constant-density ACM has no temperature/energy state. BCWallIsothermal therefore
+            // enforces the same velocity and zero-normal-pressure-gradient data as BCWall.
+            ghost.head<3>() = 2 * boundaryValue.head<3>() - interiorState.head<3>();
+        }
+        else if (condition.type == BoundaryType::BCWallInvis)
+        {
+            const Vector3 relativeVelocity = interiorState.head<3>() - boundaryValue.head<3>();
+            ghost.head<3>() = interiorState.head<3>() - 2 * relativeVelocity.dot(normal) * normal;
+        }
+        else if (condition.type == BoundaryType::BCOut)
+            ghost = interiorState;
+        else if (condition.type == BoundaryType::BCOutP)
+            ghost(3) = 2 * boundaryValue(3) - interiorState(3);
+        else if (condition.type == BoundaryType::BCIn)
+            ghost = boundaryValue;
+        else if (condition.type == BoundaryType::BCInPsTs)
+        {
+            // Total temperature is unavailable in `[u,v,w,p]`; `value[0:3]` is interpreted as
+            // prescribed face velocity while pressure is extrapolated from the interior.
+            ghost.head<3>() = 2 * boundaryValue.head<3>() - interiorState.head<3>();
+        }
+        else if (condition.type == BoundaryType::BCSym)
+            ghost.head<3>() = interiorState.head<3>() -
+                              2 * interiorState.head<3>().dot(normal) * normal;
+        else if (condition.type == BoundaryType::BCSpecial)
+        {
+            DNDS_check_throw_info(condition.specialOption == 0,
+                                  "ACM BCSpecial currently supports specialOption = 0 only");
+            ghost = boundaryValue;
+        }
+        else
+            DNDS_check_throw_info(false, "unknown ACM boundary type");
+        return ghost;
+    }
+
+    /** @copydoc GenerateBoundaryState */
     State GenerateBoundaryState(
         BoundaryType type,
         const State &interiorState,
         const State &boundaryValue,
         const Vector3 &unitNormal)
     {
-        DNDS_check_throw_info(interiorState.allFinite() && boundaryValue.allFinite(),
-                              "ACM boundary state contains a non-finite value");
-        const Vector3 normal = NormalizedNormal(unitNormal);
-        State ghost = interiorState;
-        if (type == BoundaryType::FarField)
-            ghost = 2 * boundaryValue - interiorState;
-        else if (type == BoundaryType::VelocityInlet)
-            ghost.head<3>() = 2 * boundaryValue.head<3>() - interiorState.head<3>();
-        else if (type == BoundaryType::PressureOutlet)
-            ghost(3) = 2 * boundaryValue(3) - interiorState(3);
-        else if (type == BoundaryType::NoSlipWall)
-            ghost.head<3>() = 2 * boundaryValue.head<3>() - interiorState.head<3>();
-        else if (type == BoundaryType::SlipWall)
-        {
-            const Vector3 relativeVelocity = interiorState.head<3>() - boundaryValue.head<3>();
-            ghost.head<3>() = interiorState.head<3>() - 2 * relativeVelocity.dot(normal) * normal;
-        }
-        else if (type == BoundaryType::Symmetry)
-            ghost.head<3>() = interiorState.head<3>() -
-                              2 * interiorState.head<3>().dot(normal) * normal;
-        else
-            DNDS_check_throw_info(false, "unknown ACM boundary type");
-        return ghost;
+        BoundaryCondition condition;
+        condition.type = type;
+        Eigen::Map<State>(condition.value.data()) = boundaryValue;
+        return GenerateBoundaryState(condition, interiorState, unitNormal, Settings{});
     }
 
     /** @copydoc EvaluateFaceFluxes */
@@ -434,11 +798,40 @@ namespace DNDS::ACM
         timeMarchSettings.Validate();
         const State left = LeftState();
         const State right = RightState();
+        const State initial = InitialState();
+        const State boundary = BoundaryValue();
         const Vector3 normal = UnitNormal();
-        DNDS_check_throw_info(left.allFinite() && right.allFinite(),
-                              "ACM preview state contains a non-finite value");
+        DNDS_check_throw_info(left.allFinite() && right.allFinite() &&
+                                  initial.allFinite() && boundary.allFinite(),
+                              "ACM configured state contains a non-finite value");
         DNDS_check_throw_info(normal.allFinite() && normal.norm() > normalTolerance,
                               "ACM preview unitNormal is invalid");
+        const auto finiteArray = [](const auto &values)
+        {
+            return std::all_of(values.begin(), values.end(), [](real value)
+                               { return std::isfinite(value); });
+        };
+        DNDS_check_throw_info(
+            finiteArray(meshSettings.periodicTranslation1) &&
+                finiteArray(meshSettings.periodicTranslation2) &&
+                finiteArray(meshSettings.periodicTranslation3),
+            "ACM periodic translation contains a non-finite value");
+        DNDS_check_throw_info(
+            reconstructionSettings.variationalIterations > 0,
+            "ACM variationalIterations must be positive");
+        DNDS_check_throw_info(
+            !reconstructionSettings.enableLimiter ||
+                reconstructionSettings.limiterType == LimiterType::LocalExtrema ||
+                reconstructionSettings.type == ReconstructionType::Variational,
+            "ACM WBAP/CWBAP requires Variational reconstruction");
+        for (const auto &condition : boundaryConditions)
+        {
+            DNDS_check_throw_info(!condition.name.empty(), "ACM boundary zone name cannot be empty");
+            DNDS_check_throw_info(condition.type != BoundaryType::BCUnknown,
+                                  "ACM boundary zone cannot use BCUnknown");
+            DNDS_check_throw_info(condition.ValueState().allFinite(),
+                                  "ACM configured boundary state is non-finite");
+        }
         DNDS_check_throw_info(nFacesPerRank > 0, "ACM nFacesPerRank must be positive");
     }
 
@@ -460,27 +853,30 @@ namespace DNDS::ACM
         return Eigen::Map<const Vector3>(unitNormal.data());
     }
 
+    /** @copydoc KernelConfiguration::InitialState */
+    State KernelConfiguration::InitialState() const
+    {
+        return Eigen::Map<const State>(initialState.data());
+    }
+
+    /** @copydoc KernelConfiguration::BoundaryValue */
+    State KernelConfiguration::BoundaryValue() const
+    {
+        return Eigen::Map<const State>(boundaryValue.data());
+    }
+
     /** @copydoc LoadConfiguration */
     LoadedConfiguration LoadConfiguration(
-        const std::string &defaultJsonName,
-        const std::string &jsonMergeName,
+        const std::string &jsonName,
         const std::vector<std::string> &overwriteKeys,
         const std::vector<std::string> &overwriteValues)
     {
         DNDS_check_throw_info(overwriteKeys.size() == overwriteValues.size(),
                               "ACM overwrite keys and values have different lengths");
 
-        std::ifstream defaultInput(defaultJsonName);
-        DNDS_check_throw_info(defaultInput.good(), "ACM default configuration file does not exist: " + defaultJsonName);
-        nlohmann::ordered_json resolved = nlohmann::ordered_json::parse(defaultInput, nullptr, true, true);
-
-        if (!jsonMergeName.empty())
-        {
-            std::ifstream mergeInput(jsonMergeName);
-            DNDS_check_throw_info(mergeInput.good(), "ACM configuration patch does not exist: " + jsonMergeName);
-            const auto patch = nlohmann::ordered_json::parse(mergeInput, nullptr, true, true);
-            resolved.merge_patch(patch);
-        }
+        std::ifstream input(jsonName);
+        DNDS_check_throw_info(input.good(), "ACM case configuration file does not exist: " + jsonName);
+        nlohmann::ordered_json resolved = nlohmann::ordered_json::parse(input, nullptr, true, true);
 
         for (std::size_t i = 0; i < overwriteKeys.size(); i++)
         {

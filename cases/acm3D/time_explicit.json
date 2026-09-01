@@ -1,7 +1,0 @@
-{
-    "timeMarchSettings": {
-        "integrator": "ExplicitSSPRK3",
-        "nSteps": 20,
-        "pseudoTimeStep": 0.01
-    }
-}

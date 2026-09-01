@@ -274,7 +274,7 @@ U_B=SU_A,\quad F_B=F_A,\quad A_{n,B}=A_{n,A}S^{-1},
 | 面/体积分和变分重构 | `src/CFV/` | `BuildUDof`、`BuildURec`、重构与积分接口不变 |
 | ODE、GMRES、时间推进框架 | `src/Solver/` | 保持 evaluator 入口兼容 |
 | JSON 注册、默认值、schema | `src/DNDS/Config/` | 使用 `DNDS_DECLARE_CONFIG`/`DNDS_FIELD` |
-| JSON 默认配置 + merge patch + CLI JSON pointer 覆盖 | 现 `SingleBlockApp`/`ConfigureFromJson` 行为 | 在 ACM 驱动中保持同样顺序和参数 |
+| 单个完整 case JSON + CLI JSON pointer 覆盖 | ACM `SingleBlockApp`/`LoadConfiguration` | 一个算例只依赖一个自包含 JSON |
 | JSON/HDF5 serializer | `src/DNDS/Serializer/` | 状态仍写入数据集 `u`，另写 ACM 元数据 |
 
 ### 3.2 只复用控制流，不复用物理实现
@@ -285,7 +285,7 @@ U_B=SU_A,\quad F_B=F_A,\quad A_{n,B}=A_{n,A}S^{-1},
 - `EulerEvaluator_EvaluateDt.hxx`：复用“面谱半径、单元累加、MPI_MIN”的流程；
 - `EulerSolver_Init.hxx`：复用网格/VFV/数组构建顺序；
 - `EulerSolver_PrintData.hxx`：复用序列化和按原始 cell index 重分布流程；
-- `SingleBlockApp.hpp`：复用 CLI 和两阶段配置读取行为。
+- `SingleBlockApp.hpp`：复用 CLI、schema 和启动结构；ACM 使用单文件配置读取。
 
 不得复用：
 
@@ -300,9 +300,9 @@ U_B=SU_A,\quad F_B=F_A,\quad A_{n,B}=A_{n,A}S^{-1},
 
 | 现有位置 | 需要沿用的协议 | ACM 对应实现 |
 |---|---|---|
-| `src/Euler/SingleBlockApp.hpp`：`RunSingleBlockConsoleApp` | CLI、默认配置、patch、`-k/-v`、schema、启动顺序 | `src/ACM/SingleBlockApp.hpp` |
+| `src/Euler/SingleBlockApp.hpp`：`RunSingleBlockConsoleApp` | CLI、`-k/-v`、schema、启动顺序 | `src/ACM/SingleBlockApp.hpp`，改为完整单 JSON |
 | `src/Euler/EulerSolver.hpp`：`Configuration::DNDS_DECLARE_CONFIG` | 顶层 section 名称和 schema 注册方式 | `ACMConfiguration::DNDS_DECLARE_CONFIG` |
-| `src/Euler/EulerSolver.hpp`：`ConfigureFromJson` | 注释 JSON、merge patch、JSON pointer 覆盖、rank 0 写文件 | `ACMSolver::ConfigureFromJson` |
+| `src/Euler/EulerSolver.hpp`：`ConfigureFromJson` | JSON pointer 覆盖和配置注册 | `ACM::LoadConfiguration` 单文件读取 |
 | `src/Euler/EulerSolver_Init.hxx`：`ReadMeshAndInitialize` | mesh/VFV/DOF/ghost/restart 初始化顺序 | `ACMSolver::ReadMeshAndInitialize` |
 | `src/Euler/EulerEvaluator_EvaluateRHS.hxx`：`EvaluateRHS` | 重构 pull、面并行、`faceFluxBuf`、cell gather | `ACMEvaluator::EvaluateRHS` |
 | `src/Euler/EulerEvaluator_EvaluateDt.hxx`：`EvaluateDt` | 面谱半径、cell CFL、`MPI_Allreduce(MPI_MIN)` | `ACMEvaluator::EvaluateDt` |
@@ -352,9 +352,7 @@ app/ACM/
 cases/
   acm3D_schema.json
   acm3D/
-    config_base.json
-    cavity.json
-    uniform_periodic.json
+    acm3D.json
 
 test/cpp/ACM/
   test_ACMState.cpp
@@ -1058,13 +1056,11 @@ bcNameMapping
 
 ### 10.2 配置读取顺序必须保持一致
 
-`ACMSolver::ConfigureFromJson` 签名：
+`ACM::LoadConfiguration` 签名：
 
 ```cpp
-void ConfigureFromJson(
+LoadedConfiguration LoadConfiguration(
     const std::string &jsonName,
-    bool read = false,
-    const std::string &jsonMergeName = "",
     const std::vector<std::string> &overwriteKeys = {},
     const std::vector<std::string> &overwriteValues = {});
 ```
@@ -1072,81 +1068,29 @@ void ConfigureFromJson(
 读取伪代码：
 
 ```text
-if read == false:
-    json = object
-    config.ReadWriteJson(json, nVars=4, read=false)
-    json["bcSettings"] = boundaryHandler defaults, if present
-    rank 0 writes file
-    MPI_Barrier
-    return
-
-base = parse(jsonName, allowComments=true)
-if jsonMergeName not empty:
-    patch = parse(jsonMergeName, allowComments=true)
-    base.merge_patch(patch)
+resolved = parse(jsonName, allowComments=true)
 
 require overwriteKeys.size == overwriteValues.size
 for each (key, valueText):
     key is a JSON pointer
     parse valueText as JSON value; if parsing fails, treat it as string
-    base[key] = parsedValue
+    resolved[key] = parsedValue
 
-config.ReadWriteJson(base, 4, read=true)
-config.acmSettings.Validate()
-boundaryHandler = make_shared<ACMBoundaryHandler>(4)
-from_json(config.bcSettings, *boundaryHandler)
-ValidateBoundaryCompleteness()
-base["bcSettings"] = *boundaryHandler
-print resolved configuration on rank 0
+configuration = resolved.get<KernelConfiguration>()
+configuration.Validate()
 ```
 
-合并优先级保持：
+读取优先级为：
 
 ```text
-编译内默认值 < config_base.json < 用户 case patch < CLI -k/-v
+完整 case JSON < CLI -k/-v
 ```
 
-一个用户 case patch 不需要复制完整默认文件。例如 `cases/acm3D/uniform_periodic.json` 可采用：
-
-```json
-{
-  "$schema": "../acm3D_schema.json",
-  "timeMarchControl": {
-    "steadyQuit": true,
-    "useRestart": false
-  },
-  "convergenceControl": {
-    "nTimeStepInternal": 5000,
-    "rhsThresholdInternal": 1e-10
-  },
-  "implicitCFLControl": {
-    "CFL": 5.0,
-    "useLocalDt": true
-  },
-  "dataIOControl": {
-    "meshFile": "../data/mesh/periodic_box.cgns",
-    "outPltName": "../data/out/acm3D/uniform_periodic"
-  },
-  "acmSettings": {
-    "rho0": 1.0,
-    "beta2": 1.0,
-    "alpha": 0.0,
-    "dynamicViscosity": 0.0,
-    "riemannSolverType": "Roe",
-    "pressureStorage": "PhysicalP",
-    "farFieldValue": [1.0, 0.0, 0.0, 0.0]
-  },
-  "bcSettings": [
-    {
-      "type": "FarField",
-      "name": "far",
-      "value": [1.0, 0.0, 0.0, 0.0]
-    }
-  ]
-}
-```
-
-这里没有 `eulerSettings`。`vfvSettings`、`limiterControl`、`linearSolverControl`、输出格式和网格变换等未出现的公共部分全部从默认配置继承。
+每个用户 case 文件都必须包含完整配置，不再依赖同目录的基础文件。完整字段以
+`cases/acm2D/acm2D.json` 和 `cases/acm3D/acm3D.json` 为模板，其中应同时包含
+`acmSettings`、`timeMarchSettings`、`meshSettings`、`reconstructionSettings`、
+`vfvSettings`、边界条件和初场。这里没有 `eulerSettings`，也不存在未写字段从
+另一个 JSON 文件继承的行为。
 
 ### 10.3 `SingleBlockApp`
 
@@ -1162,15 +1106,14 @@ int RunSingleBlockConsoleApp(int argc, char *argv[]);
 - `--debug`；
 - `--emit-schema`。
 
-固定应用名 `acm3D`，默认路径：
+默认路径按维度分别为：
 
 ```text
-../cases/acm3D/config_base.json
+../cases/acm2D/acm2D.json
+../cases/acm3D/acm3D.json
 ```
 
-若用户传入 `cases/acm3D/cavity.json`，驱动会在该文件同目录查找可跟踪的
-`config_base.json`，再将用户文件作为 merge patch。该名称不会匹配 `cases/.gitignore`
-中的 `*default_config.json`，因此干净克隆也具备完整基线配置。
+若用户传入其他 JSON 路径，该文件将作为完整配置直接读取，不查找或合并任何相邻文件。
 
 启动调用链：
 
@@ -1179,8 +1122,7 @@ main
   -> MPI::Init_thread
   -> ACM::RunSingleBlockConsoleApp
   -> ACMSolver(mpi, 4)
-  -> ConfigureFromJson(default, false)
-  -> ConfigureFromJson(default, true, casePatch, CLI keys, CLI values)
+  -> LoadConfiguration(caseJson, CLI keys, CLI values)
   -> ReadMeshAndInitialize
   -> RunImplicitACM
   -> MPI_Finalize
@@ -1485,7 +1427,7 @@ A(3,0) == 1
 完成条件：
 
 - `--emit-schema` 成功；
-- 默认 + case patch + CLI override 的最终 JSON 正确；
+- 完整 case JSON + CLI override 的最终配置正确；
 - 可读取现有网格并完成初始化和稳态推进；
 - 错误的 `alpha`、方案 B、移动网格在配置阶段给出明确错误。
 

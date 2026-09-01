@@ -119,6 +119,45 @@ TEST_CASE("ACM Gamma and preconditioned eigensystem are consistent")
         CHECK(numeric[static_cast<std::size_t>(i)] == doctest::Approx(expected[static_cast<std::size_t>(i)]).epsilon(1e-11));
 }
 
+/// @test Verify general-alpha ACM characteristic transforms used by WBAP/CWBAP.
+TEST_CASE("ACM general-alpha characteristic transforms diagonalize the normal operator")
+{
+    Settings settings;
+    settings.rho0 = 1.7;
+    settings.beta2 = 3.2;
+    State mean;
+    mean << 0.8, -0.3, 0.5, 1.1;
+    const Vector3 normal = Vector3(1.0, -2.0, 0.7).normalized();
+    const Matrix3 basis = BuildLocalBasis(normal);
+    const State meanLocal = ToLocalState(mean, basis);
+    Matrix4 globalToLocal = Matrix4::Identity();
+    globalToLocal.block<3, 3>(0, 0) = basis.transpose();
+
+    for (const real alpha : {-1.0, -0.4, 0.0, 0.5, 1.0})
+    {
+        CAPTURE(alpha);
+        settings.alpha = alpha;
+        const Matrix4 right = RightEigenvectorsGlobal(mean, normal, settings);
+        const Matrix4 left = LeftEigenvectorsGlobal(mean, normal, settings);
+        CHECK((left * right - Matrix4::Identity()).norm() < 1e-10);
+
+        const Matrix4 operatorGlobal =
+            globalToLocal.inverse() *
+            PreconditionedJacobianLocal(meanLocal, settings.rho0, settings.beta2, alpha) *
+            globalToLocal;
+        const Matrix4 diagonalized = left * operatorGlobal * right;
+        Matrix4 offDiagonal = diagonalized;
+        offDiagonal.diagonal().setZero();
+        CHECK(offDiagonal.norm() < 1e-9);
+        const Eigenvalues eigenvalues = ComputeEigenvalues(
+            meanLocal(0), settings.rho0, settings.beta2, alpha);
+        CHECK(diagonalized(0, 0) == doctest::Approx(eigenvalues.lambdaMinus).epsilon(1e-10));
+        CHECK(diagonalized(1, 1) == doctest::Approx(eigenvalues.lambdaTangential).epsilon(1e-10));
+        CHECK(diagonalized(2, 2) == doctest::Approx(eigenvalues.lambdaTangential).epsilon(1e-10));
+        CHECK(diagonalized(3, 3) == doctest::Approx(eigenvalues.lambdaPlus).epsilon(1e-10));
+    }
+}
+
 /// @test Check equal-state consistency and normal-reversal symmetry for both Riemann solvers.
 TEST_CASE("ACM Riemann solvers are consistent and normal-symmetric")
 {
@@ -148,8 +187,8 @@ TEST_CASE("ACM Riemann solvers are consistent and normal-symmetric")
     }
 }
 
-/// @test Compare the specialized alpha-zero Roe dissipation against an explicit matrix reference.
-TEST_CASE("ACM Roe dissipation matches matrix reference")
+/// @test Compare general-alpha Roe dissipation against an explicit characteristic-matrix reference.
+TEST_CASE("ACM general-alpha Roe dissipation matches matrix reference")
 {
     Settings settings;
     settings.rho0 = 1.1;
@@ -160,23 +199,99 @@ TEST_CASE("ACM Roe dissipation matches matrix reference")
     State right;
     right << -0.2, 0.5, -0.1, 0.6;
 
+    for (const real alpha : {-1.0, -0.3, 0.0, 0.6, 1.0})
+    {
+        CAPTURE(alpha);
+        settings.alpha = alpha;
+        Eigenvalues eigenvalues;
+        const State actual = RoeDissipationLocal(left, right, settings, eigenvalues);
+        const State mean = 0.5 * (left + right);
+        const Matrix4 rightEigenvectors = RightEigenvectorsGlobal(
+            mean, Vector3::UnitX(), settings);
+        const Matrix4 leftEigenvectors = LeftEigenvectorsGlobal(
+            mean, Vector3::UnitX(), settings);
+        Matrix4 lambdaAbs = Matrix4::Zero();
+        lambdaAbs.diagonal() << std::abs(eigenvalues.lambdaMinus),
+            std::abs(eigenvalues.lambdaTangential),
+            std::abs(eigenvalues.lambdaTangential),
+            std::abs(eigenvalues.lambdaPlus);
+        const State expected = GammaLocal(mean, settings.beta2, alpha) *
+                               rightEigenvectors * lambdaAbs * leftEigenvectors *
+                               (right - left);
+        CheckVectorNear(actual, expected, 1e-9);
+    }
+}
+
+/// @test Verify finite Roe and far-field behavior at a defective alpha-positive eigenvalue collision.
+TEST_CASE("ACM general-alpha collision fallback remains finite")
+{
+    Settings settings;
+    settings.rho0 = 1.0;
+    settings.beta2 = 1.0;
+    settings.alpha = 1.0;
+    settings.entropyFixRatio = 0.05;
+    State left;
+    left << 1.2, 0.4, -0.3, 0.7;
+    State right;
+    right << 0.8, -0.2, 0.5, 1.1;
+
     Eigenvalues eigenvalues;
-    const State actual = RoeDissipationLocalAlpha0(left, right, settings, eigenvalues);
-    const State mean = 0.5 * (left + right);
-    Matrix4 rightEigenvectors = Matrix4::Zero();
-    rightEigenvectors.col(0) << eigenvalues.lambdaMinus / settings.beta2, 0, 0, 1;
-    rightEigenvectors(1, 1) = 1;
-    rightEigenvectors(2, 2) = 1;
-    rightEigenvectors.col(3) << eigenvalues.lambdaPlus / settings.beta2, 0, 0, 1;
-    Matrix4 lambdaAbs = Matrix4::Zero();
-    lambdaAbs.diagonal() << std::abs(eigenvalues.lambdaMinus),
-        std::abs(eigenvalues.lambdaTangential),
-        std::abs(eigenvalues.lambdaTangential),
-        std::abs(eigenvalues.lambdaPlus);
-    const State expected = GammaLocal(mean, settings.beta2, 0) *
-                           rightEigenvectors * lambdaAbs * rightEigenvectors.inverse() *
-                           (right - left);
-    CheckVectorNear(actual, expected, 1e-10);
+    const State dissipation = RoeDissipationLocal(left, right, settings, eigenvalues);
+    CHECK(dissipation.allFinite());
+    CHECK(eigenvalues.lambdaPlus == doctest::Approx(1.0));
+    CHECK(eigenvalues.lambdaTangential == doctest::Approx(1.0));
+
+    Matrix4 leftEigenvectors;
+    Matrix4 rightEigenvectors;
+    CHECK_FALSE(TryCharacteristicMatricesGlobal(
+        0.5 * (left + right),
+        Vector3::UnitX(),
+        settings,
+        leftEigenvectors,
+        rightEigenvectors));
+
+    BoundaryCondition condition;
+    condition.type = BoundaryType::BCFar;
+    condition.value = {0.1, -0.1, 0.2, 0.3};
+    const State ghost = GenerateBoundaryState(
+        condition, 0.5 * (left + right), Vector3::UnitX(), settings);
+    CHECK(ghost.allFinite());
+}
+
+/// @test Verify the far-field boundary imports exactly the incoming general-alpha modes.
+TEST_CASE("ACM general-alpha far field uses the common characteristic basis")
+{
+    Settings settings;
+    settings.rho0 = 1.3;
+    settings.beta2 = 2.4;
+    settings.alpha = 0.7;
+    State interior;
+    interior << 0.6, -0.3, 0.4, 0.8;
+    State farField;
+    farField << -0.2, 0.5, -0.1, 1.2;
+    const Vector3 normal = Vector3(0.4, -0.7, 0.2).normalized();
+
+    BoundaryCondition condition;
+    condition.type = BoundaryType::BCFar;
+    Eigen::Map<State>(condition.value.data()) = farField;
+    const State actual = GenerateBoundaryState(condition, interior, normal, settings);
+
+    const Matrix4 right = RightEigenvectorsGlobal(interior, normal, settings);
+    const Matrix4 left = LeftEigenvectorsGlobal(interior, normal, settings);
+    const State amplitudes = left * (farField - interior);
+    const real qn = interior.head<3>().dot(normal);
+    const Eigenvalues eigenvalues = ComputeEigenvalues(
+        qn, settings.rho0, settings.beta2, settings.alpha);
+    const std::array<real, 4> waveSpeeds{
+        eigenvalues.lambdaMinus,
+        eigenvalues.lambdaTangential,
+        eigenvalues.lambdaTangential,
+        eigenvalues.lambdaPlus};
+    State expected = interior;
+    for (int wave = 0; wave < 4; wave++)
+        if (waveSpeeds[static_cast<std::size_t>(wave)] < 0)
+            expected += amplitudes(wave) * right.col(wave);
+    CheckVectorNear(actual, expected, 1e-9);
 }
 
 /// @test Check that ghost states impose no-slip, slip, and pressure-outlet face values.
@@ -201,17 +316,98 @@ TEST_CASE("ACM boundary ghost states impose face values")
     CHECK(0.5 * (interior(3) + outlet(3)) == doctest::Approx(prescribed(3)));
 }
 
+/// @test Exercise every Euler-compatible ACM boundary family with four-variable semantics.
+TEST_CASE("ACM implements every Euler boundary family without Euler state assumptions")
+{
+    Settings settings;
+    settings.rho0 = 1.0;
+    settings.beta2 = 1.0;
+    settings.alpha = 0.0;
+    State interior;
+    interior << 0.25, -0.5, 0.75, 2.0;
+    State prescribed;
+    prescribed << -0.2, 0.1, -0.3, 1.25;
+    const Vector3 normal = Vector3::UnitX();
+
+    const auto evaluate = [&](BoundaryType type, int specialOption = 0)
+    {
+        BoundaryCondition condition;
+        condition.type = type;
+        Eigen::Map<State>(condition.value.data()) = prescribed;
+        condition.specialOption = specialOption;
+        return GenerateBoundaryState(condition, interior, normal, settings);
+    };
+
+    CHECK(evaluate(BoundaryType::BCFar).allFinite());
+    CheckVectorNear(
+        0.5 * (interior + evaluate(BoundaryType::BCWall)),
+        (State() << prescribed(0), prescribed(1), prescribed(2), interior(3)).finished());
+    CheckVectorNear(evaluate(BoundaryType::BCWallIsothermal), evaluate(BoundaryType::BCWall));
+    CHECK((0.5 * (interior.head<3>() + evaluate(BoundaryType::BCWallInvis).head<3>()) -
+           prescribed.head<3>())
+              .dot(normal) == doctest::Approx(0.0));
+    CheckVectorNear(evaluate(BoundaryType::BCOut), interior);
+    CHECK(0.5 * (interior(3) + evaluate(BoundaryType::BCOutP)(3)) ==
+          doctest::Approx(prescribed(3)));
+    CheckVectorNear(evaluate(BoundaryType::BCIn), prescribed);
+    CHECK((0.5 * (interior + evaluate(BoundaryType::BCInPsTs))).head<3>().isApprox(
+        prescribed.head<3>()));
+    CHECK(evaluate(BoundaryType::BCInPsTs)(3) == doctest::Approx(interior(3)));
+    CHECK((0.5 * (interior.head<3>() + evaluate(BoundaryType::BCSym).head<3>())).dot(normal) ==
+          doctest::Approx(0.0));
+    CheckVectorNear(evaluate(BoundaryType::BCSpecial), prescribed);
+}
+
+/// @test Verify reserved Euler zone IDs and custom CGNS names select independent ACM conditions.
+TEST_CASE("ACM boundary handler maps reserved and custom CGNS zones")
+{
+    State defaultValue;
+    defaultValue << 1.0, 0.0, 0.0, 0.5;
+    BoundaryCondition outlet;
+    outlet.type = BoundaryType::BCOutP;
+    outlet.name = "OUTLET";
+    outlet.value = {0.0, 0.0, 0.0, 1.2};
+
+    BoundaryHandler handler(BoundaryType::BCFar, defaultValue, {outlet});
+    CHECK(handler.GetTypeFromID(Geom::BC_ID_DEFAULT_WALL) == BoundaryType::BCWall);
+    CHECK(handler.GetTypeFromID(Geom::BC_ID_DEFAULT_WALL_INVIS) == BoundaryType::BCWallInvis);
+    CHECK(handler.GetTypeFromID(Geom::BC_ID_DEFAULT_FAR) == BoundaryType::BCFar);
+    const Geom::t_index outletID = handler.GetIDFromName("OUTLET");
+    CHECK(handler.GetTypeFromID(outletID) == BoundaryType::BCOutP);
+    CHECK(handler.GetValueFromID(outletID)(3) == doctest::Approx(1.2));
+    const Geom::t_index appendedID = handler.GetIDFromName("UNMAPPED_ZONE");
+    CHECK(handler.GetTypeFromID(appendedID) == BoundaryType::BCFar);
+}
+
 /// @test Verify round-trip serialization through the existing DNDS JSON configuration registry.
 TEST_CASE("ACM settings use DNDS JSON registration")
 {
     Settings settings;
     settings.rho0 = 2.0;
     settings.beta2 = 4.0;
+    settings.alpha = 0.6;
     settings.riemannSolverType = RiemannSolverType::Rusanov;
     nlohmann::ordered_json json = settings;
     const Settings restored = json.get<Settings>();
     CHECK(restored.rho0 == doctest::Approx(2.0));
     CHECK(restored.beta2 == doctest::Approx(4.0));
+    CHECK(restored.alpha == doctest::Approx(0.6));
     CHECK(restored.riemannSolverType == RiemannSolverType::Rusanov);
     CHECK(json["pressureStorage"] == "PhysicalP");
+
+    nlohmann::ordered_json boundaryJson = {
+        {"type", "BCOutP"},
+        {"name", "OUTLET"},
+        {"value", {0.0, 0.0, 0.0, 1.25}},
+        {"frameOption", 0},
+        {"anchorOption", 0},
+        {"integrationOption", 0},
+        {"specialOption", 0},
+        {"rectifyOption", 0},
+        {"valueExtra", nlohmann::ordered_json::array()},
+    };
+    const BoundaryCondition boundary = boundaryJson.get<BoundaryCondition>();
+    CHECK(boundary.type == BoundaryType::BCOutP);
+    CHECK(boundary.name == "OUTLET");
+    CHECK(boundary.ValueState()(3) == doctest::Approx(1.25));
 }

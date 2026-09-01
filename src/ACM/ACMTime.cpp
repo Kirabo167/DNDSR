@@ -141,6 +141,10 @@ namespace DNDS::ACM
         DNDS_check_throw_info(
             std::isfinite(pseudoTimeStep) && pseudoTimeStep > 0,
             "ACM pseudoTimeStep must be finite and positive");
+        DNDS_check_throw_info(std::isfinite(cfl) && cfl > 0, "ACM cfl must be finite and positive");
+        DNDS_check_throw_info(
+            std::isfinite(maximumPseudoTimeStep) && maximumPseudoTimeStep > 0,
+            "ACM maximumPseudoTimeStep must be finite and positive");
         DNDS_check_throw_info(maxImplicitIterations > 0, "ACM maxImplicitIterations must be positive");
         DNDS_check_throw_info(
             std::isfinite(implicitTolerance) && implicitTolerance >= 0,
@@ -148,6 +152,12 @@ namespace DNDS::ACM
         DNDS_check_throw_info(
             std::isfinite(implicitRelaxation) && implicitRelaxation > 0 && implicitRelaxation <= 1,
             "ACM implicitRelaxation must be in (0, 1]");
+        DNDS_check_throw_info(lusgsSweeps > 0, "ACM lusgsSweeps must be positive");
+        DNDS_check_throw_info(gmresSubspace >= 2, "ACM gmresSubspace must be at least two");
+        DNDS_check_throw_info(gmresRestarts >= 0, "ACM gmresRestarts must be non-negative");
+        DNDS_check_throw_info(
+            std::isfinite(gmresRelativeTolerance) && gmresRelativeTolerance >= 0,
+            "ACM gmresRelativeTolerance must be finite and non-negative");
     }
 
     /** @copydoc ApplyGammaInverseToResidual */

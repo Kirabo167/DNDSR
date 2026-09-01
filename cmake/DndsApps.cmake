@@ -63,8 +63,10 @@ jacobiLUTest
 oneDimProfileTest
 )
 
-# Constant-density ACM preview applications. Modifier: Runzhi Ma.
+# Constant-density ACM high-order solver applications. Modifier: Runzhi Ma.
 set(DNDS_APPS_ACM
+ACM
+acm2D
 acm3D
 )
 
@@ -133,8 +135,8 @@ endif()
 ADD_EXE_APP("${DNDS_APPS_Solver}" "app/Solver" "dnds;" ON cpp)
 ADD_EXE_APP("${DNDS_APPS_Geom}" "app/Geom" "geom;dnds;" ON cpp)
 ADD_EXE_APP("${DNDS_APPS_CFV}" "app/CFV" "cfv;geom;dnds;" ON cpp)
-# Build ACM independently from the existing Euler application family. Modifier: Runzhi Ma.
-ADD_EXE_APP("${DNDS_APPS_ACM}" "app/ACM" "acm;dnds;" ON cpp)
+# Build ACM independently from the existing Euler equation module while reusing CFV/Geom. Modifier: Runzhi Ma.
+ADD_EXE_APP("${DNDS_APPS_ACM}" "app/ACM" "acm;cfv;geom;dnds;" ON cpp)
 ADD_EXE_APP("${DNDS_APPS_Euler}" "app/Euler" "cfv;geom;dnds;" ON cpp)
 
 

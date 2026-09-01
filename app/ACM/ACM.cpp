@@ -1,6 +1,6 @@
 /**
- * @file acm3D.cpp
- * @brief Minimal three-dimensional ACM executable entry point.
+ * @file ACM.cpp
+ * @brief Compact default ACM driver; the default executable selects the 3-D model.
  * @author Runzhi Ma
  * @date 2026-08-31
  * @note Modifier: Runzhi Ma.
@@ -8,10 +8,10 @@
 #include "ACM/SingleBlockApp.hpp"
 
 /**
- * @brief Initialize MPI and dispatch the independent three-dimensional ACM solver.
+ * @brief Initialize MPI and launch the default three-dimensional ACM application.
  * @param argc Command-line argument count.
  * @param argv Command-line argument array.
- * @return Process exit code; MPI is aborted collectively on solver failure.
+ * @return Process exit code.
  */
 int main(int argc, char *argv[])
 {
