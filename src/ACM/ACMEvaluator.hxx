@@ -2,7 +2,7 @@
  * @file ACMEvaluator.hxx
  * @brief Template implementation of the ACM high-order mesh evaluator.
  * @author Runzhi Ma
- * @date 2026-08-31
+ * @date 2026-09-01
  * @note Modifier: Runzhi Ma.
  */
 #pragma once
@@ -46,6 +46,31 @@ namespace DNDS::ACM
         _uRecLimited.setConstant(0.0);
         _uGrad.setConstant(0.0);
         _limiter.setConstant(1.0);
+    }
+
+    template <int gDim>
+    /** @copydoc ACMEvaluator::SetTurbulenceCoupling */
+    void ACMEvaluator<gDim>::SetTurbulenceCoupling(
+        TurbulencePrepareFunction prepareFunction,
+        TurbulentViscosityFunction viscosityFunction)
+    {
+        DNDS_check_throw_info(
+            static_cast<bool>(prepareFunction) == static_cast<bool>(viscosityFunction),
+            "ACM turbulence prepare and viscosity callbacks must be attached together");
+        _prepareTurbulence = std::move(prepareFunction);
+        _turbulentViscosity = std::move(viscosityFunction);
+    }
+
+    template <int gDim>
+    /** @copydoc ACMEvaluator::GetTurbulentViscosity */
+    real ACMEvaluator<gDim>::GetTurbulentViscosity(index iFace, int iG) const
+    {
+        if (!_turbulentViscosity)
+            return 0;
+        const real value = _turbulentViscosity(iFace, iG);
+        DNDS_check_throw_info(std::isfinite(value) && value >= 0,
+                              "ACM turbulence callback returned invalid eddy viscosity");
+        return value;
     }
 
     template <int gDim>
@@ -418,6 +443,8 @@ namespace DNDS::ACM
     void ACMEvaluator<gDim>::EvaluateRHS(TDof &rhs, TDof &u, real time)
     {
         Reconstruct(u, time);
+        if (_prepareTurbulence)
+            _prepareTurbulence(u, time);
         rhs.setConstant(0.0);
 
         for (index iFace = 0; iFace < _mesh->NumFaceProc(); iFace++)
@@ -444,6 +471,22 @@ namespace DNDS::ACM
                         Eigen::RowVector<real, 4> rightRow = right.transpose();
                         _vfv->ApplyPeriodicTransform(1, _mesh->GetFaceZone(iFace), rightRow);
                         right = rightRow.transpose();
+
+                        // A periodic rotation acts on both the state-vector columns and the
+                        // spatial-derivative rows of the gradient tensor. Apply the same CFV
+                        // face-frame map in both directions before averaging gradients.
+                        // Modifier: Runzhi Ma.
+                        _vfv->ApplyPeriodicTransform(
+                            1,
+                            _mesh->GetFaceZone(iFace),
+                            gradientRight);
+                        Eigen::Matrix<real, 4, gDim> spatialTranspose =
+                            gradientRight.template topRows<gDim>().transpose();
+                        _vfv->ApplyPeriodicTransform(
+                            1,
+                            _mesh->GetFaceZone(iFace),
+                            spatialTranspose);
+                        gradientRight.template topRows<gDim>() = spatialTranspose.transpose();
                     }
                     else
                     {
@@ -464,16 +507,56 @@ namespace DNDS::ACM
                                           .flux;
                     if (_settings.enableViscousFlux)
                     {
-                        Eigen::Matrix<real, 3, 4> faceGradient = 0.5 * (gradientLeft + gradientRight);
-                        const real distance = std::max(
-                            2.0 * _vfv->GetCellVol(faceToCell[0]) / _vfv->GetFaceArea(iFace),
-                            verySmallReal);
-                        faceGradient += unitNormal * (right - left).transpose() / distance;
+                        const State leftCellState = u[faceToCell[0]];
+                        State rightCellState;
+                        const Vector3 leftCenter = ToVector3(
+                            _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
+                        Vector3 centerDisplacement;
+                        if (faceToCell[1] != UnInitIndex)
+                        {
+                            rightCellState = u[faceToCell[1]];
+                            Eigen::RowVector<real, 4> rightCellRow = rightCellState.transpose();
+                            _vfv->ApplyPeriodicTransform(
+                                1,
+                                _mesh->GetFaceZone(iFace),
+                                rightCellRow);
+                            rightCellState = rightCellRow.transpose();
+                            centerDisplacement = ToVector3(
+                                _vfv->GetOtherCellPointFromCell(
+                                    faceToCell[0],
+                                    faceToCell[1],
+                                    iFace,
+                                    _vfv->GetCellQuadraturePPhys(faceToCell[1], -1)) -
+                                _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
+                        }
+                        else
+                        {
+                            const Vector3 facePoint = ToVector3(
+                                _vfv->GetFaceQuadraturePPhys(iFace, iG));
+                            rightCellState = GenerateBoundaryForFace(
+                                _mesh->GetFaceZone(iFace),
+                                leftCellState,
+                                unitNormal,
+                                facePoint,
+                                time);
+                            centerDisplacement =
+                                2 * unitNormal * (facePoint - leftCenter).dot(unitNormal);
+                        }
+
+                        const Eigen::Matrix<real, 3, 4> faceGradient =
+                            CorrectedFaceGradient(
+                                gradientLeft,
+                                gradientRight,
+                                leftCellState,
+                                rightCellState,
+                                centerDisplacement,
+                                unitNormal);
                         totalFlux -= ViscousFlux(
                             faceGradient,
                             unitNormal,
                             _settings.rho0,
-                            _settings.dynamicViscosity);
+                            _settings.dynamicViscosity +
+                                GetTurbulentViscosity(iFace, iG));
                     }
                     contribution = -totalFlux * _vfv->GetFaceJacobiDet(iFace, iG);
                 });
@@ -574,6 +657,8 @@ namespace DNDS::ACM
                               "ACM maximum pseudo-time step must be finite and positive");
         u.trans.startPersistentPull();
         u.trans.waitPersistentPull();
+        if (_prepareTurbulence)
+            _prepareTurbulence(u, time);
 
         std::vector<real> faceSpectralRadius(static_cast<std::size_t>(_mesh->NumFaceProc()), 0.0);
 #if defined(DNDS_DIST_MT_USE_OMP)
@@ -608,7 +693,10 @@ namespace DNDS::ACM
             real viscousRadius = 0;
             if (_settings.enableViscousFlux && _settings.dynamicViscosity > 0)
             {
-                const real kinematicViscosity = _settings.dynamicViscosity / _settings.rho0;
+                const real kinematicViscosity =
+                    (_settings.dynamicViscosity +
+                     GetTurbulentViscosity(iFace, -1)) /
+                    _settings.rho0;
                 const real area = _vfv->GetFaceArea(iFace);
                 const real leftVolume = _vfv->GetCellVol(faceToCell[0]);
                 const real rightVolume = faceToCell[1] == UnInitIndex
@@ -666,6 +754,8 @@ namespace DNDS::ACM
             "ACM implicit time-step field does not match owned cells");
         u.trans.startPersistentPull();
         u.trans.waitPersistentPull();
+        if (_prepareTurbulence)
+            _prepareTurbulence(u, time);
 
         faceJacobians.assign(
             static_cast<std::size_t>(_mesh->NumFaceProc()),
@@ -688,9 +778,20 @@ namespace DNDS::ACM
             {
                 const Vector3 unitNormal = ToVector3(_vfv->GetFaceNorm(iFace, iG));
                 const Vector3 point = ToVector3(_vfv->GetFaceQuadraturePPhys(iFace, iG));
-                const real distance = std::max(
-                    2.0 * _vfv->GetCellVol(faceToCell[0]) / _vfv->GetFaceArea(iFace),
-                    verySmallReal);
+                const Vector3 leftCenter = ToVector3(
+                    _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
+                Vector3 centerDisplacement;
+                if (faceToCell[1] != UnInitIndex)
+                    centerDisplacement = ToVector3(
+                        _vfv->GetOtherCellPointFromCell(
+                            faceToCell[0],
+                            faceToCell[1],
+                            iFace,
+                            _vfv->GetCellQuadraturePPhys(faceToCell[1], -1)) -
+                        _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
+                else
+                    centerDisplacement =
+                        2 * unitNormal * (point - leftCenter).dot(unitNormal);
 
                 const auto transformRight = [&](const State &rightNative)
                 {
@@ -710,13 +811,22 @@ namespace DNDS::ACM
                                      .flux;
                     if (_settings.enableViscousFlux)
                     {
+                        const Eigen::Matrix<real, 3, 4> zeroGradient =
+                            Eigen::Matrix<real, 3, 4>::Zero();
                         const Eigen::Matrix<real, 3, 4> jumpGradient =
-                            unitNormal * (right - left).transpose() / distance;
+                            CorrectedFaceGradient(
+                                zeroGradient,
+                                zeroGradient,
+                                left,
+                                right,
+                                centerDisplacement,
+                                unitNormal);
                         flux -= ViscousFlux(
                             jumpGradient,
                             unitNormal,
                             _settings.rho0,
-                            _settings.dynamicViscosity);
+                            _settings.dynamicViscosity +
+                                GetTurbulentViscosity(iFace, iG));
                     }
                     return flux;
                 };

@@ -1,0 +1,914 @@
+% !TeX program = xelatex
+% File: docs/reports/acm_numerical_methods_audit.tex
+% Purpose: Mathematical and implementation audit of the DNDSR constant-density ACM solver.
+% Scope: 2-D/3-D reconstruction, limiters, Riemann solvers, explicit/implicit pseudo-time marching,
+%        Jacobians, boundary conditions, CFL evaluation, and parallel implementation.
+% Modifier: Runzhi Ma
+% Audit date: 2026-09-01
+\documentclass[UTF8,11pt,a4paper]{ctexart}
+
+\usepackage[a4paper,left=23mm,right=23mm,top=24mm,bottom=25mm]{geometry}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage{booktabs,longtable,tabularx,array,multirow}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{microtype}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=MidnightBlue,
+  urlcolor=MidnightBlue,
+  citecolor=MidnightBlue,
+  pdfauthor={Runzhi Ma},
+  pdftitle={DNDSR 常密度 ACM 数值方法全链路审查报告},
+  pdfsubject={二维与三维重构、限制器、黎曼求解器、时间推进和雅可比矩阵审查}
+}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\setlist{nosep,leftmargin=2.3em}
+\renewcommand{\arraystretch}{1.28}
+\setlength{\emergencystretch}{2em}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{DNDSR 常密度 ACM 数值方法审查}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\definecolor{OKGreen}{RGB}{25,112,62}
+\definecolor{WarnOrange}{RGB}{184,93,0}
+\definecolor{ErrorRed}{RGB}{177,35,35}
+\definecolor{InfoBlue}{RGB}{30,89,145}
+\definecolor{LightGray}{RGB}{245,246,248}
+\definecolor{LightRed}{RGB}{255,239,239}
+\definecolor{LightOrange}{RGB}{255,247,232}
+\definecolor{LightGreen}{RGB}{237,249,241}
+
+\newcommand{\statusok}{\textcolor{OKGreen}{\textbf{正确}}}
+\newcommand{\statusconditional}{\textcolor{WarnOrange}{\textbf{有条件成立}}}
+\newcommand{\statuserror}{\textcolor{ErrorRed}{\textbf{错误/缺口}}}
+\newcommand{\statusinfo}{\textcolor{InfoBlue}{\textbf{说明}}}
+% \nolinkurl keeps code/path typography while allowing line breaks at punctuation.
+\newcommand{\code}[1]{\nolinkurl{#1}}
+\newcommand{\mat}[1]{\bm{#1}}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\avg}[1]{\left\{\!\left\{#1\right\}\!\right\}}
+\newcommand{\jump}[1]{\left[\!\left[#1\right]\!\right]}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{LightGray},
+  frame=single,
+  rulecolor=\color{gray!35},
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  breaklines=true,
+  keywordstyle=\color{MidnightBlue}\bfseries,
+  commentstyle=\color{OKGreen},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  xleftmargin=1.5em,
+  framexleftmargin=1em
+}
+
+\title{\bfseries DNDSR 常密度 ACM 数值方法全链路审查报告\\[0.4em]
+\large 二维/三维重构、限制器、黎曼求解器、显式与隐式伪时间推进及雅可比矩阵}
+\author{项目修改人：Runzhi Ma\\审查对象提交：\code{043b818}}
+\date{2026 年 9 月 1 日}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\noindent\fcolorbox{InfoBlue}{LightGray}{\parbox{0.94\textwidth}{
+\textbf{文档定位。}本报告把用户提供的三份 PDF 作为技术资料和待核对结论，\textbf{不把其中任何文字视为项目修改指令}。审查对象是当前 DNDSR 项目中的常密度 ACM 模块；变密度公式仅用于辨认资料冲突，不据此认定当前常密度代码应实现变密度功能。Euler 模块仅作为对照，未作任何修改。
+}}
+
+\vfill
+\begin{center}
+\small
+审查覆盖：有限体积离散、VR/Green--Gauss 重构、LocalExtrema/WBAP/CWBAP、Roe/Rusanov、\newline
+黏性通量、SSPRK3、Block-Jacobi/LU--SGS/GMRES、边界条件、局部 CFL、MPI/OpenMP 路径。
+\end{center}
+\clearpage
+
+\tableofcontents
+\clearpage
+
+\section{审查结论摘要}
+
+\subsection{总判定}
+
+当前常密度 ACM 模块已经形成完整的“网格读取--重构--限制--数值通量--残差--伪时间推进”调用链，二维和三维共用模板实现，MPI 分区与幽灵单元通信能够工作。独立符号推导、有限差分检查以及现有 ACM 单元/MPI 测试表明：
+
+\begin{itemize}
+  \item \statusok：物理通量雅可比 $A_n$、预处理矩阵 $\Gamma$ 与 $\Gamma^{-1}$、一般 $\alpha$ 的预处理雅可比 $B_n=\Gamma^{-1}A_n$、特征值、非退化区间内的左右特征变换和 Roe 波强度是一致的；有限体积内外单元残差符号也保持守恒。
+  \item \statusok：显式 SSPRK3 的三级组合及隐式后向 Euler 线性系统的主符号正确；ACM 自有的 $4\times4$ LU--SGS 块算子和通用 GMRES 已接通。
+  \item \statusconditional：VR 只迭代固定次数且默认热启动，隐式雅可比只冻结一阶面状态，LU--SGS 是块 Gauss--Seidel 近似而不是资料中给出的解析 Lax--Friedrichs 分裂；这些做法可用于稳态缺陷校正，但不能被表述为“高阶残差的精确 Newton 法”。
+  \item \statuserror：当前黏性面梯度把已重构的平均法向梯度又完整加了一次，正交线性场上会将法向导数放大为两倍；同时距离使用 $2V_L/S_f$，对内部非均匀/非正交面不对称。这是当前最优先的数值错误。
+  \item \statuserror：三维打开 \code{normWBAP=true} 时仍调用二维多项式范数核；二阶三维系数块可触发断言，关闭断言时也会使用错误权重。
+  \item \statuserror：在 $\alpha q_n^2=\beta^2/\rho_0$ 的特征碰撞点，当前 Roe 回退有限但不是缺陷矩阵的严格 $|B_n|$ 极限；应使用矩阵函数正则化或在碰撞邻域平滑切换 Rusanov。
+  \item \statuserror：程序目前只有稳态伪时间推进，没有物理时间项、BDF1/BDF2、双时间步历史，也没有按外层稳态残差自动停止；因此第二份 PDF 中“BDF2 双时间推进已实现”的说法不适用于当前 C++ 项目。
+\end{itemize}
+
+\subsection{优先级清单}
+
+\begin{longtable}{p{0.07\textwidth}p{0.17\textwidth}p{0.42\textwidth}p{0.16\textwidth}}
+\toprule
+等级 & 位置 & 结论与影响 & 建议\\
+\midrule
+\endfirsthead
+\toprule
+等级 & 位置 & 结论与影响 & 建议\\
+\midrule
+\endhead
+P0 & ACM evaluator，467--472 行 & 黏性面梯度重复叠加法向导数，并用左单元 $2V/S$ 代替中心投影距离；线性精确性失效。 & 先修正面梯度，再做黏性圆柱收敛验证。\\
+P1 & CFV limiter procedure，313/471 行 & 三维 \code{normWBAP} 调用二维多项式范数，二阶三维系数块不受支持。 & 按模板维数调用三维范数核。\\
+P1 & \code{ACM.cpp}，420--441 行 & 特征碰撞回退不是 $|B|$ 的 Jordan/矩阵函数极限；碰撞邻域耗散不连续或不一致。 & 矩阵函数正则化，或 Roe--Rusanov 平滑混合。\\
+P1 & \code{ACMSolver.hxx}，286--323 行 & 固定执行 \code{nSteps}；显式 \code{converged} 只表示有限值，不表示稳态收敛。 & 增加外层残差及绝对/相对阈值。\\
+P1 & 三维算例 & \code{cases/acm3D/acm3D.json} 的 \code{meshFile} 为空且 \code{nSteps=0}，无法完成真实三维运行验证。 & 增加可分发的三维网格和基准解。\\
+P2 & ACM evaluator，338--350 行 & 光滑指示器使用绝对压力，压力规范平移会改变限制器激活；\code{pressureReference} 未参与计算。 & 使用 $p-p_{ref}$ 或局部压力差并测试。\\
+P2 & \code{ACMTime.cpp}，274--318 行 & 隐式系统冻结 $\Gamma$，漏掉 $\partial\Gamma/\partial U$ 项；是 Picard/近似 Newton。 & 若需强非线性收敛，加入解析项。\\
+P2 & ACM evaluator，423 行 & 主面通量循环每个 MPI rank 内没有 OpenMP 并行；混合并行扩展性受限。 & 用面着色或线程局部残差规避写冲突。\\
+P2 & 配置字段 & \code{farFieldValue}、\code{pressureReference} 目前只是读取/校验；实际远场取边界条目的 \code{value}。 & 删除重复来源或定义清晰的优先级。\\
+\bottomrule
+\end{longtable}
+
+\section{范围、资料与审查方法}
+
+\subsection{被审查代码范围}
+
+核心文件及责任如下：
+
+\begin{itemize}
+  \item \code{src/ACM/ACM.cpp}：局部坐标、物理通量、$A_n$、$\Gamma$、特征系统、Roe/Rusanov、黏性通量和边界状态；
+  \item \code{src/ACM/ACMEvaluator.hxx}：CFV 重构、限制器、面积分残差、局部 CFL、隐式面雅可比、矩阵向量积和 LU--SGS；
+  \item \code{src/ACM/ACMTime.cpp}：SSPRK3、Block-Jacobi 隐式后向 Euler；
+  \item \code{src/ACM/ACMSolver.hxx}：分布式 LU--SGS/GMRES 驱动和外层伪时间循环；
+  \item \code{src/CFV/Limiters.hpp} 与 \code{VariationalReconstruction_LimiterProcedure.hxx}：通用 WBAP/CWBAP 核；
+  \item \code{src/Solver/Linear.hpp}：通用左预条件 GMRES；
+  \item \code{src/ACM/acm2D.cpp}、\code{acm3D.cpp}：二维/三维显式模板实例。
+\end{itemize}
+
+审查基线为提交 \code{043b818}。工作区中已有的 \code{cases/acm2D/acm2D.json} 用户修改被保留，未在本次审查中覆盖。
+
+\subsection{三份 PDF 的使用方式与冲突}
+
+三份附件分别为 35 页《ACM 预处理方法完整推导报告》、15 页《3D ACM 完整推导报告》和 6 页《3D 变密度 ACM 代码改错报告》。它们是交叉核对材料，不是同一套无冲突规范。
+
+\begin{longtable}{p{0.21\textwidth}p{0.32\textwidth}p{0.37\textwidth}}
+\toprule
+资料 & 可采纳部分 & 需要纠正或限定的部分\\
+\midrule
+\endfirsthead
+\toprule
+资料 & 可采纳部分 & 需要纠正或限定的部分\\
+\midrule
+\endhead
+《ACM 预处理方法完整推导报告》 & 常密度物理通量、守恒变量通量雅可比、$\Gamma$ 的速度--压力耦合结构、物理压力与缩放压力变量转换的思路。 & 文中把 $(1-\alpha)q_n$、$\gamma q_n$ 混用；其 SymPy 片段直接覆盖矩阵元素后再求特征多项式，与前文 $\gamma=1+\alpha$ 的定义冲突。不能据此把代码改成 $\lambda^2-\gamma q_n\lambda-\beta^2/\rho=0$。\\
+《3D ACM 完整推导报告》 & 常密度 3D 的 $A_n$、$\Gamma^{-1}A_n$ 和特征值与独立推导一致；对局部法向/切向分解有参考价值。 & 报告写有 BDF2 双时间和经典 LF 型 LU--SGS，但当前 C++ 代码没有物理时间历史，也没有实现该特定解析分裂。变密度部分不应外推到当前常密度模块。\\
+《3D 变密度 ACM 代码改错报告》 & 对非正交黏性修正、边界、动态 $\beta^2$、并行几何一致性的风险提示有价值。 & 它审查的是另一套结构网格 Fortran 文件，不是当前非结构 C++ 模块；因此不能作为“当前代码已正确/错误”的直接证据。\\
+\bottomrule
+\end{longtable}
+
+\subsection{判定方法}
+
+本报告采用四层证据：
+
+\begin{enumerate}
+  \item 从常密度人工压缩方程独立推导 $F_n$、$A_n$、$\Gamma^{-1}A_n$、特征值/特征向量和 Roe 波强度；
+  \item 将公式逐项映射到代码行，并检查有限体积面通量的两侧符号、边界链路和隐式矩阵符号；
+  \item 用符号代数核对 $\Gamma^{-1}\Gamma=I$、特征多项式、Roe 性质和碰撞点秩；用中心有限差分核对物理通量雅可比；
+  \item 编译并运行 ACM 单元/MPI 测试、CFV 限制器测试以及二维显式、Block-Jacobi、LU--SGS、GMRES 冒烟算例。
+\end{enumerate}
+
+\section{常密度 ACM 的正确数学基线}
+
+\subsection{状态、局部基与物理通量}
+
+当前模块采用物理压力存储
+\begin{equation}
+  U=[u,v,w,p]^T,
+  \qquad \rho_0>0,\quad b\equiv\beta^2>0,\quad \gamma_T\equiv1+\alpha.
+\end{equation}
+在单位面法向 $n$ 上构造正交基 $Q=[n,t_1,t_2]$，局部状态为
+\begin{equation}
+  U_n=[q,t_1',t_2',p]^T,
+  \qquad q=\bm u\cdot n.
+\end{equation}
+为避免与基向量混淆，以下把两个切向速度记为 $s_1,s_2$。法向物理通量为
+\begin{equation}
+  F_n(U_n)=
+  \begin{bmatrix}
+  q^2+p/\rho_0\\ qs_1\\ qs_2\\ q
+  \end{bmatrix}.
+  \label{eq:physical-flux}
+\end{equation}
+代码 \code{ACM.cpp:131-143} 与式~\eqref{eq:physical-flux} 完全一致。
+
+\subsection{物理通量雅可比：正确形式与常见误区}
+
+对\emph{同一个守恒状态} $U_n=[q,s_1,s_2,p]^T$ 求偏导，得到
+\begin{equation}
+ A_n=\frac{\partial F_n}{\partial U_n}=
+ \begin{bmatrix}
+ 2q&0&0&1/\rho_0\\
+ s_1&q&0&0\\
+ s_2&0&q&0\\
+ 1&0&0&0
+ \end{bmatrix}.
+ \label{eq:raw-jacobian}
+\end{equation}
+代码 \code{ACM.cpp:145-159} 正确实现了该矩阵，中心有限差分最大误差约为 $1.2\times10^{-9}$。
+
+\noindent\fcolorbox{ErrorRed}{LightRed}{\parbox{0.94\textwidth}{
+\textbf{错误过程 A：}先把连续方程写成非守恒速度形式，再把所得系数矩阵当作 $\partial F/\partial U$。这会丢失动量通量 $q^2$ 对 $q$ 的第二个贡献，把 $A_{11}=2q$ 错写成 $q$。非守恒对流矩阵可以用于另一种方程表示，但不能冒充当前守恒通量的雅可比。
+}}
+
+\subsection{预处理矩阵、逆矩阵与预处理雅可比}
+
+当前实现使用
+\begin{equation}
+ \Gamma=
+ \begin{bmatrix}
+ 1&0&0&\gamma_T q/b\\
+ 0&1&0&\gamma_T s_1/b\\
+ 0&0&1&\gamma_T s_2/b\\
+ 0&0&0&1/b
+ \end{bmatrix},\qquad
+ \Gamma^{-1}=
+ \begin{bmatrix}
+ 1&0&0&-\gamma_T q\\
+ 0&1&0&-\gamma_T s_1\\
+ 0&0&1&-\gamma_T s_2\\
+ 0&0&0&b
+ \end{bmatrix}.
+ \label{eq:gamma}
+\end{equation}
+直接相乘可得 $\Gamma^{-1}\Gamma=I$。于是
+\begin{equation}
+ B_n\equiv\Gamma^{-1}A_n=
+ \begin{bmatrix}
+ (1-\alpha)q&0&0&1/\rho_0\\
+ -\alpha s_1&q&0&0\\
+ -\alpha s_2&0&q&0\\
+ b&0&0&0
+ \end{bmatrix}.
+ \label{eq:preconditioned-jacobian}
+\end{equation}
+这与 \code{ACM.cpp:161-204} 一致。
+
+\noindent\fcolorbox{ErrorRed}{LightRed}{\parbox{0.94\textwidth}{
+\textbf{错误过程 B：}把式~\eqref{eq:preconditioned-jacobian} 左上角写成 $\gamma_Tq=(1+\alpha)q$。由 $2q-\gamma_Tq=(1-\alpha)q$ 可知正确系数必为 $1-\alpha$。第一份 PDF 的部分正文和其 SymPy 片段在这里互相冲突；当前代码选择的是代数上自洽的一支。
+}}
+
+\subsection{特征值、右特征向量和波强度}
+
+特征多项式为
+\begin{equation}
+ \det(\lambda I-B_n)
+ =(\lambda-q)^2\left[\lambda^2-(1-\alpha)q\lambda-\frac{b}{\rho_0}\right].
+ \label{eq:charpoly}
+\end{equation}
+因此两重切向波和两支声学波为
+\begin{align}
+ \lambda_{t,1}=\lambda_{t,2}&=q,\\
+ \lambda_{\pm}&=\frac{(1-\alpha)q\pm
+ \sqrt{(1-\alpha)^2q^2+4b/\rho_0}}{2}.
+ \label{eq:eigenvalues}
+\end{align}
+代码 \code{ACM.cpp:206-218} 正确。令声学右特征向量的压力分量为 1，可取
+\begin{equation}
+ r_{\lambda}=
+ \begin{bmatrix}
+ \lambda/b\\
+ \alpha s_1\lambda/[b(q-\lambda)]\\
+ \alpha s_2\lambda/[b(q-\lambda)]\\
+ 1
+ \end{bmatrix},\qquad \lambda\in\{\lambda_-,\lambda_+\},
+ \label{eq:acoustic-r}
+\end{equation}
+非碰撞区间内与 \code{ACM.cpp:231-247} 一致。对跳跃 $\Delta U=U_R-U_L$，压力与法向速度给出的两支声学波强度为
+\begin{align}
+ a_-&=\frac{\lambda_+\Delta p-b\Delta q}{\lambda_+-\lambda_-},\\
+ a_+&=\frac{b\Delta q-\lambda_-\Delta p}{\lambda_+-\lambda_-}.
+ \label{eq:wave-strengths}
+\end{align}
+代码 \code{ACM.cpp:399-402} 正确；切向强度由数值构造的 $L=R^{-1}$ 统一获得，避免手写一般 $\alpha$ 左特征矩阵时的符号错误。
+
+\subsection{Roe 平均、Roe 通量与 Rusanov 通量}
+
+因为式~\eqref{eq:physical-flux} 只含二次/双线性项，算术平均
+\begin{equation}
+ \widetilde U=\tfrac12(U_L+U_R)
+\end{equation}
+满足精确 Roe 性质
+\begin{equation}
+ F_n(U_R)-F_n(U_L)=A_n(\widetilde U)(U_R-U_L).
+\end{equation}
+当前 Roe 数值通量可写为
+\begin{equation}
+ H_n^{Roe}=\frac{F_n(U_L)+F_n(U_R)}{2}
+ -\frac12\Gamma(\widetilde U)R|\Lambda|_{\delta}L\Delta U,
+ \label{eq:roe-flux}
+\end{equation}
+其中 $|\Lambda|_\delta$ 使用 Harten 型熵修正。Rusanov 版本为
+\begin{equation}
+ H_n^{Rus}=\frac{F_n(U_L)+F_n(U_R)}{2}
+ -\frac12 s_{max}\Gamma(\widetilde U)\Delta U,
+ \quad s_{max}=\rho(B_n).
+ \label{eq:rusanov}
+\end{equation}
+\code{ACM.cpp:362-450} 在非退化区间内与上述公式一致。
+
+\subsection{特征碰撞点：为什么当前回退只“有限”而非“严格正确”}
+
+当一支声学波与切向波相等时
+\begin{equation}
+ \lambda_{\pm}=q
+ \quad\Longleftrightarrow\quad
+ \alpha q^2=\frac{b}{\rho_0}.
+ \label{eq:collision}
+\end{equation}
+若至少一个平均切向速度非零，$B_n-qI$ 的零空间维数不足，矩阵可出现 Jordan 块；若 $s_1=s_2=0$，同一特征值仍可能有完整特征向量，不能只凭特征值接近就断言缺陷。
+
+当前 \code{ACM.cpp:420-441} 将碰撞簇全部乘以同一个 $|q|$，再保留分离声学投影。该表达式数值有限，但矩阵函数在 Jordan 块上还包含 $f'(q)$ 项。以 $\rho_0=b=\alpha=q=1$、$s_1=0.4$、$s_2=-0.3$ 为例，代码回退得到单位作用，而从非碰撞侧求 $|B_n|$ 的极限与单位矩阵的 Frobenius 范数差约为 $0.353553$。因此它是工程正则化，不是严格 Roe 绝对值矩阵。
+
+推荐两种实现：
+
+\begin{enumerate}
+  \item \textbf{稳健优先：}以特征基条件数或式~\eqref{eq:collision} 的归一化距离为权重，在窄邻域内将 Roe 耗散平滑混合到式~\eqref{eq:rusanov}；
+  \item \textbf{严格优先：}用实 Schur--Parlett 算法计算平滑绝对值 $f_\varepsilon(B)=\sqrt{B^2+\varepsilon^2I}$，再乘 $\Gamma$；该方法自然包含 Jordan 导数项，但实现和测试成本更高。
+\end{enumerate}
+
+\section{有限体积、重构与限制器的共同基线}
+
+\subsection{单元残差与守恒符号}
+
+对单元 $\Omega_i$，代码使用的半离散残差可写为
+\begin{equation}
+ R_i(U)=-\frac{1}{V_i}\sum_{f\subset\partial\Omega_i}
+ \int_f\left(H_f-H_f^v\right)\dd S.
+ \label{eq:fv-residual}
+\end{equation}
+内部面只积分一次，然后对左单元加 $-H_f/V_L$、对右单元加 $+H_f/V_R$。\code{ACMEvaluator.hxx:478-483} 的符号正确，乘以各自体积后全局内部面严格抵消。周期面在右状态进入通量前执行旋转变换。
+
+\subsection{变分重构（VR）的数学结构}
+
+每个单元内写成零均值多项式
+\begin{equation}
+ u_i(x)=\bar u_i+\sum_{\ell=1}^{N_p}c_i^{\ell}\phi_i^{\ell}(x),
+ \qquad \int_{\Omega_i}\phi_i^{\ell}\dd V=0.
+\end{equation}
+CFV 的面泛函同时惩罚值及指定阶导数的不连续：
+\begin{equation}
+ I_f=\sum_{|\bm k|\le r}w_{\bm k}^2
+ \int_f\left\|D^{\bm k}u_L-D^{\bm k}u_R\right\|_2^2\dd S.
+\end{equation}
+对 $c_i$ 求驻值得局部耦合系统
+\begin{equation}
+ A_i c_i=\sum_{j\in N(i)}\left(B_{ij}c_j+b_{ij}(\bar u_j-\bar u_i)\right).
+ \label{eq:vr-system}
+\end{equation}
+ACM 复用 CFV 的度量、基、权重和系数装配（\code{ACMEvaluator.hxx:52-74}），再以固定次数 Jacobi/SOR 型迭代求式~\eqref{eq:vr-system}（\code{:131-163}）。这种复用是合理的，因为 VR 核对变量数只作模板参数处理，ACM 只需提供四变量状态和边界函数。
+
+\statusconditional：\code{variationalIterations} 为有限值、\code{resetVariationalCoefficients=false} 时使用上一步系数热启动。对稳态迭代这是有效加速；但若宣称 SSPRK3 对非定常半离散算子严格三阶，则每个 RK stage 的重构必须充分收敛，或至少成为当前 stage 状态的确定函数。否则空间算子带有历史依赖。
+
+\subsection{Green--Gauss 与一阶重构}
+
+\begin{itemize}
+  \item \code{FirstOrder}：令所有重构系数和梯度为零，面值等于单元均值；实现正确。
+  \item \code{GreenGauss}：调用 CFV 二阶梯度核并以 $u_f=u_i+\nabla u_i\cdot(x_f-x_i)$ 生成面值；结构正确。
+  \item \statusconditional：ACM 在 \code{ACMEvaluator.hxx:144} 把 Green--Gauss 方法参数固定为 1，JSON 中 \code{subs2ndOrder} 等选项没有完整传入；其行为不是 Euler 配置选项的逐项等价复用。
+\end{itemize}
+
+\subsection{LocalExtrema 限制器}
+
+代码先从相邻单元均值与边界幽灵状态构造每个分量的 $u_i^{min},u_i^{max}$，再对所有面高斯点和所有变量计算
+\begin{equation}
+ \theta_{i,f,g,m}=
+ \begin{cases}
+ \min\left(1,\dfrac{u_{i,m}^{max}-\bar u_{i,m}}{\delta u_{i,f,g,m}}\right),&\delta u>0,\\[0.6em]
+ \min\left(1,\dfrac{u_{i,m}^{min}-\bar u_{i,m}}{\delta u_{i,f,g,m}}\right),&\delta u<0,\\
+ 1,&|\delta u|\le\epsilon,
+ \end{cases}
+\end{equation}
+最终用一个标量
+\begin{equation}
+ \theta_i=\min_{f,g,m}\theta_{i,f,g,m}\in[0,1]
+\end{equation}
+缩放全部变量的重构增量。\code{ACMEvaluator.hxx:238-328} 是标准 Barth--Jespersen 类局部极值限制，能保持单元均值并抑制新极值；但一个变量触发后四个变量全部降阶，耗散较大。
+
+\statusconditional：同一 $\theta_i$ 还乘到黏性梯度（\code{:233}）。这会在压力或某一速度分量受限时同步削弱全部黏性应力。更常见的做法是限制对流面状态，同时对黏性项使用一致重构梯度或专门的梯度限制器。
+
+\subsection{WBAP/CWBAP 与特征变换}
+
+ACM 复用 CFV 的多方向 WBAP 核。以元素级快速核为例，中心系数 $c_0$ 与邻接方向系数 $c_j$ 构成
+\begin{equation}
+ \vartheta_j=\frac{c_0}{|c_j|+\varepsilon^{1/4}}\operatorname{sgn}(c_j),\qquad p=4,
+\end{equation}
+并以
+\begin{equation}
+ c^{lim}=c_0\,\chi\,
+ \frac{n+\sum_{j>0}\vartheta_j^{p-1}}
+ {n+\sum_{j>0}\vartheta_j^{p}},
+ \label{eq:wbap}
+\end{equation}
+组合，其中 $\chi$ 抑制异号/零邻接项。CWBAP 在光滑区域减少限制或按层级处理系数。通用核在 \code{Limiters.hpp:360-385}，ACM 的特征前后变换在 \code{ACMEvaluator.hxx:352-408}。
+
+非碰撞区间内，ACM 对每个面平均状态构造 $L,R$，执行
+\begin{equation}
+ c^{char}=L c^{phys},\qquad
+ c^{phys}_{lim}=R\,\mathcal L(c^{char}),
+\end{equation}
+一般 $\alpha$ 特征矩阵使用式~\eqref{eq:acoustic-r}，逻辑正确。碰撞时回退到分量空间限制，虽更耗散但可避免病态逆矩阵。
+
+有两项明确问题：
+
+\begin{enumerate}
+  \item 光滑指示器使用 $\sqrt{\|\bm u\|^2/(b/\rho_0)+p^2/b^2}$（\code{ACMEvaluator.hxx:335-350}）。不可压压力只确定到常数，故 $p\mapsto p+C$ 不应改变限制器；当前实现会改变。应改为 $p-p_{ref}$、邻域压力差或无量纲梯度量。
+  \item 通用过程在 \code{normWBAP=true} 时无论模板维数都调用二维 \code{Polynomial2D} 核（CFV limiter procedure 第 313、471 行）。三维必须按 \code{PolynomialSquaredNorm<3>} 的 $3/6/10$ 行权重处理。
+\end{enumerate}
+
+\section{二维实现审查}
+
+\subsection{二维模型实际是四变量 2.5D}
+
+\code{ModelTraits<ConstantDensity2D>} 给出 \code{dim=2}、\code{nVarsFixed=4}（\code{ACM.hpp:112-122}）。因此二维网格仍求解
+\begin{equation}
+ U=[u,v,w,p]^T,
+\end{equation}
+其中面法向的 $z$ 分量为零，$w$ 是被平面速度输运的被动切向动量。若初值与全部边界均令 $w=0$，离散上它保持零，结果等价于三变量 $[u,v,p]$ 的平面流；若 $w\neq0$，则是 2.5D，而不是最小二维系统。该设计便于与三维共用 $4\times4$ 核，但应在算例文档中明示。
+
+\subsection{二维重构与限制器链路}
+
+调用顺序为
+\begin{align*}
+ \text{拉取单元幽灵值}&\rightarrow \text{FirstOrder/GG/VR}
+ \rightarrow \text{LocalExtrema 或 WBAP/CWBAP}\\
+ &\rightarrow \text{面高斯点左右状态}.
+\end{align*}
+\code{acm2D.cpp:16-17} 实例化 \code{ACMEvaluator<2>} 和二维求解器；四变量模板与 CFV 通用核兼容。二维 \code{normWBAP} 的 $2/3/4$ 行多项式范数有实现（\code{Limiters.hpp:31-55}），因此该选项在支持的阶数上比三维完整。
+
+边界重构权重对所有外边界统一使用“值权重 1、导数权重 0”（\code{ACMEvaluator.hxx:64-72}）。它能构造系统，但与 Euler 对出流/特殊边界可能置零的权重策略不完全相同；应通过制造解验证墙面和远场附近的重构阶数。
+
+\subsection{二维黎曼求解器}
+
+二维局部基仍包含法向和两个切向方向，其中第二切向方向是 $z$。因此式~\eqref{eq:raw-jacobian}--\eqref{eq:roe-flux} 原样适用。Roe 与 Rusanov 的旋转、通量和反旋转路径一致；当前一般 $\alpha$ 特征变换在非碰撞区间正确。二维同样存在式~\eqref{eq:collision} 的碰撞回退问题，且只要平面切向速度或 $w$ 非零，矩阵可能缺陷。
+
+\subsection{二维黏性项：已确认的线性一致性错误}
+
+\code{ViscousFlux} 采用 Stokes 假设的偏应力
+\begin{equation}
+ \tau=\mu\left(\nabla\bm u+\nabla\bm u^T-\frac23(\nabla\cdot\bm u)I\right),
+ \qquad H^v=[\tau n/\rho_0,0]^T.
+ \label{eq:stress}
+\end{equation}
+在最终不可压状态 $\nabla\cdot\bm u=0$ 且 $\mu$ 常数时，与标准黏性动量项相容；伪时间中散度尚未消失时，它包含额外的 $-\tfrac23\mu\nabla(\nabla\cdot u)$，与部分资料直接写 $\nu\nabla^2u$ 的模型不完全相同。这是模型选择，需在方程定义中固定。
+
+真正的离散错误在面梯度。当前代码计算
+\begin{equation}
+ G_f^{code}=\frac{G_L+G_R}{2}+n\frac{(U_R-U_L)^T}{2V_L/S_f}.
+ \label{eq:wrong-visc-grad}
+\end{equation}
+对正交网格上的线性场，$G_L=G_R=G$ 且 $(U_R-U_L)^T/d=n^TG$，故式~\eqref{eq:wrong-visc-grad} 给出
+\begin{equation}
+ G_f^{code}=G+n(n^TG),
+\end{equation}
+法向导数被加倍。正确的中心一致修正应先用真实单元中心位移 $d=x_R-x_L$，再写
+\begin{equation}
+ G_f=\bar G+n\frac{(U_R-U_L)^T-d^T\bar G}{d\cdot n},
+ \qquad \bar G=\frac{G_L+G_R}{2}.
+ \label{eq:correct-visc-grad}
+\end{equation}
+正交时它退化为
+\begin{equation}
+ G_f=\bar G+n\left(\frac{(U_R-U_L)^T}{d_n}-n^T\bar G\right),
+\end{equation}
+对任意线性场恢复 $G_f=G$。边界面可用镜像幽灵中心 $x_R=2x_f-x_L$ 或由边界离散明确给出 $d_n$。
+
+\subsection{二维显式伪时间推进}
+
+稳态 ACM 伪时间方程为
+\begin{equation}
+ \Gamma(U)\frac{\partial U}{\partial\tau}=R(U),\qquad
+ L(U)=\Gamma^{-1}(U)R(U).
+\end{equation}
+代码 \code{ACMTime.cpp:190-248} 实现标准 SSPRK(3,3)：
+\begin{align}
+ U^{(1)}&=U^n+\Delta\tau L(U^n),\\
+ U^{(2)}&=\tfrac34U^n+\tfrac14\left[U^{(1)}+\Delta\tau L(U^{(1)})\right],\\
+ U^{n+1}&=\tfrac13U^n+\tfrac23\left[U^{(2)}+\Delta\tau L(U^{(2)})\right].
+\end{align}
+每一级重新计算残差和 $\Gamma^{-1}$，符号和系数正确。使用单元局部 $\Delta\tau_i$ 时，它是稳态加速迭代，不应解释为统一物理时间上的三阶格式。
+
+\subsection{二维隐式推进：Block-Jacobi、LU--SGS 与 GMRES}
+
+后向 Euler 内迭代缺陷定义为
+\begin{equation}
+ D(U)=R(U)-\frac{\Gamma(U)}{\Delta\tau}(U-U^n).
+ \label{eq:implicit-defect}
+\end{equation}
+冻结 $\Gamma$ 后，修正方程为
+\begin{equation}
+ \left(\frac{\Gamma}{\Delta\tau}-J_R\right)\delta U=D.
+ \label{eq:implicit-system}
+\end{equation}
+\code{ACMTime.cpp:274-310} 和 \code{ACMSolver.hxx:144-160} 的缺陷及式~\eqref{eq:implicit-system} 符号正确。
+
+因为 $\Gamma$ 依赖速度，精确 Newton 还应包含
+\begin{equation}
+ K\,\delta U=\frac{1}{\Delta\tau}
+ \left[(\delta\Gamma)(U-U^n)\right],
+\end{equation}
+对当前 $\Gamma$，若 $d_p=p-p^n$，则
+\begin{equation}
+ K=\frac{(1+\alpha)d_p}{b\Delta\tau}
+ \operatorname{diag}(1,1,1,0).
+\end{equation}
+当前代码省略 $K$，因此是近似 Newton/Picard；第一内迭代 $U=U^n$ 时 $K=0$，随后内迭代才出现差异。
+
+三种线性求解路径的实际含义为：
+
+\begin{itemize}
+  \item \textbf{Block-Jacobi}：对一阶数值通量做有限差分，仅保留单元对角块；其对角雅可比未包含黏性项和高阶重构导数，是廉价预条件器/松弛器。
+  \item \textbf{LU--SGS}：装配每个面的左右 $4\times4$ 数值雅可比，再按本 rank 单元编号作前后块 Gauss--Seidel 扫描；跨 rank 邻居使用交换后的滞后值。它是 ACM 自有四变量算子，但不是第二份 PDF 所写的解析 LF 标量谱半径分裂。
+  \item \textbf{GMRES}：直接复用 \code{Solver/Linear.hpp:47-132} 的左预条件 GMRES，矩阵向量积来自同一面块，预条件器可选 Block-Jacobi 或 LU--SGS。通用实现只在 restart 边界检查收敛，返回布尔值的边界语义也不严谨，而 ACM 调用方忽略该返回值；建议后续增加每次 Arnoldi 的残差和变量尺度加权范数。
+\end{itemize}
+
+隐式面雅可比使用\emph{单元均值的一阶冻结通量}，而非对 VR/WBAP/CWBAP 全链路求导；非线性右端仍可使用高阶残差。这是常见 defect-correction，稳态解在充分收敛时仍由高阶残差决定，但线性收敛速度和鲁棒性依赖该近似。
+
+\subsection{二维边界、CFL 与并行}
+
+ACM 提供 Euler 命名集合的边界入口，但按 $[u,v,w,p]$ 重新定义：无滑移墙反射到给定壁速、滑移/对称壁反转法向速度、压力出口给定 $p$ 并外推速度、速度入口给定速度并外推压力、远场按 $B_n$ 的入射特征投影。\code{BCWallIsothermal} 因无能量/温度变量而与 \code{BCWall} 相同，\code{BCInPsTs} 也不是 Euler 总压总温入口；只能说“名称覆盖”，不能说“物理语义完全相同”。
+
+局部 CFL 使用
+\begin{equation}
+ \Delta\tau_i=\min\left(
+ \mathrm{CFL}\frac{V_i s_i}{\sum_{f\in i}(\rho_f^{conv}+\rho_f^{vis})S_f},
+ \Delta\tau_{max}\right),
+ \label{eq:cfl}
+\end{equation}
+其中对流谱半径取面两侧式~\eqref{eq:eigenvalues} 的最大值，黏性速度估计为
+\begin{equation}
+ \rho_f^{vis}=\frac43\nu S_f\left(\frac1{V_L}+\frac1{V_R}\right).
+\end{equation}
+\code{ACMEvaluator.hxx:564-652} 的量纲和 MPI 全局最小值逻辑正确；它是稳定性估计而不是严格上界，需通过网格序列标定 CFL。
+
+MPI 分区、幽灵拉取、重构系数交换、隐式增量交换均已接通。大量单元循环有 OpenMP 宏，但主残差面循环 \code{ACMEvaluator.hxx:423-484} 没有 OpenMP 并行；因此当前“并行可运行”主要指 MPI，单 rank 内面通量可能成为瓶颈。
+
+\section{三维实现审查}
+
+\subsection{三维状态与雅可比}
+
+三维模型 \code{ModelTraits<ConstantDensity3D>} 为 \code{dim=3}、\code{nVarsFixed=4}（\code{ACM.hpp:124-134}），与状态 $[u,v,w,p]$ 一一对应。任意面旋转到 $[q,s_1,s_2,p]$ 后，物理通量、$A_n$、$\Gamma$、$B_n$、特征多项式及 Roe 波强度全部使用第 3 节公式。\code{acm3D.cpp:16-17} 明确实例化四变量三维 evaluator/solver，不存在“漏掉三维四变量模板实例”的问题。
+
+雅可比结论与二维相同：\statusok 主矩阵正确；\statuserror PDF 中把 $(1-\alpha)q$ 替换为 $(1+\alpha)q$ 的支路错误；\statusconditional 碰撞点的特征基回退不严格。三维有两个真实切向速度，因此遇到缺陷碰撞的机会比严格平面 $w=0$ 情况更一般。
+
+\subsection{三维 VR、Green--Gauss 与 LocalExtrema}
+
+三维复用 \code{ACMEvaluator<3>} 与 CFV 三维基函数。VR 泛函和式~\eqref{eq:vr-system} 不依赖具体方程，四变量矩阵列可以直接复用；Green--Gauss 和 LocalExtrema 也按模板维数处理三个空间导数，基本链路正确。
+
+三维必须单独关注多项式系数块：一次导数有 3 行，二次导数有 6 行，更高阶有 10 行；\code{PolynomialSquaredNorm<3>} 已定义对应权重（\code{Limiters.hpp:58-93}），但 WBAP 调用点错误地绕过了这个模板。故：
+
+\begin{itemize}
+  \item \code{normWBAP=false}：走元素级 \code{FWBAP_L2_Multiway}，当前默认配置可运行；
+  \item \code{normWBAP=true}：走二维多项式核，三维一阶块权重已不匹配，三维二阶 6 行块可能触发断言；这是明确实现错误，不能仅靠配置规避后宣称功能完整。
+\end{itemize}
+
+\subsection{三维黎曼、边界与黏性项}
+
+Roe/Rusanov 和一般 $\alpha$ 特征边界均在三维局部正交基中计算，再旋转回全局，数学结构正确。远场非退化时只从外部状态导入负特征速度（相对外法向入射）的波；碰撞时按簇处理，是合理的工程策略，但同样缺少严格 Jordan 矩阵函数论证。
+
+三维黏性应力式~\eqref{eq:stress} 的张量实现是完整 $3\times3$，但面梯度式~\eqref{eq:wrong-visc-grad} 的错误维数无关，因此三维同样会法向导数加倍，并在扭曲网格上因 $2V_L/S_f$ 产生更明显误差。必须与二维一起修复，不能只修二维特例。
+
+\subsection{三维显式与隐式推进}
+
+SSPRK3、Block-Jacobi、四变量 LU--SGS 和通用 GMRES 全部由模板共用；其公式、正确项和近似项与二维相同。面雅可比中心有限差分包含：
+
+\begin{itemize}
+  \item Roe/Rusanov 一阶数值通量对左右单元均值的导数；
+  \item 周期右状态的旋转；
+  \item 外边界幽灵状态对内部状态的链式响应；
+  \item 黏性跳跃项的导数，但不包含高阶重构梯度对邻域单元的完整导数。
+\end{itemize}
+
+因此 LU--SGS 的 $4\times4$ 块重写是可行且已经完成，GMRES 通用容器直接复用也可行；二者都应被标注为“对冻结一阶近似雅可比求解”。
+
+\subsection{三维运行验证缺口}
+
+当前 \code{cases/acm3D/acm3D.json:32} 的 \code{meshFile} 为空，且 \code{nSteps=0}。仓库现有 \code{data/mesh} 中没有可确认的三维 ACM 基准网格。因此本次只能完成三维模板编译、通用公式/代码审查和单元级特征验证，不能给出三维网格上的重构阶数、并行守恒和稳态收敛证据。该限制必须保留在验收结论中。
+
+\section{时间推进与隐式雅可比的进一步分析}
+
+\subsection{“伪时间”与“物理时间”必须分开}
+
+当前所有 integrator 都推进人工压缩伪时间 $\tau$，目标是令 $R(U)\to0$。没有如下物理时间离散：
+\begin{equation}
+ \frac{3U^{n+1}-4U^n+U^{n-1}}{2\Delta t}
+\end{equation}
+或双时间系统中的物理质量矩阵。代码没有存储 $U^{n-1}$、没有物理时间步循环、也没有 BDF 阶数配置。因此：
+
+\noindent\fcolorbox{ErrorRed}{LightRed}{\parbox{0.94\textwidth}{
+\textbf{错误过程 C：}根据第二份 PDF 的 BDF2 章节，直接把当前 \code{ImplicitEuler*} 称为“BDF2 双时间隐式格式”。当前实现只是每个稳态伪时间步的后向 Euler 内迭代；若要计算非定常流动，需另建物理时间层和双时间收敛准则。
+}}
+
+\subsection{隐式矩阵符号逐项核对}
+
+由式~\eqref{eq:fv-residual}，内部面通量 $H(U_L,U_R)$ 对左/右单元的残差贡献分别为
+\begin{equation}
+ R_L=-H/V_L,\qquad R_R=+H/V_R.
+\end{equation}
+令 $H_L=\partial H/\partial U_L$、$H_R=\partial H/\partial U_R$，则
+\begin{align}
+ (J_R)_{LL}&=-H_L/V_L,&(J_R)_{LR}&=-H_R/V_L,\\
+ (J_R)_{RL}&=+H_L/V_R,&(J_R)_{RR}&=+H_R/V_R.
+\end{align}
+代入 $M=\Gamma/\Delta\tau-J_R$ 后
+\begin{align}
+ M_{LL}&=\Gamma_L/\Delta\tau_L+H_L/V_L,&
+ M_{LR}&=+H_R/V_L,\\
+ M_{RL}&=-H_L/V_R,&
+ M_{RR}&=\Gamma_R/\Delta\tau_R-H_R/V_R.
+\end{align}
+\code{ACMEvaluator.hxx:785-799} 的对角装配和 \code{:834-837} 的邻接耦合与这些符号一致。雅可比问题不在主符号，而在“冻结一阶/漏高阶导数/冻结 $\Gamma$”这些近似层次，以及黏性梯度本身的错误。
+
+\subsection{与 PDF 中经典 LU--SGS 的差别}
+
+资料中的经典写法通常把面雅可比分裂为
+\begin{equation}
+ A_f^{\pm}=\tfrac12(A_f\pm r_f I)
+\end{equation}
+或在预处理变量下用 $\Gamma A_f^{\pm}$，再得到近似标量/块对角 $D+L+U$。当前代码则对\emph{完整数值通量函数}做中心有限差分，直接储存左右 $4\times4$ 块，再依单元编号做前后扫。两者都可称为 LU--SGS 家族，但不能逐公式互证：
+
+\begin{itemize}
+  \item 当前方法更容易保持边界和具体 Riemann 通量的一致性；
+  \item 代价是装配昂贵、受有限差分步长影响，并且不具备资料中解析谱半径分裂的同一矩阵结构；
+  \item 跨 rank 耦合在一次 sweep 中是滞后的，这是并行块 SGS 的常见近似，会使结果依赖分区并降低预条件质量，但不改变最终非线性残差定义。
+\end{itemize}
+
+\section{边界条件数学语义核对}
+
+\begin{longtable}{p{0.22\textwidth}p{0.31\textwidth}p{0.36\textwidth}}
+\toprule
+名称 & ACM 当前语义 & 审查结论\\
+\midrule
+\endfirsthead
+\toprule
+名称 & ACM 当前语义 & 审查结论\\
+\midrule
+\endhead
+\code{BCFar} & 对 $\Gamma^{-1}A_n$ 作特征投影，导入相对外法向速度为负的远场波。 & 非碰撞区间正确；碰撞簇是工程回退。远场值来自边界条目，不是全局 \code{farFieldValue}。\\
+\code{BCWall} & 速度关于给定壁速镜像，压力零法向梯度。 & 对无滑移幽灵状态合理；黏性面梯度错误会影响实际壁面应力。\\
+\code{BCWallIsothermal} & 与 \code{BCWall} 完全相同。 & ACM 无温度变量，只能作为命名兼容；不可宣称施加了等温条件。\\
+\code{BCWallInvis}/\code{BCSym} & 反射法向速度，保留切向速度与压力。 & 标准滑移/对称状态构造。\\
+\code{BCOut} & 外推内部状态。 & 合理的弱出流，但回流时缺少额外控制。\\
+\code{BCOutP} & 速度外推，压力按给定值镜像。 & 适合规范压力出口；需检查法向约定和回流。\\
+\code{BCIn} & 按给定四变量状态构造入口。 & 是静态状态入口，不对应 Euler 的密度/能量入口。\\
+\code{BCInPsTs} & 给定速度、压力外推。 & 不是总压/总温边界；名称只为兼容。\\
+\code{BCSpecial} & 目前仅有限的 option 分支/给定状态。 & 未覆盖 Euler 特殊边界的全部物理分支。\\
+\bottomrule
+\end{longtable}
+
+\section{验证结果与证据边界}
+
+\subsection{符号与有限差分核对}
+
+独立检查得到：
+
+\begin{itemize}
+  \item $\Gamma^{-1}\Gamma=I$；
+  \item $B_n$ 的特征多项式为式~\eqref{eq:charpoly}；
+  \item 算术平均满足精确 Roe 性质；
+  \item 物理压力 $p$ 与缩放变量 $p/b$ 的算子转换满足相似变换，但当前配置只允许 \code{PhysicalP}；
+  \item 通量雅可比中心有限差分误差约 $1.2\times10^{-9}$；
+  \item 碰撞例中一般切向速度时零空间维数不足，而 $s_1=s_2=0$ 时可保持可对角化；
+  \item 当前碰撞耗散与矩阵函数极限的 Frobenius 差在所测例中为 $0.353553$。
+\end{itemize}
+
+\subsection{编译、单元测试与 MPI 测试}
+
+\begin{longtable}{p{0.31\textwidth}p{0.18\textwidth}p{0.40\textwidth}}
+\toprule
+验证 & 结果 & 解释\\
+\midrule
+\endfirsthead
+\toprule
+验证 & 结果 & 解释\\
+\midrule
+\endhead
+ACM 目标编译 & 通过 & 当前基线可编译。\\
+\code{ctest -R ^acm_} & 6/6 通过 & 核心、时间推进以及 MPI $n_p=1,2,4,8$ 测试通过。\\
+CFV 限制器单测 & 通过 & 通用 limiter 代数单测通过。\\
+CFV 二维/三维重构测试 & 未执行到算法断言 & 仓库缺少测试所需 \code{Uniform_3x3_wall.cgns} 与 \code{Uniform32_3D_Periodic.cgns}；失败属于夹具缺失，不能据此判算法错，也不能算重构已验证。\\
+二维显式 SSPRK3，2 MPI & 通过一步 & VR+CWBAP 冒烟，残差约 $442.2\to427.2$，仅证明运行链路。\\
+二维 Block-Jacobi，2 MPI & 通过一步 & 一阶、2 次内迭代，约 $442.4\to4.500$。\\
+二维 LU--SGS，2 MPI & 通过一步 & 一阶、2 次内迭代，约 $442.4\to17.86$。\\
+二维 GMRES+LU--SGS，2 MPI & 通过一步 & 一阶、2 次内迭代，约 $442.4\to17.77$；两个 GMRES restart 残差达到机器精度量级。\\
+真实三维网格运行 & 未完成 & 三维 case 没有网格路径，仓库无可确认的三维基准网格。\\
+\bottomrule
+\end{longtable}
+
+这些冒烟结果不能替代网格收敛、制造解、压力规范不变性、碰撞连续性和高阶空间精度测试。尤其黏性面梯度错误可能在短步残差下降时被隐式耗散掩盖。
+
+\section{正确实现过程与伪代码}
+
+\subsection{推荐的空间残差流程}
+
+\begin{lstlisting}[language=C++,caption={常密度 ACM 高阶有限体积残差（建议流程）}]
+pullGhostCellMeans(U)
+buildReconstruction(U, boundaryState)
+
+if limiter == LocalExtrema:
+    theta = computeBoundPreservingTheta(U, reconstruction)
+elif limiter in {WBAP, CWBAP}:
+    for each face-neighbour relation:
+        B = GammaInv(Uroe) * PhysicalJacobian(Uroe, normal)
+        if characteristicBasisIsWellConditioned(B):
+            coefficients = R * Limit(L * coefficients)
+        else:
+            coefficients = componentSpaceLimit(coefficients)
+
+R = 0
+for each owned face f:
+    integrate each quadrature point g:
+        UL, UR = reconstructedStates(f, g)
+        Hinv = RoeOrRusanov(UL, UR, normal)
+        if viscous:
+            GL, GR = reconstructedGradients(f, g)
+            d = rightCenterOrGhostCenter - leftCenter
+            Gbar = 0.5 * (GL + GR)
+            Gf = Gbar + normal * ((UR-UL)^T - d^T*Gbar) / dot(d,normal)
+            H = Hinv - ViscousFlux(Gf, normal)
+        else:
+            H = Hinv
+    R[left]  -= integral(H) / V[left]
+    R[right] += integral(H) / V[right]  // internal faces only
+exchangeOrAccumulateAsRequired(R)
+\end{lstlisting}
+
+\subsection{推荐的碰撞稳健 Roe 耗散}
+
+\begin{lstlisting}[language=C++,caption={Roe--Rusanov 平滑混合的工程方案}]
+B = GammaInv(Umean) * A(Umean)
+deltaCollision = abs(alpha*q*q - beta2/rho0)
+scale = beta2/rho0 + alpha*q*q + tiny
+eta = deltaCollision / scale
+
+if eta >= etaHigh and cond(R) <= condMax:
+    D = Gamma * R * absEntropyFixed(Lambda) * inverse(R) * dU
+else:
+    DRus = spectralRadius(B) * Gamma * dU
+    if characteristic basis is available:
+        DRoe = Gamma * R * absEntropyFixed(Lambda) * inverse(R) * dU
+        w = smoothstep(etaLow, etaHigh, eta)
+        D = w * DRoe + (1-w) * DRus
+    else:
+        D = DRus
+\end{lstlisting}
+
+该方案不声称给出缺陷点的精确 Roe 矩阵函数，但保证有限、连续且可测试。若研究目标要求精确碰撞极限，则应另行实现 Schur 矩阵函数并用 Jordan 例验证导数项。
+
+\subsection{推荐的显式与隐式外层控制}
+
+\begin{lstlisting}[language=C++,caption={稳态伪时间推进与真实收敛判据}]
+R0 = globalScaledNorm(GammaInv(U) * Residual(U))
+consecutive = 0
+for step in 1..nStepsMax:
+    dt = localCFL(U)
+    if integrator == SSPRK3:
+        U = SSPRK3(U, dt, L(U)=GammaInv(U)*Residual(U))
+    else:
+        U = solveBackwardEulerDefect(U, dt, approximateJacobian)
+
+    r = globalScaledNorm(GammaInv(U) * Residual(U))
+    convergedNow = (r <= absTol) || (r/R0 <= relTol)
+    consecutive = convergedNow ? consecutive + 1 : 0
+    if consecutive >= requiredConsecutiveSteps:
+        break
+    writeRestartAndFieldAtConfiguredInterval(U, r)
+\end{lstlisting}
+
+变量尺度范数建议对速度除以 $U_{ref}$、压力除以 $\rho_0U_{ref}^2$ 或 $b$，避免 GMRES/稳态判据被量纲较大的分量支配。物理非定常计算需在该伪时间循环外再增加 $t^n\to t^{n+1}$ 的 BDF/双时间层，不能复用一个 \code{nSteps} 名称混淆两种时间。
+
+\section{建议新增的验证矩阵}
+
+\begin{longtable}{p{0.22\textwidth}p{0.31\textwidth}p{0.36\textwidth}}
+\toprule
+测试 & 构造 & 必须满足\\
+\midrule
+\endfirsthead
+\toprule
+测试 & 构造 & 必须满足\\
+\midrule
+\endhead
+解析雅可比 & 随机 $U,n,\alpha,b,\rho_0$，中心有限差分 $F_n$。 & $A_n$ 相对误差随步长二阶下降；$\Gamma^{-1}A_nR=R\Lambda$。\\
+一般 $\alpha$ Roe & 随机左右状态，避开/接近式~\eqref{eq:collision}。 & Roe 性质、$LR=I$、耗散连续且有限。\\
+碰撞 Jordan & 固定 $\alpha q^2=b/\rho_0$，分别令切向速度为零/非零。 & 正确区分可对角化与缺陷情况；回退与既定正则化定义一致。\\
+线性黏性精确性 & 正交和扭曲网格，令每个状态分量为线性函数。 & 面梯度和黏性通量达到机器精度；可直接捕获当前两倍错误。\\
+制造解收敛 & 2D/3D 光滑周期解，分别 FirstOrder/GG/VR。 & $L_1,L_2,L_\infty$ 阶数符合配置；不同 MPI 分区结果一致。\\
+限制器常数保持 & 常数场、线性场、单调阶跃、极值。 & 常数严格保持；平滑线性区不误触发；无新极值。\\
+压力规范不变性 & 对全部压力加常数 $C$。 & 速度残差、数值通量耗散和限制器激活不变（压力边界相应平移）。\\
+3D normWBAP & 三维 3/6/10 行系数块。 & 不调用二维核；与 \code{PolynomialSquaredNorm<3>} 手算一致。\\
+隐式 Jv & 随机扰动 $v$ 比较装配 $Mv$ 与缺陷有限差分。 & 明确验证“一阶冻结算子”的误差；若加入 $K$，Newton 误差应下降。\\
+并行守恒 & 同一网格用 1/2/4/8/32 MPI rank。 & 体积加权全局内部面残差和接近舍入误差，稳态曲线不因分区显著改变。\\
+\bottomrule
+\end{longtable}
+
+\section{分阶段修正建议}
+
+\subsection{第一阶段：修复明确错误}
+
+\begin{enumerate}
+  \item 将 \code{ACMEvaluator.hxx:467-472} 改为式~\eqref{eq:correct-visc-grad}，使用真实左右中心/边界镜像中心，并添加线性场单元测试；隐式黏性跳跃距离同时改用同一几何定义。
+  \item 将 WBAP 多项式范数接口改成按 \code{dim} 分派，补齐三维 3/6/10 行测试；在修复前对三维 \code{normWBAP=true} 显式报错，避免静默错误。
+  \item 用碰撞指标和特征基条件数实现 Roe--Rusanov 平滑回退；保留 Rusanov 作为独立基准。
+  \item 增加外层稳态收敛阈值与输出/重启；把当前显式 \code{converged=finite} 改名或改为真实判据。
+\end{enumerate}
+
+\subsection{第二阶段：补足一致性与可配置性}
+
+\begin{enumerate}
+  \item 使光滑指示器压力规范不变。明确 \code{pressureReference} 与边界压力的关系，并合并全局远场值和边界条目远场值的重复来源。
+  \item 决定黏性模型究竟采用式~\eqref{eq:stress} 还是 $\nu\nabla^2u$，并让推导、代码和文档同一；在人工伪时间散度非零时说明差异。
+  \item 为 Green--Gauss 与边界重构权重接通需要的 CFV 配置，避免 JSON 字段读取但不生效。
+  \item 对 \code{limiterBiwayAlter} 做允许值校验；无效值在 release 构建中也必须抛出明确错误。
+\end{enumerate}
+
+\subsection{第三阶段：提高隐式与并行能力}
+
+\begin{enumerate}
+  \item 将 $K=(\partial\Gamma/\partial U)(U-U^n)/\Delta\tau$ 作为可选解析小块加入隐式对角；
+  \item 对 GMRES 增加每次 Arnoldi 残差监测、稳健 lucky breakdown、返回状态处理和量纲缩放；
+  \item 评估高阶重构的矩阵-free $Jv$，在保留一阶预条件器的同时让 Krylov 外算子看到高阶残差导数；
+  \item 以面着色或线程局部残差并行主面循环，并用 1/2/4/8/32 rank 加线程组合验证守恒和可重复性；
+  \item 引入真实三维基准网格，完成 3D VR、WBAP/CWBAP、黏性和四类时间推进的回归测试。
+\end{enumerate}
+
+\section{最终判定}
+
+在\textbf{常密度、物理压力存储、非特征碰撞、黏性关闭或修正后}的适用域内，当前 ACM 主方程雅可比、一般 $\alpha$ 特征系统、Roe/Rusanov 通量和显式/隐式主符号具备一致的数学基础。二维是四变量 2.5D，三维是完整四变量；两者共用模板的架构是可行的。
+
+但当前版本还不能被判定为“重构/限制器/黏性/显隐式全流程均已严格验证”：黏性面梯度存在确定错误，三维 \code{normWBAP} 存在确定维数错误，碰撞 Roe 回退缺少严格矩阵函数一致性，且没有真实三维算例、物理时间 BDF2、外层收敛停止和完整输出。建议先完成第 12.1 节四项，再进行二维圆柱网格收敛与三维制造解验收。
+
+\appendix
+\section{代码定位索引}
+
+\begin{longtable}{p{0.40\textwidth}p{0.50\textwidth}}
+\toprule
+代码位置 & 作用/审查结论\\
+\midrule
+\endfirsthead
+\toprule
+代码位置 & 作用/审查结论\\
+\midrule
+\endhead
+\code{src/ACM/ACM.cpp:131-218} & 物理通量、$A_n$、$\Gamma$、$\Gamma^{-1}$、特征值；正确。\\
+\code{src/ACM/ACM.cpp:231-350} & 一般 $\alpha$ 特征基；非碰撞区间正确，数值 SVD/间隔检查。\\
+\code{src/ACM/ACM.cpp:362-450} & Rusanov/Roe 耗散；非碰撞正确，碰撞回退非严格。\\
+\code{src/ACM/ACM.cpp:484-506} & 三维偏应力黏性通量；模型需与方程定义统一。\\
+\code{src/ACM/ACM.cpp:610-740} & ACM 边界状态；名称覆盖 Euler，物理语义按四变量重定义。\\
+\code{src/ACM/ACMEvaluator.hxx:52-170} & CFV 初始化与三类重构；VR 固定迭代/热启动。\\
+\code{src/ACM/ACMEvaluator.hxx:173-235} & 面状态/面梯度；LocalExtrema 标量会同时缩放黏性梯度。\\
+\code{src/ACM/ACMEvaluator.hxx:238-415} & LocalExtrema 与 WBAP/CWBAP 特征限制；压力规范问题。\\
+\code{src/ACM/ACMEvaluator.hxx:418-484} & 面积分残差；守恒符号正确，黏性面梯度错误，面循环未 OMP。\\
+\code{src/ACM/ACMEvaluator.hxx:488-561} & Block-Jacobi 对角雅可比；一阶、无黏性、高阶导数冻结。\\
+\code{src/ACM/ACMEvaluator.hxx:564-652} & 局部/全局 CFL；结构与量纲合理。\\
+\code{src/ACM/ACMEvaluator.hxx:655-930} & 分布式面块、Jv、Block-Jacobi、四变量 LU--SGS。\\
+\code{src/ACM/ACMTime.cpp:190-319} & SSPRK3 与 Block-Jacobi 后向 Euler；主符号正确，$\Gamma$ 冻结。\\
+\code{src/ACM/ACMSolver.hxx:131-258} & 分布式 LU--SGS/GMRES 内迭代。\\
+\code{src/ACM/ACMSolver.hxx:262-325} & 固定步数外循环；缺稳态停止、输出与重启。\\
+\code{src/CFV/Limiters.hpp:27-95} & 二维/三维多项式范数模板本体。\\
+\code{src/CFV/VariationalReconstruction_LimiterProcedure.hxx:313,471} & 三维仍调用二维多项式 WBAP 的错误位置。\\
+\code{src/Solver/Linear.hpp:47-132} & 通用左预条件 GMRES；restart 边界检查和返回语义需加强。\\
+\bottomrule
+\end{longtable}
+
+\section{参考资料}
+
+\begin{enumerate}
+  \item 用户附件：《ACM 预处理方法完整推导报告》，35 页，2026-06-30。
+  \item 用户附件：《3D ACM 完整推导报告（常密度与变密度）》，15 页，2026-07-01。
+  \item 用户附件：《3D 变密度 ACM 代码改错报告》，6 页，2026-07-03。
+  \item R. J. LeVeque, \emph{Finite Volume Methods for Hyperbolic Problems}, Cambridge University Press, 2002.
+  \item T. J. Barth and D. C. Jespersen, The design and application of upwind schemes on unstructured meshes, AIAA Paper 89-0366, 1989.
+  \item C.-W. Shu and S. Osher, Efficient implementation of essentially non-oscillatory shock-capturing schemes, 1988.
+  \item Y. Saad, \emph{Iterative Methods for Sparse Linear Systems}, 2nd ed., SIAM, 2003.
+  \item 项目内理论说明：\code{docs/theory/Variational_Reconstruction.md}。
+\end{enumerate}
+
+\vfill
+\begin{center}
+\small 审查文档修改人：Runzhi Ma \quad | \quad 生成日期：2026-09-01
+\end{center}
+
+\end{document}

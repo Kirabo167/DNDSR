@@ -28,6 +28,24 @@
         "gmresRelativeTolerance": 1e-6,
         "gmresPreconditioner": "LUSGS"
     },
+    "turbulenceSettings": {
+        "model": "Laminar",
+        "initialValue": [1e-6, 1.0],
+        "farFieldValue": [1e-6, 1.0],
+        "minimumValue": [1e-12, 1e-10],
+        "maximumValue": [1000000.0, 1000000000000.0],
+        "maximumEddyViscosityRatio": 100000.0,
+        "wallOmegaCoefficient": 800.0,
+        "enableSourceTerms": true,
+        "secondOrderReconstruction": true,
+        "transportSubsteps": 4,
+        "transportTimeScale": 0.25,
+        "wallDistanceMethod": 1,
+        "wallDistanceExecution": 0,
+        "wallDistanceSubdivide": 0,
+        "minimumWallDistance": 1e-10,
+        "wallDistanceVerbose": 0
+    },
     "meshSettings": {
         "meshFile": "",
         "meshElevation": 0,

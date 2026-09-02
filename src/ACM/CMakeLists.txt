@@ -7,6 +7,7 @@ set(LIBNAME acm)
 set(CPPS
     ACM.cpp
     ACMTime.cpp
+    ACMTurbulence.cpp
     acm2D.cpp
     acm3D.cpp
 )

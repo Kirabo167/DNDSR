@@ -6,7 +6,7 @@
  * performs the global/local transformations and exposes the resulting global face flux.
  *
  * @author Runzhi Ma
- * @date 2026-08-31
+ * @date 2026-09-01
  * @note Modifier: Runzhi Ma.
  */
 #pragma once
@@ -187,7 +187,8 @@ namespace DNDS::ACM
      * @param settings Validated physical and Turkel-preconditioning settings.
      * @param eigenvalues Output characteristic speeds evaluated at the arithmetic mean state.
      * @return Local characteristic dissipative vector `Gamma R |Lambda| L deltaU` including the
-     * configured entropy fix. A clustered spectral formula is used at defective eigenvalue collisions.
+     * configured entropy fix. A confluent-Hermite matrix function is used when the characteristic
+     * basis is defective or ill-conditioned, including exact acoustic/tangential collisions.
      * @note Modifier: Runzhi Ma.
      */
     State RoeDissipationLocal(
@@ -211,6 +212,26 @@ namespace DNDS::ACM
         const State &right,
         const Vector3 &unitNormal,
         const Settings &settings);
+
+    /**
+     * @brief Build a linearly exact over-relaxed face gradient from cell-center data.
+     * @param leftGradient Reconstructed left gradient, with rows denoting spatial derivatives.
+     * @param rightGradient Reconstructed right gradient in the same physical/periodic frame.
+     * @param leftCellState Left cell-center state `[u,v,w,p]`.
+     * @param rightCellState Right or boundary-ghost cell-center state in the left face frame.
+     * @param centerDisplacement Vector from the left center to the mapped right/ghost center.
+     * @param unitNormal Unit face normal directed from left to right; normalized internally.
+     * @return Corrected gradient `Gbar+n*(deltaU-d^T*Gbar)/(d.n)`, which exactly reproduces
+     * every linear state field and avoids the former `2*V_left/S_face` distance approximation.
+     * @note Modifier: Runzhi Ma.
+     */
+    Eigen::Matrix<real, 3, 4> CorrectedFaceGradient(
+        const Eigen::Matrix<real, 3, 4> &leftGradient,
+        const Eigen::Matrix<real, 3, 4> &rightGradient,
+        const State &leftCellState,
+        const State &rightCellState,
+        const Vector3 &centerDisplacement,
+        const Vector3 &unitNormal);
 
     /**
      * @brief Evaluate the constant-density Newtonian laminar viscous flux through a face.

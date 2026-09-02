@@ -133,11 +133,24 @@ namespace DNDS::CFV
         return result;
     }
     /**
-     * @brief input vector<Eigen::Array-like>
+     * @brief Apply the polynomial-norm multiway WBAP limiter in two or three dimensions.
+     * @tparam dim Polynomial-space dimension; must be 2 or 3.
+     * @tparam TinOthers Container of equally shaped polynomial-coefficient arrays.
+     * @tparam Tout Output polynomial-coefficient array type.
+     * @param uOthers Center and neighbour coefficient arrays.
+     * @param Nother Number of arrays in `uOthers` participating in the blend.
+     * @param uOut Output limited coefficient array.
+     * @param n1 Relative center-stencil weight.
+     * @note Modifier: Runzhi Ma.
      */
-    template <typename TinOthers, typename Tout>
-    static inline void FWBAP_L2_Multiway_Polynomial2D(const TinOthers &uOthers, int Nother, Tout &uOut, real n1 = 1)
+    template <int dim, typename TinOthers, typename Tout>
+    static inline void FWBAP_L2_Multiway_Polynomial(
+        const TinOthers &uOthers,
+        int Nother,
+        Tout &uOut,
+        real n1 = 1)
     {
+        static_assert(dim == 2 || dim == 3, "polynomial WBAP supports only 2-D or 3-D coefficients");
         using namespace DNDS;
         static const int p = 4;
         static const real verySmallReal_pDiP = std::pow(verySmallReal, 1.0 / p);
@@ -158,7 +171,7 @@ namespace DNDS::CFV
         {
             Eigen::ArrayXd thetaNorm;
             Eigen::ArrayXXd theta = uOthers[iOther] / uMax;
-            thetaNorm = PolynomialSquaredNorm<2>(theta);
+            thetaNorm = PolynomialSquaredNorm<dim>(theta);
             thetaNorm += verySmallReal_pDiP;
             thetaNorm = thetaNorm.pow(-p / 2);
 
@@ -205,12 +218,30 @@ namespace DNDS::CFV
 
         if (uOut.hasNaN())
         {
-            std::cout << "Limiter FWBAP_L2_Multiway Failed" << std::endl;
+            std::cout << "Limiter FWBAP_L2_Multiway_Polynomial Failed" << std::endl;
             std::cout << uMax.transpose() << std::endl;
             std::cout << uUp.transpose() << std::endl;
             std::cout << uDown.transpose() << std::endl;
             abort();
         }
+    }
+
+    /**
+     * @brief Backward-compatible two-dimensional wrapper for polynomial-norm WBAP.
+     * @param uOthers Center and neighbour coefficient arrays.
+     * @param Nother Number of arrays in `uOthers`.
+     * @param uOut Output limited coefficient array.
+     * @param n1 Relative center-stencil weight.
+     * @note Modifier: Runzhi Ma.
+     */
+    template <typename TinOthers, typename Tout>
+    static inline void FWBAP_L2_Multiway_Polynomial2D(
+        const TinOthers &uOthers,
+        int Nother,
+        Tout &uOut,
+        real n1 = 1)
+    {
+        FWBAP_L2_Multiway_Polynomial<2>(uOthers, Nother, uOut, n1);
     }
 
     /**

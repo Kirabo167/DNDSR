@@ -13,6 +13,7 @@
 
 #include "ACMBC.hpp"
 #include "ACMTime.hpp"
+#include "ACMTurbulence.hpp"
 #include "CFV/VRSettings.hpp"
 #include "Geom/Mesh/Mesh.hpp"
 
@@ -119,6 +120,7 @@ namespace DNDS::ACM
     {
         Settings acmSettings;
         TimeMarchSettings timeMarchSettings;
+        TurbulenceSettings turbulenceSettings; ///< Independent runtime RANS selection and transport controls.
         MeshSettings meshSettings;
         ReconstructionSettings reconstructionSettings;
         CFV::VRSettings vfvSettings{3};
@@ -135,6 +137,10 @@ namespace DNDS::ACM
         {
             config.field_section(&T::acmSettings, "acmSettings", "Constant-density ACM settings");
             config.field_section(&T::timeMarchSettings, "timeMarchSettings", "ACM pseudo-time integration settings");
+            config.field_section(
+                &T::turbulenceSettings,
+                "turbulenceSettings",
+                "Segregated constant-density ACM turbulence settings");
             config.field_section(&T::meshSettings, "meshSettings", "Distributed mesh input settings");
             config.field_section(&T::reconstructionSettings, "reconstructionSettings", "ACM high-order reconstruction settings");
             config.field_section(&T::vfvSettings, "vfvSettings", "Existing CFV variational-reconstruction settings");

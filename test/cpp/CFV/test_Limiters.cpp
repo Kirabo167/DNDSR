@@ -10,7 +10,7 @@
  *   - FMINMOD_Biway: classical minmod properties
  *   - FVanLeer_Biway: classical Van-Leer limiter properties
  *   - FWBAP_L2_Multiway: multi-stencil weighted averaging
- *   - FWBAP_L2_Multiway_Polynomial2D: polynomial-norm weighted multi-stencil
+ *   - FWBAP_L2_Multiway_Polynomial<2/3>: dimension-aware polynomial-norm multi-stencil
  *   - FWBAP_L2_Multiway_PolynomialOrth: orthogonal polynomial multi-stencil
  *   - FWBAP_L2_Biway_PolynomialNorm<2>: polynomial-norm biway
  *   - FMEMM_Biway_PolynomialNorm<2>: MEMM biway
@@ -380,6 +380,49 @@ TEST_CASE("FWBAP_L2_Multiway_Polynomial2D: no NaN for random inputs (nRows=2,3,4
         FWBAP_L2_Multiway_Polynomial2D(uOthers, 4, out, 1.0);
         CHECK_FALSE(out.hasNaN());
     }
+}
+
+/// @test Exercise the dimension-aware 3-D polynomial WBAP path for every supported block size.
+TEST_CASE("FWBAP_L2_Multiway_Polynomial supports 3D P1 P2 and P3 blocks")
+{
+    for (const int nRows : {3, 6, 10})
+    {
+        CAPTURE(nRows);
+        Eigen::ArrayXXd center(nRows, 4);
+        center.setRandom();
+        std::vector<Eigen::ArrayXXd> uOthers{center, center, center};
+        Eigen::ArrayXXd out;
+        out.resizeLike(center);
+
+        FWBAP_L2_Multiway_Polynomial<3>(
+            uOthers,
+            static_cast<int>(uOthers.size()),
+            out,
+            2.0);
+
+        CHECK(out.allFinite());
+        CHECK((out - center).matrix().norm() < 1e-8);
+    }
+}
+
+/// @test Confirm the three-dimensional path uses 3-D rather than legacy 2-D polynomial weights.
+TEST_CASE("FWBAP_L2_Multiway_Polynomial uses dimension-specific norms")
+{
+    std::vector<Eigen::ArrayXXd> uOthers(3);
+    for (auto &coefficients : uOthers)
+        coefficients.resize(3, 1);
+    uOthers[0] << 1.0, 4.0, 2.0;
+    uOthers[1] << 2.0, 1.0, 3.0;
+    uOthers[2] << 0.5, 2.0, 1.0;
+
+    Eigen::ArrayXXd out2D;
+    Eigen::ArrayXXd out3D;
+    FWBAP_L2_Multiway_Polynomial<2>(uOthers, 3, out2D, 1.0);
+    FWBAP_L2_Multiway_Polynomial<3>(uOthers, 3, out3D, 1.0);
+
+    CHECK(out2D.allFinite());
+    CHECK(out3D.allFinite());
+    CHECK((out2D - out3D).matrix().norm() > 1e-8);
 }
 
 // ===================================================================

@@ -13,6 +13,7 @@
 
 #include "ACMEvaluator.hpp"
 #include "ACMTime.hpp"
+#include "ACMTurbulenceTransport.hpp"
 
 #include "Geom/Mesh/Mesh_Helpers.hpp"
 #include "Solver/Linear.hpp"
@@ -33,6 +34,7 @@ namespace DNDS::ACM
         using TEvaluator = ACMEvaluator<gDim>;    ///< Spatial evaluator type.
         using TDof = typename TEvaluator::TDof;   ///< Distributed state array.
         using TVFV = typename TEvaluator::TVFV;   ///< CFV reconstruction type.
+        using TTurbulence = ACMTurbulenceTransport<gDim>; ///< Independent runtime RANS transport.
 
         /**
          * @brief Construct a solver around an MPI communicator and validated configuration.
@@ -63,6 +65,15 @@ namespace DNDS::ACM
          */
         TDof &GetState() { return _u; }
 
+        /**
+         * @brief Access the optional segregated turbulence state.
+         * @return Pointer to the two-entry turbulence field, or `nullptr` in Laminar mode.
+         */
+        typename TTurbulence::TTurbulenceDof *GetTurbulenceState()
+        {
+            return _turbulence ? &_turbulence->GetState() : nullptr;
+        }
+
     private:
         MPIInfo _mpi;                                ///< MPI communicator metadata.
         KernelConfiguration _configuration;          ///< Validated runtime configuration.
@@ -71,6 +82,7 @@ namespace DNDS::ACM
         ssp<BoundaryHandler> _boundaryHandler;       ///< Per-zone ACM boundary mapping.
         ssp<TVFV> _vfv;                              ///< Existing CFV reconstruction engine.
         ssp<TEvaluator> _evaluator;                  ///< ACM high-order spatial evaluator.
+        ssp<TTurbulence> _turbulence;                ///< Optional segregated RANS transport module.
         TDof _u;                                     ///< Distributed cell-mean ACM state.
         TDof _rhs;                                   ///< Distributed raw spatial residual.
         TDof _linearRhs;                             ///< Distributed implicit defect/right-hand side.

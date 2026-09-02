@@ -480,11 +480,13 @@ add_dependencies(all_unit_tests acm_unit_tests)
 
 acm_add_unit_test(core "ACM/test_ACMCore.cpp" "acm;cfv;geom;dnds")
 acm_add_unit_test(time "ACM/test_ACMTime.cpp" "acm;cfv;geom;dnds")
+acm_add_unit_test(turbulence "ACM/test_ACMTurbulence.cpp" "acm;cfv;geom;dnds")
 acm_add_mpi_test(parallel "ACM/test_ACMParallel.cpp" "acm;cfv;geom;dnds")
 
 add_dependencies(acm_unit_tests
     acm_test_core
     acm_test_time
+    acm_test_turbulence
     acm_test_parallel)
 
 # ===================================================================

@@ -91,10 +91,35 @@ namespace DNDS::ACM
             _configuration.reconstructionSettings,
             _boundaryHandler);
 
+        if (TurbulenceVariableCount(_configuration.turbulenceSettings.model) > 0)
+        {
+            DNDS_MAKE_SSP(
+                _turbulence,
+                _mesh,
+                _vfv,
+                _configuration.acmSettings,
+                _configuration.turbulenceSettings,
+                _boundaryHandler);
+            _turbulence->Initialize();
+            _evaluator->SetTurbulenceCoupling(
+                [turbulence = _turbulence](TDof &flow, real time)
+                {
+                    turbulence->Prepare(flow, time);
+                },
+                [turbulence = _turbulence](index iFace, int iG)
+                {
+                    return turbulence->FaceEddyViscosity(iFace, iG);
+                });
+        }
+
         if (_mpi.rank == 0)
             log() << "ACM mesh/reconstruction initialized: dim=" << gDim
                   << ", global cells=" << _mesh->NumCellGlobal()
                   << ", reconstruction order=" << _configuration.vfvSettings.maxOrder
+                  << ", turbulence model="
+                  << TurbulenceModelName(_configuration.turbulenceSettings.model)
+                  << ", turbulence equations="
+                  << TurbulenceVariableCount(_configuration.turbulenceSettings.model)
                   << std::endl;
     }
 
@@ -311,12 +336,21 @@ namespace DNDS::ACM
                                                     residualEvaluator,
                                                     diagonalJacobianEvaluator,
                                                     &_mpi);
+            real turbulenceResidual = 0;
+            if (_turbulence)
+            {
+                CopyStateFieldToOwned(states, _u);
+                turbulenceResidual = _turbulence->Advance(
+                    _u,
+                    pseudoTimeStep);
+            }
             if (_mpi.rank == 0)
                 log() << std::scientific
                       << "ACM step " << std::setw(8) << iStep
                       << " residual " << report.initialDefectNorm
                       << " -> " << report.finalDefectNorm
                       << " dtMin=" << minimumTimeStep
+                      << " turbResidual=" << turbulenceResidual
                       << " inner=" << report.iterations
                       << " converged=" << report.converged
                       << std::endl;

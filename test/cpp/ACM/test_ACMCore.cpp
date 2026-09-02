@@ -3,7 +3,7 @@
  * @brief Serial unit tests for constant-density ACM state, flux, boundary, and configuration kernels.
  *
  * @author Runzhi Ma
- * @date 2026-08-31
+ * @date 2026-09-01
  * @note Modifier: Runzhi Ma.
  */
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
@@ -92,31 +92,56 @@ TEST_CASE("ACM Gamma and preconditioned eigensystem are consistent")
     mean << 0.8, -0.3, 0.2, 1.0;
     constexpr real rho0 = 1.25;
     constexpr real beta2 = 3.4;
-    constexpr real alpha = 0.0;
-    const Matrix4 gamma = GammaLocal(mean, beta2, alpha);
-    const Matrix4 gammaInv = GammaInvLocal(mean, beta2, alpha);
-    CHECK((gammaInv * gamma - Matrix4::Identity()).norm() < 1e-13);
-
-    const Matrix4 preconditioned = PreconditionedJacobianLocal(mean, rho0, beta2, alpha);
-    CHECK((preconditioned - gammaInv * PhysicalFluxJacobianLocal(mean, rho0)).norm() < 1e-13);
-
-    Eigen::EigenSolver<Matrix4> solver(preconditioned, false);
-    std::vector<real> numeric;
-    for (int i = 0; i < 4; i++)
+    for (const real alpha : {-1.2, -0.4, 0.0, 0.5, 1.3})
     {
-        CHECK(std::abs(solver.eigenvalues()(i).imag()) < 1e-12);
-        numeric.push_back(solver.eigenvalues()(i).real());
+        CAPTURE(alpha);
+        const Matrix4 gamma = GammaLocal(mean, beta2, alpha);
+        const Matrix4 gammaInv = GammaInvLocal(mean, beta2, alpha);
+        CHECK((gammaInv * gamma - Matrix4::Identity()).norm() < 1e-13);
+
+        const Matrix4 preconditioned =
+            PreconditionedJacobianLocal(mean, rho0, beta2, alpha);
+        CHECK((preconditioned - gammaInv * PhysicalFluxJacobianLocal(mean, rho0)).norm() < 1e-13);
+        CHECK(preconditioned(0, 0) == doctest::Approx((1 - alpha) * mean(0)));
+        CHECK(preconditioned(1, 0) == doctest::Approx(-alpha * mean(1)));
+        CHECK(preconditioned(2, 0) == doctest::Approx(-alpha * mean(2)));
+        CHECK(preconditioned(3, 0) == doctest::Approx(beta2));
+
+        Eigen::EigenSolver<Matrix4> solver(preconditioned, false);
+        std::vector<real> numeric;
+        for (int i = 0; i < 4; i++)
+        {
+            CHECK(std::abs(solver.eigenvalues()(i).imag()) < 1e-12);
+            numeric.push_back(solver.eigenvalues()(i).real());
+        }
+        std::sort(numeric.begin(), numeric.end());
+        const auto expectedValues = ComputeEigenvalues(mean(0), rho0, beta2, alpha);
+        std::array<real, 4> expected{
+            expectedValues.lambdaMinus,
+            expectedValues.lambdaTangential,
+            expectedValues.lambdaTangential,
+            expectedValues.lambdaPlus};
+        std::sort(expected.begin(), expected.end());
+        for (int i = 0; i < 4; i++)
+            CHECK(numeric[static_cast<std::size_t>(i)] ==
+                  doctest::Approx(expected[static_cast<std::size_t>(i)]).epsilon(1e-11));
     }
-    std::sort(numeric.begin(), numeric.end());
-    const auto expectedValues = ComputeEigenvalues(mean(0), rho0, beta2, alpha);
-    std::array<real, 4> expected{
-        expectedValues.lambdaMinus,
-        expectedValues.lambdaTangential,
-        expectedValues.lambdaTangential,
-        expectedValues.lambdaPlus};
-    std::sort(expected.begin(), expected.end());
-    for (int i = 0; i < 4; i++)
-        CHECK(numeric[static_cast<std::size_t>(i)] == doctest::Approx(expected[static_cast<std::size_t>(i)]).epsilon(1e-11));
+}
+
+/// @test Ensure the algebraically correct characteristic root is evaluated without squaring overflow.
+TEST_CASE("ACM characteristic speeds remain finite for a representable large velocity")
+{
+    constexpr real normalVelocity = 1e200;
+    constexpr real rho0 = 1.0;
+    constexpr real beta2 = 4.0;
+    constexpr real alpha = 0.5;
+    const Eigenvalues eigenvalues =
+        ComputeEigenvalues(normalVelocity, rho0, beta2, alpha);
+    CHECK(std::isfinite(eigenvalues.lambdaMinus));
+    CHECK(std::isfinite(eigenvalues.lambdaTangential));
+    CHECK(std::isfinite(eigenvalues.lambdaPlus));
+    CHECK(eigenvalues.lambdaTangential == doctest::Approx(normalVelocity));
+    CHECK(eigenvalues.lambdaPlus == doctest::Approx(0.5 * normalVelocity));
 }
 
 /// @test Verify general-alpha ACM characteristic transforms used by WBAP/CWBAP.
@@ -222,18 +247,18 @@ TEST_CASE("ACM general-alpha Roe dissipation matches matrix reference")
     }
 }
 
-/// @test Verify finite Roe and far-field behavior at a defective alpha-positive eigenvalue collision.
-TEST_CASE("ACM general-alpha collision fallback remains finite")
+/// @test Verify the exact matrix-absolute/Jordan limit at a defective positive collision.
+TEST_CASE("ACM Roe collision fallback matches the confluent Jordan limit")
 {
     Settings settings;
     settings.rho0 = 1.0;
     settings.beta2 = 1.0;
     settings.alpha = 1.0;
-    settings.entropyFixRatio = 0.05;
+    settings.entropyFixRatio = 0.0;
     State left;
-    left << 1.2, 0.4, -0.3, 0.7;
+    left << 1.2, 0.4, -0.3, 0.8;
     State right;
-    right << 0.8, -0.2, 0.5, 1.1;
+    right << 0.8, -0.2, 0.5, 1.0;
 
     Eigenvalues eigenvalues;
     const State dissipation = RoeDissipationLocal(left, right, settings, eigenvalues);
@@ -250,12 +275,109 @@ TEST_CASE("ACM general-alpha collision fallback remains finite")
         leftEigenvectors,
         rightEigenvectors));
 
+    const State mean = 0.5 * (left + right);
+    const State increment = right - left;
+    const Matrix4 preconditioned = PreconditionedJacobianLocal(
+        mean, settings.rho0, settings.beta2, settings.alpha);
+    const Matrix4 shifted = preconditioned - Matrix4::Identity();
+    // For eigenvalues {-1,1,1,1} with a size-two Jordan block at +1,
+    // |B| = I + (B-I) + 1/2 (B-I)^2. Modifier: Runzhi Ma.
+    const Matrix4 exactAbsolute =
+        Matrix4::Identity() + shifted + 0.5 * shifted * shifted;
+    const State expected = GammaLocal(mean, settings.beta2, settings.alpha) *
+                           exactAbsolute * increment;
+    CHECK((dissipation - expected).norm() < 1e-12);
+
+    // The former equal-speed cluster fallback reduced this case to Gamma*deltaU and omitted
+    // the derivative action on the generalized eigenvector.
+    const State formerCluster =
+        GammaLocal(mean, settings.beta2, settings.alpha) * increment;
+    CHECK((dissipation - formerCluster).norm() > 1e-3);
+
     BoundaryCondition condition;
     condition.type = BoundaryType::BCFar;
     condition.value = {0.1, -0.1, 0.2, 0.3};
     const State ghost = GenerateBoundaryState(
         condition, 0.5 * (left + right), Vector3::UnitX(), settings);
     CHECK(ghost.allFinite());
+}
+
+/// @test Check that non-colliding Roe decompositions converge to the Jordan-limit value.
+TEST_CASE("ACM Roe dissipation is continuous through a characteristic collision")
+{
+    Settings settings;
+    settings.rho0 = 1.0;
+    settings.beta2 = 1.0;
+    settings.alpha = 1.0;
+    settings.entropyFixRatio = 0.0;
+
+    State mean;
+    mean << 1.0, 0.1, 0.1, 0.9;
+    State increment;
+    increment << -0.4, -0.6, 0.8, 0.2;
+    Eigenvalues collisionEigenvalues;
+    const State collisionValue = RoeDissipationLocal(
+        mean - 0.5 * increment,
+        mean + 0.5 * increment,
+        settings,
+        collisionEigenvalues);
+
+    for (const real offset : {-1e-5, 1e-5})
+    {
+        CAPTURE(offset);
+        State nearbyMean = mean;
+        nearbyMean(0) += offset;
+        Eigenvalues nearbyEigenvalues;
+        const State nearbyValue = RoeDissipationLocal(
+            nearbyMean - 0.5 * increment,
+            nearbyMean + 0.5 * increment,
+            settings,
+            nearbyEigenvalues);
+        CHECK(nearbyValue.allFinite());
+        CHECK((nearbyValue - collisionValue).norm() < 1e-4);
+    }
+}
+
+/// @test Verify linearly exact viscous face gradients on orthogonal and skew center connections.
+TEST_CASE("ACM corrected face gradient exactly reproduces linear fields")
+{
+    Eigen::Matrix<real, 3, 4> exactGradient;
+    exactGradient << 0.3, -0.2, 0.4, 0.1,
+        -0.5, 0.7, -0.1, 0.2,
+        0.6, 0.8, -0.9, -0.3;
+    State left;
+    left << 0.4, -0.7, 0.2, 1.3;
+    const Vector3 normal = Vector3(0.8, 0.5, -0.3).normalized();
+
+    const std::array<Vector3, 2> displacements{
+        Vector3(2.3 * normal),
+        Vector3(1.2, -0.4, 0.7)};
+    for (const Vector3 &displacement : displacements)
+    {
+        CAPTURE(displacement.transpose());
+        const State right = left + exactGradient.transpose() * displacement;
+        const Eigen::Matrix<real, 3, 4> corrected = CorrectedFaceGradient(
+            exactGradient,
+            exactGradient,
+            left,
+            right,
+            displacement,
+            normal);
+        CHECK((corrected - exactGradient).norm() < 1e-12);
+    }
+
+    const Vector3 skewDisplacement(1.2, -0.4, 0.7);
+    const State right = left + exactGradient.transpose() * skewDisplacement;
+    const Eigen::Matrix<real, 3, 4> correctedFromJump = CorrectedFaceGradient(
+        Eigen::Matrix<real, 3, 4>::Zero(),
+        Eigen::Matrix<real, 3, 4>::Zero(),
+        left,
+        right,
+        skewDisplacement,
+        normal);
+    CHECK((skewDisplacement.transpose() * correctedFromJump -
+           (right - left).transpose())
+              .norm() < 1e-12);
 }
 
 /// @test Verify the far-field boundary imports exactly the incoming general-alpha modes.

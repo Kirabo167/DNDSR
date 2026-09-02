@@ -7,7 +7,7 @@
  * DNDS configuration, OpenMP face loops, and MPI collectives.
  *
  * @author Runzhi Ma
- * @date 2026-08-31
+ * @date 2026-09-01
  * @note Modifier: Runzhi Ma.
  */
 #include "ACMBC.hpp"
@@ -211,9 +211,17 @@ namespace DNDS::ACM
         DNDS_check_throw_info(std::isfinite(beta2) && beta2 > 0, "ACM beta2 must be finite and positive");
         DNDS_check_throw_info(std::isfinite(alpha), "ACM alpha must be finite");
         const real centeredVelocity = (1 - alpha) * qn;
-        const real discriminant = centeredVelocity * centeredVelocity + 4 * beta2 / rho0;
-        DNDS_check_throw_info(std::isfinite(discriminant), "ACM characteristic discriminant overflowed");
-        const real root = std::sqrt(discriminant);
+        DNDS_check_throw_info(std::isfinite(centeredVelocity),
+                              "ACM centered characteristic velocity overflowed");
+        // hypot(a,b) evaluates sqrt(a^2+b^2) without overflowing when either
+        // representable input is large.  This is algebraically identical to the
+        // characteristic discriminant and does not alter the ACM eigenvalues.
+        // Modifier: Runzhi Ma.
+        const real root = std::hypot(
+            centeredVelocity,
+            2.0 * std::sqrt(beta2 / rho0));
+        DNDS_check_throw_info(std::isfinite(root),
+                              "ACM characteristic root is non-finite");
         return {(centeredVelocity - root) * 0.5, qn, (centeredVelocity + root) * 0.5};
     }
 
@@ -359,6 +367,131 @@ namespace DNDS::ACM
         return (lambda * lambda + delta * delta) / (2 * delta);
     }
 
+    namespace
+    {
+        /**
+         * @brief Differentiate the Harten-smoothed absolute-value function.
+         * @param lambda Signed characteristic speed.
+         * @param delta Entropy-fix width used by EntropyFixedAbs().
+         * @return First derivative; zero is selected at the unsmoothed origin.
+         * @note Modifier: Runzhi Ma.
+         */
+        real EntropyFixedAbsDerivative(real lambda, real delta)
+        {
+            if (delta > 0 && std::abs(lambda) < delta)
+                return lambda / delta;
+            if (lambda > 0)
+                return 1;
+            if (lambda < 0)
+                return -1;
+            return 0;
+        }
+
+        /**
+         * @brief Evaluate the second derivative used by a repeated Hermite node.
+         * @param lambda Signed characteristic speed.
+         * @param delta Entropy-fix width.
+         * @return `1/delta` inside the quadratic entropy interval and zero outside.
+         * @note Modifier: Runzhi Ma.
+         */
+        real EntropyFixedAbsSecondDerivative(real lambda, real delta)
+        {
+            return delta > 0 && std::abs(lambda) < delta ? 1 / delta : 0;
+        }
+
+        /**
+         * @brief Compute `f[q,q,c]` for the entropy-fixed absolute-value function.
+         * @param q Repeated tangential eigenvalue.
+         * @param c Acoustic eigenvalue nearest to q.
+         * @param delta Entropy-fix width.
+         * @return Confluent second divided difference, evaluated without cancellation whenever
+         * q and c lie in the same linear or quadratic branch.
+         * @note Modifier: Runzhi Ma.
+         */
+        real EntropyFixedAbsRepeatedSecondDifference(real q, real c, real delta)
+        {
+            const real scale = std::max({real(1), std::abs(q), std::abs(c), std::abs(delta)});
+            const real separation = c - q;
+            if (std::abs(separation) <= 1e-8 * scale)
+                return 0.5 * EntropyFixedAbsSecondDerivative(q, delta);
+
+            if (delta > 0 && std::abs(q) < delta && std::abs(c) < delta)
+                return 0.5 / delta;
+            // Strict inequalities are required when delta=0: q=0 is the selected cusp
+            // derivative, not a point on either differentiable linear branch.
+            // Modifier: Runzhi Ma.
+            if ((q > delta && c > delta) || (q < -delta && c < -delta))
+                return 0;
+
+            const real firstDifference =
+                (EntropyFixedAbs(c, delta) - EntropyFixedAbs(q, delta)) / separation;
+            return (firstDifference - EntropyFixedAbsDerivative(q, delta)) / separation;
+        }
+
+        /**
+         * @brief Evaluate the entropy-fixed matrix absolute value without an eigenvector inverse.
+         * @param preconditionedJacobian Local operator `B=Gamma^{-1}A`.
+         * @param eigenvalues Its minus, repeated tangential, and plus eigenvalues.
+         * @param entropyDelta Entropy-fix width.
+         * @return Exact confluent-Hermite matrix function for the characteristic multiset
+         * `{lambdaSeparated,q,q,lambdaClustered}`. At a defective collision this includes the
+         * required Jordan derivative term.
+         * @note Modifier: Runzhi Ma.
+         */
+        Matrix4 EntropyFixedAbsoluteJacobianHermite(
+            const Matrix4 &preconditionedJacobian,
+            const Eigenvalues &eigenvalues,
+            real entropyDelta)
+        {
+            const real q = eigenvalues.lambdaTangential;
+            const real minusSeparation = std::abs(q - eigenvalues.lambdaMinus);
+            const real plusSeparation = std::abs(q - eigenvalues.lambdaPlus);
+            const bool minusIsSeparated = minusSeparation >= plusSeparation;
+            const real separated = minusIsSeparated
+                                       ? eigenvalues.lambdaMinus
+                                       : eigenvalues.lambdaPlus;
+            const real clustered = minusIsSeparated
+                                       ? eigenvalues.lambdaPlus
+                                       : eigenvalues.lambdaMinus;
+
+            const real qMinusSeparated = q - separated;
+            const real acousticSpan = clustered - separated;
+            const real scale = std::max(
+                {real(1), std::abs(q), std::abs(separated), std::abs(clustered)});
+            DNDS_check_throw_info(
+                std::abs(qMinusSeparated) > std::numeric_limits<real>::epsilon() * scale &&
+                    std::abs(acousticSpan) > std::numeric_limits<real>::epsilon() * scale,
+                "ACM Hermite absolute Jacobian requires one separated acoustic eigenvalue");
+
+            const real valueSeparated = EntropyFixedAbs(separated, entropyDelta);
+            const real valueQ = EntropyFixedAbs(q, entropyDelta);
+            const real derivativeQ = EntropyFixedAbsDerivative(q, entropyDelta);
+            const real coefficient0 = valueSeparated;
+            const real coefficient1 = (valueQ - valueSeparated) / qMinusSeparated;
+            const real coefficient2 =
+                (derivativeQ - coefficient1) / qMinusSeparated;
+            const real repeatedSecondDifference =
+                EntropyFixedAbsRepeatedSecondDifference(q, clustered, entropyDelta);
+            const real coefficient3 =
+                (repeatedSecondDifference - coefficient2) / acousticSpan;
+
+            const Matrix4 identity = Matrix4::Identity();
+            const Matrix4 shiftedSeparated =
+                preconditionedJacobian - separated * identity;
+            const Matrix4 shiftedTangential =
+                preconditionedJacobian - q * identity;
+            const Matrix4 absoluteJacobian =
+                coefficient0 * identity +
+                coefficient1 * shiftedSeparated +
+                coefficient2 * shiftedSeparated * shiftedTangential +
+                coefficient3 * shiftedSeparated * shiftedTangential * shiftedTangential;
+            DNDS_check_throw_info(
+                absoluteJacobian.allFinite(),
+                "ACM Hermite absolute Jacobian is non-finite");
+            return absoluteJacobian;
+        }
+    }
+
     /** @copydoc RusanovDissipationLocal */
     State RusanovDissipationLocal(
         const State &leftLocal,
@@ -392,15 +525,6 @@ namespace DNDS::ACM
         const real lambdaMinusAbs = EntropyFixedAbs(eigenvalues.lambdaMinus, entropyDelta);
         const real lambdaTangentialAbs = EntropyFixedAbs(eigenvalues.lambdaTangential, entropyDelta);
         const real lambdaPlusAbs = EntropyFixedAbs(eigenvalues.lambdaPlus, entropyDelta);
-        const real denominator = eigenvalues.lambdaPlus - eigenvalues.lambdaMinus;
-        DNDS_check_throw_info(denominator > std::numeric_limits<real>::epsilon(),
-                              "ACM Roe eigenvalues are degenerate");
-
-        const real amplitudeMinus =
-            (eigenvalues.lambdaPlus * increment(3) - settings.beta2 * increment(0)) / denominator;
-        const real amplitudePlus =
-            (settings.beta2 * increment(0) - eigenvalues.lambdaMinus * increment(3)) / denominator;
-
         Matrix4 leftEigenvectors;
         Matrix4 rightEigenvectors;
         State preconditionedDissipation;
@@ -417,28 +541,21 @@ namespace DNDS::ACM
         }
         else
         {
-            // At alpha*q_n^2=beta^2/rho one acoustic eigenvalue collides with q_n and
-            // the operator can be defective. The absolute-value matrix remains finite because
-            // the collided modes share one eigenvalue; evaluate it as a spectral cluster using
-            // only the separated acoustic mode.
-            const real minusSeparation = std::abs(meanState(0) - eigenvalues.lambdaMinus);
-            const real plusSeparation = std::abs(meanState(0) - eigenvalues.lambdaPlus);
-            if (minusSeparation < plusSeparation)
-            {
-                const State rightPlus = AcousticRightEigenvectorLocal(
-                    meanState, eigenvalues.lambdaPlus, settings.beta2, settings.alpha);
-                preconditionedDissipation =
-                    lambdaTangentialAbs * increment +
-                    (lambdaPlusAbs - lambdaTangentialAbs) * amplitudePlus * rightPlus;
-            }
-            else
-            {
-                const State rightMinus = AcousticRightEigenvectorLocal(
-                    meanState, eigenvalues.lambdaMinus, settings.beta2, settings.alpha);
-                preconditionedDissipation =
-                    lambdaTangentialAbs * increment +
-                    (lambdaMinusAbs - lambdaTangentialAbs) * amplitudeMinus * rightMinus;
-            }
+            // A confluent-Hermite polynomial evaluates f(B), f=lambda->|lambda|_delta,
+            // directly from B. It is identical to R*f(Lambda)*L away from a collision and,
+            // at alpha*q_n^2=beta^2/rho, retains the f'(q) Jordan contribution that the former
+            // equal-eigenvalue cluster approximation omitted. Modifier: Runzhi Ma.
+            const Matrix4 preconditionedJacobian = PreconditionedJacobianLocal(
+                meanState,
+                settings.rho0,
+                settings.beta2,
+                settings.alpha);
+            preconditionedDissipation =
+                EntropyFixedAbsoluteJacobianHermite(
+                    preconditionedJacobian,
+                    eigenvalues,
+                    entropyDelta) *
+                increment;
         }
 
         const State dissipation = ApplyGammaLocal(
@@ -479,6 +596,48 @@ namespace DNDS::ACM
         result.flux = FromLocalFlux(0.5 * (leftFlux + rightFlux - dissipation), localBasis);
         result.eigenvalues = eigenvalues;
         return result;
+    }
+
+    /** @copydoc CorrectedFaceGradient */
+    Eigen::Matrix<real, 3, 4> CorrectedFaceGradient(
+        const Eigen::Matrix<real, 3, 4> &leftGradient,
+        const Eigen::Matrix<real, 3, 4> &rightGradient,
+        const State &leftCellState,
+        const State &rightCellState,
+        const Vector3 &centerDisplacement,
+        const Vector3 &unitNormal)
+    {
+        DNDS_check_throw_info(
+            leftGradient.allFinite() && rightGradient.allFinite(),
+            "ACM corrected face gradient received a non-finite reconstructed gradient");
+        DNDS_check_throw_info(
+            leftCellState.allFinite() && rightCellState.allFinite(),
+            "ACM corrected face gradient received a non-finite cell state");
+        DNDS_check_throw_info(
+            centerDisplacement.allFinite(),
+            "ACM corrected face gradient received a non-finite center displacement");
+
+        const Vector3 normal = NormalizedNormal(unitNormal);
+        const real displacementNorm = centerDisplacement.norm();
+        DNDS_check_throw_info(
+            displacementNorm > normalTolerance,
+            "ACM corrected face gradient requires distinct cell/ghost centers");
+        const real projectedDistance = centerDisplacement.dot(normal);
+        DNDS_check_throw_info(
+            std::abs(projectedDistance) >
+                100 * std::numeric_limits<real>::epsilon() * displacementNorm,
+            "ACM corrected face gradient has a center displacement tangent to the face");
+
+        Eigen::Matrix<real, 3, 4> faceGradient =
+            0.5 * (leftGradient + rightGradient);
+        const Eigen::RowVector<real, 4> centerMismatch =
+            (rightCellState - leftCellState).transpose() -
+            centerDisplacement.transpose() * faceGradient;
+        faceGradient += normal * centerMismatch / projectedDistance;
+        DNDS_check_throw_info(
+            faceGradient.allFinite(),
+            "ACM corrected face gradient is non-finite");
+        return faceGradient;
     }
 
     /** @copydoc ViscousFlux */
@@ -796,6 +955,17 @@ namespace DNDS::ACM
     {
         acmSettings.Validate();
         timeMarchSettings.Validate();
+        turbulenceSettings.Validate();
+        if (TurbulenceVariableCount(turbulenceSettings.model) > 0)
+        {
+            DNDS_check_throw_info(
+                acmSettings.enableViscousFlux,
+                "ACM turbulence models require acmSettings.enableViscousFlux=true");
+            DNDS_check_throw_info(
+                std::isfinite(acmSettings.dynamicViscosity) &&
+                    acmSettings.dynamicViscosity > 0,
+                "ACM turbulence models require positive dynamicViscosity");
+        }
         const State left = LeftState();
         const State right = RightState();
         const State initial = InitialState();

@@ -9,10 +9,12 @@
 #include "CFV/VariationalReconstruction_LimiterProcedure.hxx"
 
 #include "ACMEvaluator.hxx"
+#include "ACMTurbulenceTransport.hxx"
 #include "ACMSolver.hxx"
 
 namespace DNDS::ACM
 {
     template class ACMEvaluator<2>;
+    template class ACMTurbulenceTransport<2>;
     template class ACMSolver<ACMModel::ConstantDensity2D>;
 }

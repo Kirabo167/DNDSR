@@ -310,7 +310,11 @@ namespace DNDS::CFV
 
                 real n = settings.WBAP_nStd;
                 if (settings.normWBAP)
-                    FWBAP_L2_Multiway_Polynomial2D(uOthers, uOthers.size(), uLimOutArray, n); // TODO: add 3D version here!
+                    FWBAP_L2_Multiway_Polynomial<dim>(
+                        uOthers,
+                        static_cast<int>(uOthers.size()),
+                        uLimOutArray,
+                        n);
                 else
                     FWBAP_L2_Multiway(uOthers, uOthers.size(), uLimOutArray, n);
 
@@ -468,7 +472,11 @@ namespace DNDS::CFV
 
                 real n = settings.WBAP_nStd;
                 if (settings.normWBAP)
-                    FWBAP_L2_Multiway_Polynomial2D(uOthers, uOthers.size(), uLimOutArray, n);
+                    FWBAP_L2_Multiway_Polynomial<dim>(
+                        uOthers,
+                        static_cast<int>(uOthers.size()),
+                        uLimOutArray,
+                        n);
 
                 else
                     FWBAP_L2_Multiway(uOthers, uOthers.size(), uLimOutArray, n);

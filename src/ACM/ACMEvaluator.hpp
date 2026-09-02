@@ -21,6 +21,8 @@
 #include "CFV/VariationalReconstruction.hpp"
 #include "Geom/Mesh/Mesh.hpp"
 
+#include <functional>
+
 namespace DNDS::ACM
 {
     /**
@@ -43,6 +45,10 @@ namespace DNDS::ACM
         using TVFV = CFV::VariationalReconstruction<gDim>; ///< Existing DNDS CFV reconstruction engine.
         using TpVFV = ssp<TVFV>;                           ///< Shared reconstruction engine pointer.
         using TBoundaryFunction = typename TVFV::template TFBoundary<nVarsFixed>;
+        using TurbulencePrepareFunction =
+            std::function<void(TDof &, real)>; ///< Refresh segregated turbulence data for a flow state.
+        using TurbulentViscosityFunction =
+            std::function<real(index, int)>; ///< Return frozen `mu_t` for `(face,quadrature)`.
 
         /**
          * @brief Derivatives of one integrated numerical face flux with respect to both cells.
@@ -82,6 +88,17 @@ namespace DNDS::ACM
             const ssp<Geom::UnstructuredMesh> &mesh,
             const TpVFV &vfv,
             const ssp<BoundaryHandler> &boundaryHandler);
+
+        /**
+         * @brief Attach optional segregated turbulence callbacks without changing the ACM state layout.
+         * @param prepareFunction Callback that reconstructs turbulence fields and freezes face `mu_t`.
+         * @param viscosityFunction Callback returning frozen turbulent dynamic viscosity.
+         * @details Both callbacks must be supplied together. Empty callbacks restore laminar behavior.
+         * @note Modifier: Runzhi Ma.
+         */
+        void SetTurbulenceCoupling(
+            TurbulencePrepareFunction prepareFunction,
+            TurbulentViscosityFunction viscosityFunction);
 
         /**
          * @brief Reconstruct the current distributed cell means.
@@ -209,6 +226,16 @@ namespace DNDS::ACM
         TGrad _uGrad;                                   ///< Direct Green-Gauss gradients.
         TScalar _limiter;                               ///< One limiter factor per cell.
         TScalarPair _smoothIndicator;                   ///< CFV troubled-cell indicator.
+        TurbulencePrepareFunction _prepareTurbulence;   ///< Optional segregated preparation hook.
+        TurbulentViscosityFunction _turbulentViscosity; ///< Optional frozen face `mu_t` accessor.
+
+        /**
+         * @brief Return frozen turbulent viscosity or zero in laminar mode.
+         * @param iFace Process-local face index.
+         * @param iG Face quadrature index; `-1` requests the face average.
+         * @return Non-negative turbulent dynamic viscosity.
+         */
+        real GetTurbulentViscosity(index iFace, int iG) const;
 
         /**
          * @brief Build the CFV boundary callback used by gradient and VR reconstruction.
