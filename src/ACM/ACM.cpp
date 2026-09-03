@@ -11,6 +11,7 @@
  * @note Modifier: Runzhi Ma.
  */
 #include "ACMBC.hpp"
+#include "ACMBDF2.hpp"
 #include "ACMConfig.hpp"
 #include "ACMFlux.hpp"
 #include "ACMParallel.hpp"
@@ -956,6 +957,11 @@ namespace DNDS::ACM
         acmSettings.Validate();
         timeMarchSettings.Validate();
         turbulenceSettings.Validate();
+        DNDS_check_throw_info(
+            !IsBDF2DualTimeIntegrator(timeMarchSettings.integrator) ||
+                TurbulenceVariableCount(turbulenceSettings.model) == 0,
+            "ACM BDF2 dual-time marching currently supports Laminar flow only; "
+            "segregated turbulence transport has no physical-time history");
         if (TurbulenceVariableCount(turbulenceSettings.model) > 0)
         {
             DNDS_check_throw_info(
@@ -1060,6 +1066,13 @@ namespace DNDS::ACM
                 resolved[key] = overwriteValues[i];
             }
         }
+
+        // Keep pre-BDF2 case files valid without editing them in place.  The
+        // normalized configuration and emitted schema still expose this key,
+        // and a command-line JSON-pointer override may set it explicitly.
+        auto &timeMarch = resolved.at("timeMarchSettings");
+        if (!timeMarch.contains("physicalTimeStep"))
+            timeMarch["physicalTimeStep"] = TimeMarchSettings{}.physicalTimeStep;
 
         KernelConfiguration configuration = resolved.get<KernelConfiguration>();
         configuration.Validate();

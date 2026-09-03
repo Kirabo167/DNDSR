@@ -12,7 +12,9 @@
 #include "DNDS/Errors.hpp"
 #include "DNDS/OMP.hpp"
 
+#include <filesystem>
 #include <iomanip>
+#include <sstream>
 
 namespace DNDS::ACM
 {
@@ -66,6 +68,8 @@ namespace DNDS::ACM
         preparationOptions.buildSerialOut = false;
         Geom::PrepareMesh(*_mesh, *_reader, preparationOptions);
         _mesh->RecreatePeriodicNodes();
+        if (_configuration.outputSettings.interval > 0)
+            _mesh->BuildVTKConnectivity();
 
         DNDS_MAKE_SSP(_vfv, _mpi, _mesh);
         _vfv->parseSettings(_configuration.vfvSettings);
@@ -152,10 +156,126 @@ namespace DNDS::ACM
     }
 
     template <ACMModel model>
+    void ACMSolver<model>::WriteFlowField(int iStep, real outputTime)
+    {
+        const auto &output = _configuration.outputSettings;
+        DNDS_check_throw_info(output.interval > 0, "ACM flow-field output is disabled");
+        DNDS_check_throw_info(!output.directory.empty(), "ACM output directory must not be empty");
+        DNDS_check_throw_info(!output.prefix.empty(), "ACM output prefix must not be empty");
+
+        std::ostringstream stamp;
+        stamp << std::setw(8) << std::setfill('0') << iStep;
+        const std::filesystem::path outputDirectory(output.directory);
+        const std::string fileBase =
+            (outputDirectory / (output.prefix + "_" + stamp.str())).string();
+        const std::string seriesBase =
+            (outputDirectory / output.prefix).string();
+
+        MPI_Comm outputComm = MPI_COMM_NULL;
+        MPI_Comm_dup(_mpi.comm, &outputComm);
+        _mesh->PrintParallelVTKHDFDataArray(
+            fileBase,
+            seriesBase,
+            1,
+            1,
+            0,
+            0,
+            [](int) -> std::string
+            { return "Pressure"; },
+            [this](int, index iCell) -> real
+            { return _u[iCell](3); },
+            [](int) -> std::string
+            { return "Velocity"; },
+            [this](int, index iCell, rowsize component) -> real
+            { return _u[iCell](component); },
+            [](int) -> std::string
+            { return {}; },
+            [](int, index) -> real
+            { return 0; },
+            [](int) -> std::string
+            { return {}; },
+            [](int, index, rowsize) -> real
+            { return 0; },
+            static_cast<double>(outputTime),
+            outputComm);
+        MPI_Comm_free(&outputComm);
+
+        if (_mpi.rank == 0)
+            log() << "ACM flow field written at step " << iStep
+                  << " to " << fileBase << ".vtkhdf" << std::endl;
+    }
+
+    template <ACMModel model>
+    /** @copydoc ACMSolver::SolveImplicitCorrection */
+    void ACMSolver<model>::SolveImplicitCorrection(
+        const MatrixField &diagonal,
+        const typename TEvaluator::FaceJacobianField &faceJacobians,
+        bool useLUSGS)
+    {
+        _linearIncrement.setConstant(0.0);
+        if (useLUSGS)
+        {
+            _evaluator->SolveLUSGS(
+                _linearRhs,
+                diagonal,
+                faceJacobians,
+                _linearIncrement,
+                _configuration.timeMarchSettings.lusgsSweeps);
+            return;
+        }
+
+        Linear::GMRES_LeftPreconditioned<TDof> gmres(
+            static_cast<uint32_t>(_configuration.timeMarchSettings.gmresSubspace),
+            [this](TDof &field)
+            {
+                _vfv->BuildUDof(field, Traits::nVarsFixed);
+                field.setConstant(0.0);
+            });
+        gmres.solve(
+            [&](TDof &input, TDof &output)
+            {
+                _evaluator->ApplyImplicitLinearization(
+                    input,
+                    diagonal,
+                    faceJacobians,
+                    output);
+            },
+            [&](TDof &input, TDof &output)
+            {
+                if (_configuration.timeMarchSettings.gmresPreconditioner ==
+                    GMRESPreconditionerType::LUSGS)
+                    _evaluator->SolveLUSGS(
+                        input,
+                        diagonal,
+                        faceJacobians,
+                        output,
+                        _configuration.timeMarchSettings.lusgsSweeps);
+                else
+                    _evaluator->ApplyBlockJacobi(input, diagonal, output);
+            },
+            [](TDof &left, TDof &right)
+            { return left.dot(right); },
+            _linearRhs,
+            _linearIncrement,
+            static_cast<uint32_t>(_configuration.timeMarchSettings.gmresRestarts),
+            [&](uint32_t restart, real residual, real initialResidual)
+            {
+                if (_mpi.rank == 0 && restart > 0)
+                    log() << "ACM GMRES restart=" << restart
+                          << " residual=" << residual
+                          << " initial=" << initialResidual << std::endl;
+                return residual <=
+                       _configuration.timeMarchSettings.gmresRelativeTolerance *
+                           std::max(initialResidual, verySmallReal);
+            });
+    }
+
+    template <ACMModel model>
     /** @copydoc ACMSolver::AdvanceImplicitDistributed */
     TimeStepReport ACMSolver<model>::AdvanceImplicitDistributed(
         StateField &states,
-        const ScalarField &pseudoTimeStep)
+        const ScalarField &pseudoTimeStep,
+        real time)
     {
         DNDS_check_throw_info(
             states.size() == pseudoTimeStep.size() &&
@@ -169,7 +289,7 @@ namespace DNDS::ACM
         const auto evaluateDefect = [&]()
         {
             CopyStateFieldToOwned(states, _u);
-            _evaluator->EvaluateRHS(_rhs, _u);
+            _evaluator->EvaluateRHS(_rhs, _u, time);
 #if defined(DNDS_DIST_MT_USE_OMP)
 #    pragma omp parallel for schedule(runtime)
 #endif
@@ -206,66 +326,105 @@ namespace DNDS::ACM
                 _u,
                 pseudoTimeStep,
                 diagonal,
-                faceJacobians);
-            _linearIncrement.setConstant(0.0);
+                faceJacobians,
+                time);
+            SolveImplicitCorrection(
+                diagonal,
+                faceJacobians,
+                _configuration.timeMarchSettings.integrator ==
+                    TimeIntegratorType::ImplicitEulerLUSGS);
 
-            if (_configuration.timeMarchSettings.integrator ==
-                TimeIntegratorType::ImplicitEulerLUSGS)
+#if defined(DNDS_DIST_MT_USE_OMP)
+#    pragma omp parallel for schedule(runtime)
+#endif
+            for (index iCell = 0; iCell < _mesh->NumCell(); iCell++)
+                states[static_cast<std::size_t>(iCell)] +=
+                    _configuration.timeMarchSettings.implicitRelaxation *
+                    State(_linearIncrement[iCell]);
+
+            report.iterations = iteration + 1;
+            report.finalDefectNorm = evaluateDefect();
+        }
+        report.converged =
+            report.finalDefectNorm <= _configuration.timeMarchSettings.implicitTolerance;
+        return report;
+    }
+
+    template <ACMModel model>
+    /** @copydoc ACMSolver::AdvanceBDF2DualTimeDistributed */
+    TimeStepReport ACMSolver<model>::AdvanceBDF2DualTimeDistributed(
+        StateField &states,
+        const BDF2History &history,
+        const ScalarField &pseudoTimeStep,
+        real physicalTime)
+    {
+        DNDS_check_throw_info(
+            IsBDF2DualTimeIntegrator(_configuration.timeMarchSettings.integrator),
+            "ACM BDF2 advance requires a BDF2 dual-time integrator");
+        DNDS_check_throw_info(
+            states.size() == pseudoTimeStep.size() &&
+                states.size() == history.Previous().size() &&
+                states.size() == history.PreviousPrevious().size() &&
+                states.size() == static_cast<std::size_t>(_mesh->NumCell()),
+            "ACM BDF2 distributed fields have incompatible sizes");
+        DNDS_check_throw_info(
+            std::isfinite(physicalTime),
+            "ACM BDF2 physical time must be finite");
+
+        const BDF2Coefficients coefficients = history.Coefficients();
+        const StateField &previous = history.Previous();
+        const StateField &previousPrevious = history.PreviousPrevious();
+        const real physicalTimeStep = _configuration.timeMarchSettings.physicalTimeStep;
+        MatrixField diagonal;
+        typename TEvaluator::FaceJacobianField faceJacobians;
+        TimeStepReport report;
+
+        const auto evaluateDefect = [&]()
+        {
+            CopyStateFieldToOwned(states, _u);
+            _evaluator->EvaluateRHS(_rhs, _u, physicalTime);
+#if defined(DNDS_DIST_MT_USE_OMP)
+#    pragma omp parallel for schedule(runtime)
+#endif
+            for (index iCell = 0; iCell < _mesh->NumCell(); iCell++)
             {
-                _evaluator->SolveLUSGS(
-                    _linearRhs,
-                    diagonal,
-                    faceJacobians,
-                    _linearIncrement,
-                    _configuration.timeMarchSettings.lusgsSweeps);
+                const std::size_t ii = static_cast<std::size_t>(iCell);
+                _linearRhs[iCell] = _rhs[iCell] - EvaluateBDF2PhysicalDerivative(
+                                                      states[ii],
+                                                      previous[ii],
+                                                      previousPrevious[ii],
+                                                      coefficients,
+                                                      physicalTimeStep);
             }
-            else
+            return _linearRhs.norm2() /
+                   std::sqrt(std::max<real>(
+                       1.0,
+                       static_cast<real>(_mesh->NumCellGlobal()) * Traits::nVarsFixed));
+        };
+
+        report.initialDefectNorm = evaluateDefect();
+        report.finalDefectNorm = report.initialDefectNorm;
+        for (int iteration = 0;
+             iteration < _configuration.timeMarchSettings.maxImplicitIterations;
+             iteration++)
+        {
+            if (report.finalDefectNorm <= _configuration.timeMarchSettings.implicitTolerance)
             {
-                Linear::GMRES_LeftPreconditioned<TDof> gmres(
-                    static_cast<uint32_t>(_configuration.timeMarchSettings.gmresSubspace),
-                    [this](TDof &field)
-                    {
-                        _vfv->BuildUDof(field, Traits::nVarsFixed);
-                        field.setConstant(0.0);
-                    });
-                gmres.solve(
-                    [&](TDof &input, TDof &output)
-                    {
-                        _evaluator->ApplyImplicitLinearization(
-                            input,
-                            diagonal,
-                            faceJacobians,
-                            output);
-                    },
-                    [&](TDof &input, TDof &output)
-                    {
-                        if (_configuration.timeMarchSettings.gmresPreconditioner ==
-                            GMRESPreconditionerType::LUSGS)
-                            _evaluator->SolveLUSGS(
-                                input,
-                                diagonal,
-                                faceJacobians,
-                                output,
-                                _configuration.timeMarchSettings.lusgsSweeps);
-                        else
-                            _evaluator->ApplyBlockJacobi(input, diagonal, output);
-                    },
-                    [](TDof &left, TDof &right)
-                    { return left.dot(right); },
-                    _linearRhs,
-                    _linearIncrement,
-                    static_cast<uint32_t>(_configuration.timeMarchSettings.gmresRestarts),
-                    [&](uint32_t restart, real residual, real initialResidual)
-                    {
-                        if (_mpi.rank == 0 && restart > 0)
-                            log() << "ACM GMRES restart=" << restart
-                                  << " residual=" << residual
-                                  << " initial=" << initialResidual << std::endl;
-                        return residual <=
-                               _configuration.timeMarchSettings.gmresRelativeTolerance *
-                                   std::max(initialResidual, verySmallReal);
-                    });
+                report.converged = true;
+                break;
             }
+
+            _evaluator->AssembleImplicitLinearization(
+                _u,
+                pseudoTimeStep,
+                diagonal,
+                faceJacobians,
+                physicalTime);
+            AddBDF2PhysicalDiagonal(diagonal, coefficients, physicalTimeStep);
+            SolveImplicitCorrection(
+                diagonal,
+                faceJacobians,
+                BDF2UsesLUSGS(_configuration.timeMarchSettings.integrator));
 
 #if defined(DNDS_DIST_MT_USE_OMP)
 #    pragma omp parallel for schedule(runtime)
@@ -293,23 +452,44 @@ namespace DNDS::ACM
         ScalarField pseudoTimeStep(
             states.size(),
             _configuration.timeMarchSettings.pseudoTimeStep);
+        const TimeIntegratorType integrator = _configuration.timeMarchSettings.integrator;
+        const bool useBDF2 = IsBDF2DualTimeIntegrator(integrator);
+        DNDS_check_throw_info(
+            !useBDF2 || _turbulence == nullptr,
+            "ACM BDF2 dual-time marching currently supports Laminar flow only; "
+            "segregated turbulence equations do not yet have physical-time history");
+
+        BDF2History bdf2History;
+        if (useBDF2)
+            bdf2History.Initialize(states);
+        real physicalTime = 0;
+        real residualTime = 0;
 
         const ResidualEvaluator residualEvaluator =
-            [this](const StateField &input, StateField &output)
+            [this, &residualTime](const StateField &input, StateField &output)
         {
             CopyStateFieldToOwned(input, _u);
-            _evaluator->EvaluateRHS(_rhs, _u);
+            _evaluator->EvaluateRHS(_rhs, _u, residualTime);
             CopyOwnedToStateField(_rhs, output);
         };
         const DiagonalJacobianEvaluator diagonalJacobianEvaluator =
-            [this](const StateField &input, MatrixField &output)
+            [this, &residualTime](const StateField &input, MatrixField &output)
         {
             CopyStateFieldToOwned(input, _u);
-            _evaluator->EvaluateDiagonalJacobian(_u, output);
+            _evaluator->EvaluateDiagonalJacobian(_u, output, residualTime);
         };
+
+        if (_configuration.outputSettings.interval > 0 &&
+            _configuration.outputSettings.writeInitial)
+            WriteFlowField(0, 0);
 
         for (int iStep = 1; iStep <= _configuration.timeMarchSettings.nSteps; iStep++)
         {
+            const BDF2Coefficients bdf2Coefficients =
+                useBDF2 ? bdf2History.Coefficients() : BDF2Coefficients{};
+            residualTime = useBDF2
+                               ? physicalTime + _configuration.timeMarchSettings.physicalTimeStep
+                               : 0;
             real minimumTimeStep = _configuration.timeMarchSettings.pseudoTimeStep;
             if (_configuration.timeMarchSettings.useCFLTimeStep)
             {
@@ -319,41 +499,69 @@ namespace DNDS::ACM
                     _u,
                     _configuration.timeMarchSettings.cfl,
                     _configuration.timeMarchSettings.maximumPseudoTimeStep,
-                    _configuration.timeMarchSettings.useLocalTimeStep);
+                    _configuration.timeMarchSettings.useLocalTimeStep,
+                    residualTime);
             }
             const bool useDistributedImplicit =
-                _configuration.timeMarchSettings.integrator ==
-                    TimeIntegratorType::ImplicitEulerLUSGS ||
-                _configuration.timeMarchSettings.integrator ==
-                    TimeIntegratorType::ImplicitEulerGMRES;
-            const TimeStepReport report = useDistributedImplicit
-                                              ? AdvanceImplicitDistributed(states, pseudoTimeStep)
-                                              : AdvancePseudoTimeStep(
-                                                    states,
-                                                    pseudoTimeStep,
-                                                    _configuration.acmSettings,
-                                                    _configuration.timeMarchSettings,
-                                                    residualEvaluator,
-                                                    diagonalJacobianEvaluator,
-                                                    &_mpi);
+                integrator == TimeIntegratorType::ImplicitEulerLUSGS ||
+                integrator == TimeIntegratorType::ImplicitEulerGMRES;
+            TimeStepReport report;
+            if (useBDF2)
+            {
+                report = AdvanceBDF2DualTimeDistributed(
+                    states,
+                    bdf2History,
+                    pseudoTimeStep,
+                    residualTime);
+                // Match the reference fixed-pseudo-iteration policy: reaching the
+                // inner limit completes the physical step, while report.converged
+                // records whether the requested defect tolerance was also reached.
+                bdf2History.Commit(states);
+                physicalTime = residualTime;
+            }
+            else if (useDistributedImplicit)
+                report = AdvanceImplicitDistributed(states, pseudoTimeStep, residualTime);
+            else
+                report = AdvancePseudoTimeStep(
+                    states,
+                    pseudoTimeStep,
+                    _configuration.acmSettings,
+                    _configuration.timeMarchSettings,
+                    residualEvaluator,
+                    diagonalJacobianEvaluator,
+                    &_mpi);
             real turbulenceResidual = 0;
             if (_turbulence)
             {
                 CopyStateFieldToOwned(states, _u);
                 turbulenceResidual = _turbulence->Advance(
                     _u,
-                    pseudoTimeStep);
+                    pseudoTimeStep,
+                    residualTime);
             }
             if (_mpi.rank == 0)
-                log() << std::scientific
-                      << "ACM step " << std::setw(8) << iStep
-                      << " residual " << report.initialDefectNorm
+            {
+                log() << std::scientific;
+                if (useBDF2)
+                    log() << "ACM physical step " << std::setw(8) << iStep
+                          << " time=" << physicalTime
+                          << " BDF" << bdf2Coefficients.order;
+                else
+                    log() << "ACM step " << std::setw(8) << iStep;
+                log() << " residual " << report.initialDefectNorm
                       << " -> " << report.finalDefectNorm
-                      << " dtMin=" << minimumTimeStep
+                      << " dtauMin=" << minimumTimeStep
                       << " turbResidual=" << turbulenceResidual
                       << " inner=" << report.iterations
                       << " converged=" << report.converged
                       << std::endl;
+            }
+            if (_configuration.outputSettings.interval > 0 &&
+                iStep % _configuration.outputSettings.interval == 0)
+            {
+                CopyStateFieldToOwned(states, _u);
+                WriteFlowField(iStep, useBDF2 ? physicalTime : static_cast<real>(iStep));
+            }
         }
         CopyStateFieldToOwned(states, _u);
     }

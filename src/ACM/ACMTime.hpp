@@ -1,6 +1,6 @@
 /**
  * @file ACMTime.hpp
- * @brief Explicit and implicit pseudo-time integration interfaces for constant-density ACM states.
+ * @brief Time-marching settings and pseudo-time integration interfaces for ACM states.
  *
  * @details The time integrators operate on rank-local state fields and obtain spatial residuals
  * through callbacks. A callback may perform mesh reconstruction and MPI ghost communication, so
@@ -17,27 +17,85 @@
 #include "DNDS/MPI.hpp"
 
 #include <functional>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace DNDS::ACM
 {
-    /// Pseudo-time algorithms implemented by the initial ACM time-marching module.
+    /// Steady pseudo-time and physical dual-time algorithms exposed by the ACM solver.
     enum class TimeIntegratorType
     {
         ExplicitSSPRK3,
         ImplicitEulerBlockJacobi,
         ImplicitEulerLUSGS,
         ImplicitEulerGMRES,
+        BDF2DualTimeLUSGS,
+        BDF2DualTimeGMRES,
     };
 
-    DNDS_DEFINE_ENUM_JSON(
-        TimeIntegratorType,
+    /** @brief Serialize an ACM time integrator without permitting an invalid enum value. */
+    template <typename BasicJsonType>
+    void to_json(BasicJsonType &json, const TimeIntegratorType &integrator)
+    {
+        switch (integrator)
         {
-            {TimeIntegratorType::ExplicitSSPRK3, "ExplicitSSPRK3"},
-            {TimeIntegratorType::ImplicitEulerBlockJacobi, "ImplicitEulerBlockJacobi"},
-            {TimeIntegratorType::ImplicitEulerLUSGS, "ImplicitEulerLUSGS"},
-            {TimeIntegratorType::ImplicitEulerGMRES, "ImplicitEulerGMRES"},
-        })
+        case TimeIntegratorType::ExplicitSSPRK3:
+            json = "ExplicitSSPRK3";
+            return;
+        case TimeIntegratorType::ImplicitEulerBlockJacobi:
+            json = "ImplicitEulerBlockJacobi";
+            return;
+        case TimeIntegratorType::ImplicitEulerLUSGS:
+            json = "ImplicitEulerLUSGS";
+            return;
+        case TimeIntegratorType::ImplicitEulerGMRES:
+            json = "ImplicitEulerGMRES";
+            return;
+        case TimeIntegratorType::BDF2DualTimeLUSGS:
+            json = "BDF2DualTimeLUSGS";
+            return;
+        case TimeIntegratorType::BDF2DualTimeGMRES:
+            json = "BDF2DualTimeGMRES";
+            return;
+        }
+        throw std::invalid_argument("unknown ACM time-integrator enum value");
+    }
+
+    /** @brief Deserialize an ACM time integrator and reject unknown JSON strings. */
+    template <typename BasicJsonType>
+    void from_json(const BasicJsonType &json, TimeIntegratorType &integrator)
+    {
+        if (!json.is_string())
+            throw std::invalid_argument("ACM time integrator must be a JSON string");
+        const std::string name = json.template get<std::string>();
+        if (name == "ExplicitSSPRK3")
+            integrator = TimeIntegratorType::ExplicitSSPRK3;
+        else if (name == "ImplicitEulerBlockJacobi")
+            integrator = TimeIntegratorType::ImplicitEulerBlockJacobi;
+        else if (name == "ImplicitEulerLUSGS")
+            integrator = TimeIntegratorType::ImplicitEulerLUSGS;
+        else if (name == "ImplicitEulerGMRES")
+            integrator = TimeIntegratorType::ImplicitEulerGMRES;
+        else if (name == "BDF2DualTimeLUSGS")
+            integrator = TimeIntegratorType::BDF2DualTimeLUSGS;
+        else if (name == "BDF2DualTimeGMRES")
+            integrator = TimeIntegratorType::BDF2DualTimeGMRES;
+        else
+            throw std::invalid_argument("unknown ACM time integrator: " + name);
+    }
+
+    /** @brief Return the strict JSON names emitted in the generated configuration schema. */
+    inline std::vector<std::string> _dnds_enum_allowed_values_fn(TimeIntegratorType *)
+    {
+        return {
+            "ExplicitSSPRK3",
+            "ImplicitEulerBlockJacobi",
+            "ImplicitEulerLUSGS",
+            "ImplicitEulerGMRES",
+            "BDF2DualTimeLUSGS",
+            "BDF2DualTimeGMRES"};
+    }
 
     /// Left preconditioners available to the generic GMRES algorithm.
     enum class GMRESPreconditionerType
@@ -53,40 +111,46 @@ namespace DNDS::ACM
             {GMRESPreconditionerType::LUSGS, "LUSGS"},
         })
 
-    /// Runtime controls shared by explicit SSPRK3 and implicit backward-Euler stepping.
+    /// Runtime controls shared by steady pseudo-time and BDF2 dual-time stepping.
     struct TimeMarchSettings
     {
         TimeIntegratorType integrator = TimeIntegratorType::ExplicitSSPRK3; ///< Selected algorithm.
-        int nSteps = 0;                                                     ///< Number of pseudo-time steps.
+        int nSteps = 0;                                                     ///< Outer pseudo-time steps, or physical steps for BDF2.
         real pseudoTimeStep = 0.01;                                         ///< Positive fixed pseudo-time step.
+        real physicalTimeStep = 0.01;                                       ///< Uniform physical step used by BDF2.
         bool useCFLTimeStep = false;                                        ///< Recompute spectral-radius time steps.
         bool useLocalTimeStep = true;                                       ///< Keep cell-local CFL steps instead of MPI minimum.
-        real cfl = 0.5;                                                      ///< CFL multiplier for spectral-radius stepping.
+        real cfl = 0.5;                                                     ///< CFL multiplier for spectral-radius stepping.
         real maximumPseudoTimeStep = 1e100;                                 ///< Upper clamp for a CFL-derived step.
-        int maxImplicitIterations = 20;                                     ///< Nonlinear defect-correction iterations per implicit step.
-        real implicitTolerance = 1e-10;                                     ///< Global RMS backward-Euler defect tolerance.
+        int maxImplicitIterations = 20;                                     ///< Inner defect-correction iterations per implicit/physical step.
+        real implicitTolerance = 1e-10;                                     ///< Global RMS steady or physical defect tolerance.
         real implicitRelaxation = 1.0;                                      ///< Damping applied to every implicit correction.
-        int lusgsSweeps = 2;                                                 ///< Forward/backward sweep pairs per solve.
-        int gmresSubspace = 10;                                              ///< Arnoldi vectors per GMRES restart.
-        int gmresRestarts = 3;                                               ///< Maximum generic-GMRES restart count.
+        int lusgsSweeps = 2;                                                ///< Forward/backward sweep pairs per solve.
+        int gmresSubspace = 10;                                             ///< Arnoldi vectors per GMRES restart.
+        int gmresRestarts = 3;                                              ///< Maximum generic-GMRES restart count.
         real gmresRelativeTolerance = 1e-6;                                 ///< Relative preconditioned linear residual target.
         GMRESPreconditionerType gmresPreconditioner =
-            GMRESPreconditionerType::LUSGS;                                 ///< Left preconditioner used by GMRES.
+            GMRESPreconditionerType::LUSGS; ///< Left preconditioner used by GMRES.
 
         DNDS_DECLARE_CONFIG(TimeMarchSettings)
         {
             DNDS_FIELD(
                 integrator,
-                "ACM pseudo-time integrator",
+                "ACM steady pseudo-time or physical dual-time integrator",
                 DNDS::Config::enum_values(DNDS_ENUM_ALLOWED_VALUES(TimeIntegratorType)));
-            DNDS_FIELD(nSteps, "Number of pseudo-time steps", DNDS::Config::range(0));
+            DNDS_FIELD(nSteps, "Number of outer pseudo-time steps, or physical steps for BDF2",
+                       DNDS::Config::range(0));
             DNDS_FIELD(pseudoTimeStep, "Fixed pseudo-time step", DNDS::Config::range(0.0));
+            DNDS_FIELD(physicalTimeStep, "Uniform physical time step for BDF2 dual-time marching",
+                       DNDS::Config::range(0.0));
             DNDS_FIELD(useCFLTimeStep, "Use Euler-style local CFL pseudo-time steps");
             DNDS_FIELD(useLocalTimeStep, "Use cell-local rather than globally uniform CFL steps");
             DNDS_FIELD(cfl, "ACM CFL number", DNDS::Config::range(0.0));
             DNDS_FIELD(maximumPseudoTimeStep, "Maximum CFL-derived pseudo-time step", DNDS::Config::range(0.0));
-            DNDS_FIELD(maxImplicitIterations, "Maximum nonlinear iterations per implicit step", DNDS::Config::range(1));
-            DNDS_FIELD(implicitTolerance, "Implicit global RMS defect tolerance", DNDS::Config::range(0.0));
+            DNDS_FIELD(maxImplicitIterations, "Maximum inner iterations per implicit or physical step",
+                       DNDS::Config::range(1));
+            DNDS_FIELD(implicitTolerance, "Implicit global RMS steady or physical defect tolerance",
+                       DNDS::Config::range(0.0));
             DNDS_FIELD(implicitRelaxation, "Implicit correction relaxation", DNDS::Config::range(0.0, 1.0));
             DNDS_FIELD(lusgsSweeps, "ACM LU-SGS forward/backward sweep pairs", DNDS::Config::range(1));
             DNDS_FIELD(gmresSubspace, "ACM GMRES Krylov subspace size", DNDS::Config::range(2));
@@ -99,7 +163,7 @@ namespace DNDS::ACM
         }
 
         /**
-         * @brief Validate pseudo-time integration controls.
+         * @brief Validate steady pseudo-time and BDF2 dual-time integration controls.
          * @throws std::runtime_error If a count, time step, tolerance, or relaxation is invalid.
          */
         void Validate() const;
@@ -124,13 +188,13 @@ namespace DNDS::ACM
     using DiagonalJacobianEvaluator =
         std::function<void(const StateField &states, MatrixField &diagonalJacobian)>;
 
-    /// Diagnostics returned after one explicit or implicit pseudo-time step.
+    /// Diagnostics returned after one outer or physical time-marching step.
     struct TimeStepReport
     {
         int iterations = 0;         ///< Explicit stages or implicit nonlinear iterations.
         real initialDefectNorm = 0; ///< Global RMS derivative/defect before updating.
         real finalDefectNorm = 0;   ///< Global RMS derivative/defect after updating.
-        bool converged = false;     ///< True if the algorithm completed its acceptance criterion.
+        bool converged = false;     ///< True when the configured defect tolerance was reached.
     };
 
     /**

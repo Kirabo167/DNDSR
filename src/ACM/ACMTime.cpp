@@ -141,6 +141,9 @@ namespace DNDS::ACM
         DNDS_check_throw_info(
             std::isfinite(pseudoTimeStep) && pseudoTimeStep > 0,
             "ACM pseudoTimeStep must be finite and positive");
+        DNDS_check_throw_info(
+            std::isfinite(physicalTimeStep) && physicalTimeStep > 0,
+            "ACM physicalTimeStep must be finite and positive");
         DNDS_check_throw_info(std::isfinite(cfl) && cfl > 0, "ACM cfl must be finite and positive");
         DNDS_check_throw_info(
             std::isfinite(maximumPseudoTimeStep) && maximumPseudoTimeStep > 0,

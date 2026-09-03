@@ -1,6 +1,6 @@
 /**
  * @file ACMSolver.hpp
- * @brief Solver-level assembly of mesh input, CFV reconstruction, ACM residuals, and pseudo-time marching.
+ * @brief Solver assembly for mesh input, ACM residuals, and steady or dual-time marching.
  *
  * @details The class mirrors the high-level organization of EulerSolver while remaining a separate
  * ACM module. Existing Geom/CFV infrastructure is reused; no Euler source file is changed.
@@ -11,6 +11,7 @@
  */
 #pragma once
 
+#include "ACMBDF2.hpp"
 #include "ACMEvaluator.hpp"
 #include "ACMTime.hpp"
 #include "ACMTurbulenceTransport.hpp"
@@ -29,11 +30,11 @@ namespace DNDS::ACM
     class ACMSolver
     {
     public:
-        using Traits = ModelTraits<model>;        ///< Compile-time ACM model traits.
-        static constexpr int gDim = Traits::gDim; ///< Mesh dimension.
-        using TEvaluator = ACMEvaluator<gDim>;    ///< Spatial evaluator type.
-        using TDof = typename TEvaluator::TDof;   ///< Distributed state array.
-        using TVFV = typename TEvaluator::TVFV;   ///< CFV reconstruction type.
+        using Traits = ModelTraits<model>;                ///< Compile-time ACM model traits.
+        static constexpr int gDim = Traits::gDim;         ///< Mesh dimension.
+        using TEvaluator = ACMEvaluator<gDim>;            ///< Spatial evaluator type.
+        using TDof = typename TEvaluator::TDof;           ///< Distributed state array.
+        using TVFV = typename TEvaluator::TVFV;           ///< CFV reconstruction type.
         using TTurbulence = ACMTurbulenceTransport<gDim>; ///< Independent runtime RANS transport.
 
         /**
@@ -49,7 +50,7 @@ namespace DNDS::ACM
         void ReadMeshAndInitialize();
 
         /**
-         * @brief Run configured SSPRK3, block-Jacobi, ACM LU-SGS, or generic-GMRES steps.
+         * @brief Run configured steady pseudo-time or BDF2 physical dual-time steps.
          */
         void Run();
 
@@ -103,6 +104,24 @@ namespace DNDS::ACM
         void CopyStateFieldToOwned(const StateField &source, TDof &destination) const;
 
         /**
+         * @brief Write cell-centered velocity and pressure to one parallel VTK-HDF file.
+         * @param iStep Outer pseudo-time or physical-time step used in the file name.
+         * @param outputTime Series time value; physical time for BDF2 and step index otherwise.
+         */
+        void WriteFlowField(int iStep, real outputTime);
+
+        /**
+         * @brief Solve one assembled distributed implicit correction system.
+         * @param diagonal Cell diagonal blocks.
+         * @param faceJacobians First-order face coupling blocks.
+         * @param useLUSGS Use LU-SGS directly when true; otherwise use preconditioned GMRES.
+         */
+        void SolveImplicitCorrection(
+            const MatrixField &diagonal,
+            const typename TEvaluator::FaceJacobianField &faceJacobians,
+            bool useLUSGS);
+
+        /**
          * @brief Advance one nonlinear backward-Euler step with ACM LU-SGS or generic GMRES.
          * @param states Rank-local owned states updated in place.
          * @param pseudoTimeStep Positive local pseudo-time steps.
@@ -111,7 +130,22 @@ namespace DNDS::ACM
          */
         TimeStepReport AdvanceImplicitDistributed(
             StateField &states,
-            const ScalarField &pseudoTimeStep);
+            const ScalarField &pseudoTimeStep,
+            real time = 0);
+
+        /**
+         * @brief Advance one physical step with BE-started BDF2 dual-time iterations.
+         * @param states Current state and new-physical-time nonlinear iterate, updated in place.
+         * @param history Completed physical-time states; unchanged throughout the inner iterations.
+         * @param pseudoTimeStep Positive cell-local inner pseudo-time steps.
+         * @param physicalTime New physical time supplied to boundaries and residual assembly.
+         * @return Physical-defect convergence report for the completed inner iterations.
+         */
+        TimeStepReport AdvanceBDF2DualTimeDistributed(
+            StateField &states,
+            const BDF2History &history,
+            const ScalarField &pseudoTimeStep,
+            real physicalTime);
     };
 
     extern template class ACMSolver<ACMModel::ConstantDensity2D>;

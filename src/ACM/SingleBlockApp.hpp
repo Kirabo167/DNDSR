@@ -31,7 +31,7 @@ namespace DNDS::ACM
     }
 
     /**
-     * @brief Parse one complete case JSON, initialize an ACM solver, and run pseudo-time marching.
+     * @brief Parse one complete case JSON, initialize an ACM solver, and run time marching.
      * @tparam model Two- or three-dimensional constant-density model.
      * @param argc Command-line argument count.
      * @param argv Command-line argument array.

@@ -22,6 +22,8 @@ Implemented now:
 - OpenMP face-buffer evaluation and MPI checksum reduction;
 - explicit three-stage SSPRK3 pseudo-time integration with `Gamma^{-1} R`;
 - implicit backward-Euler pseudo-time integration with nonlinear 4x4 block-Jacobi corrections;
+- backward-Euler-started, constant-step BDF2 physical dual-time integration with either
+  distributed ACM LU-SGS or left-preconditioned GMRES inner solves;
 - CGNS mesh reading, METIS partitioning, ghost construction, and periodic translation reuse;
 - direct second-order Green-Gauss reconstruction;
 - arbitrary-order CFV variational reconstruction selected by `vfvSettings.maxOrder`;
@@ -35,6 +37,7 @@ Implemented now:
 - direct reuse of generic left-preconditioned GMRES with block-Jacobi or ACM LU-SGS preconditioning;
 - Euler-style local/global CFL pseudo-time steps with convective and viscous spectral radii;
 - runtime-selectable laminar, SA, Wilcox k-omega, SST k-omega, and Realizable k-epsilon modes;
+- configurable parallel VTK-HDF cell-field output for velocity and pressure;
 - segregated limited second-order turbulence transport with wall distance, MPI ghost exchange,
   positivity-bounded SSPRK3 substeps, and frozen eddy-viscosity coupling to the flow equations;
 - DNDS configuration registration, self-contained single-case JSON loading, CLI overrides, and schema output.
@@ -143,6 +146,36 @@ The `name` must match the CGNS boundary-zone name. Set `useCFLTimeStep=true` in
 `timeMarchSettings` to enable local spectral-radius stepping; `useLocalTimeStep=false` replaces
 all local values with the MPI-global minimum.
 
+## BDF2 physical dual-time marching
+
+Select `BDF2DualTimeLUSGS` or `BDF2DualTimeGMRES` as the `integrator`. In this mode, `nSteps`
+counts physical-time steps, `physicalTimeStep` is the uniform physical step, and
+`maxImplicitIterations` limits the pseudo-time corrections inside each physical step. The first
+physical step uses backward Euler; every later step uses constant-step BDF2. The physical-time
+mass matrix is `diag(1,1,1,0)`, so BDF differentiates velocity but never artificial-compressibility
+pressure. CFL controls continue to set only the inner pseudo-time step.
+
+The new setting is available to JSON configuration and command-line JSON-pointer overrides. Case
+files created before this option remain loadable: when `physicalTimeStep` is absent, the loader
+inserts the default `0.01` into the in-memory normalized configuration. No existing case JSON must
+be edited merely to retain its previous steady integration behavior.
+
+An eventual BDF2 selection has the following form (this documentation example does not modify an
+existing case file):
+
+```json
+"timeMarchSettings": {
+  "integrator": "BDF2DualTimeLUSGS",
+  "nSteps": 4000,
+  "physicalTimeStep": 0.01,
+  "maxImplicitIterations": 20,
+  "implicitTolerance": 1e-10
+}
+```
+
+See `docs/solver-guide/acm_bdf2_dual_time_zh.md` for the governing defect, implicit matrix, source
+mapping, and usage details.
+
 Current initial-version limits:
 
 - periodic translations are configurable, while rotational periodic setup is not exposed yet;
@@ -151,9 +184,12 @@ Current initial-version limits:
   nonlinear residual retains the selected high-order reconstruction;
 - turbulence transport is segregated and explicit even when the four-variable flow integrator is
   implicit; no coupled turbulence Jacobian or implicit turbulence source linearization is present;
+- BDF2 physical dual-time marching currently accepts `Laminar` only; turbulence physical-time
+  histories and a coupled/segregated unsteady update have not yet been implemented;
 - the supplied SA model is baseline RANS; DES, transition, and rotation/curvature corrections are
   not enabled;
-- solution/restart/VTK output is not connected yet.
+- restart output and BDF2-history serialization are not connected yet; flow-field output currently
+  contains cell-centered velocity and pressure in parallel VTK-HDF format.
 
 Relevant selections are:
 

@@ -101,7 +101,7 @@ namespace DNDS::ACM
         int variationalIterations = 3;                            ///< Fixed-point VR sweeps per residual call.
         bool resetVariationalCoefficients = false;                ///< Reset VR coefficients before each solve.
         bool enableLimiter = true;                                ///< Apply the limiter selected by limiterType.
-        LimiterType limiterType = LimiterType::LocalExtrema;       ///< Local-extrema, WBAP, or CWBAP procedure.
+        LimiterType limiterType = LimiterType::LocalExtrema;      ///< Local-extrema, WBAP, or CWBAP procedure.
 
         DNDS_DECLARE_CONFIG(ReconstructionSettings)
         {
@@ -115,6 +115,24 @@ namespace DNDS::ACM
         }
     };
 
+    /** @brief Controls parallel VTK-HDF flow-field output from the ACM driver. */
+    struct OutputSettings
+    {
+        int interval = 0;                         ///< Outer-step interval; zero disables output.
+        std::string directory = "../data/outACM"; ///< Output directory, relative to the launch directory.
+        std::string prefix = "acm";               ///< File and VTK series prefix.
+        bool writeInitial = true;                 ///< Write the initialized field at step zero.
+
+        DNDS_DECLARE_CONFIG(OutputSettings)
+        {
+            DNDS_FIELD(interval, "Outer-step flow-field output interval; zero disables output",
+                       DNDS::Config::range(0));
+            DNDS_FIELD(directory, "Flow-field output directory");
+            DNDS_FIELD(prefix, "Flow-field file prefix");
+            DNDS_FIELD(writeInitial, "Write the initial flow field at step zero");
+        }
+    };
+
     /// Complete kernel-preview configuration read by the `acm3D` application.
     struct KernelConfiguration
     {
@@ -123,6 +141,7 @@ namespace DNDS::ACM
         TurbulenceSettings turbulenceSettings; ///< Independent runtime RANS selection and transport controls.
         MeshSettings meshSettings;
         ReconstructionSettings reconstructionSettings;
+        OutputSettings outputSettings;
         CFV::VRSettings vfvSettings{3};
         BoundaryType defaultBoundaryType = BoundaryType::FarField;
         std::vector<BoundaryCondition> boundaryConditions; ///< Per-zone Euler-style ACM boundaries.
@@ -136,13 +155,17 @@ namespace DNDS::ACM
         DNDS_DECLARE_CONFIG(KernelConfiguration)
         {
             config.field_section(&T::acmSettings, "acmSettings", "Constant-density ACM settings");
-            config.field_section(&T::timeMarchSettings, "timeMarchSettings", "ACM pseudo-time integration settings");
+            config.field_section(
+                &T::timeMarchSettings,
+                "timeMarchSettings",
+                "ACM steady pseudo-time and physical dual-time integration settings");
             config.field_section(
                 &T::turbulenceSettings,
                 "turbulenceSettings",
                 "Segregated constant-density ACM turbulence settings");
             config.field_section(&T::meshSettings, "meshSettings", "Distributed mesh input settings");
             config.field_section(&T::reconstructionSettings, "reconstructionSettings", "ACM high-order reconstruction settings");
+            config.field_section(&T::outputSettings, "outputSettings", "Parallel VTK-HDF flow-field output settings");
             config.field_section(&T::vfvSettings, "vfvSettings", "Existing CFV variational-reconstruction settings");
             DNDS_FIELD(defaultBoundaryType, "Boundary type applied to unmapped external zones",
                        DNDS::Config::enum_values(DNDS_ENUM_ALLOWED_VALUES(BoundaryType)));
