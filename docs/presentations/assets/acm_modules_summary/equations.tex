@@ -1,0 +1,44 @@
+\documentclass[12pt]{article}
+\usepackage[paperwidth=16in,paperheight=4in,margin=0.3in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\newcommand{\eqpage}[1]{\begin{center}\fontsize{28}{36}\selectfont #1\end{center}\newpage}
+\begin{document}
+\eqpage{\[\nabla\!\cdot\bm u=0,\qquad
+\frac{\partial\bm u}{\partial t}+\nabla\!\cdot(\bm u\otimes\bm u)
++\frac{\nabla p}{\rho_0}=\frac{\nabla\!\cdot\bm\sigma}{\rho_0}\]}
+\eqpage{\[\bm\sigma=\mu\!\left[\nabla\bm u+(\nabla\bm u)^T
+-\frac{2}{3}(\nabla\!\cdot\bm u)I\right],\qquad
+Q=[u,v,w,p]^T\]}
+\eqpage{\[\frac{1}{\beta^2}\frac{\partial p}{\partial\tau}
++\nabla\!\cdot\bm u=0\qquad
+\xrightarrow{\ \partial_\tau p\to0\ }\qquad\nabla\!\cdot\bm u=0\]}
+\eqpage{\[\Gamma(Q)=
+\begin{bmatrix}
+1&0&0&\gamma_T u/\beta^2\\
+0&1&0&\gamma_T v/\beta^2\\
+0&0&1&\gamma_T w/\beta^2\\
+0&0&0&1/\beta^2
+\end{bmatrix},\qquad
+\gamma_T=1+\alpha\]}
+\eqpage{\[\Gamma(Q)\frac{\partial Q}{\partial\tau}
++M\frac{\partial Q}{\partial t}=R(Q),\qquad
+M=\operatorname{diag}(1,1,1,0)\]}
+\eqpage{\[q=\bm u\cdot\bm n,\qquad
+Q_n=[q,s_1,s_2,p]^T,\qquad
+F_n(Q_n)=\begin{bmatrix}q^2+p/\rho_0\\qs_1\\qs_2\\q\end{bmatrix}\]}
+\eqpage{\[\lambda_{t,1}=\lambda_{t,2}=q,\qquad
+\lambda_\pm=\frac{(1-\alpha)q\ \pm\sqrt{(1-\alpha)^2q^2+4\beta^2/\rho_0}}{2}\]}
+\eqpage{\[R_i(Q)=-\frac{1}{V_i}\sum_{f\in\partial\Omega_i}
+\int_f\left(\widehat F_n^{\,c}-F_n^{\,v}\right)\,\mathrm dS\]}
+\eqpage{\[Q_i(\bm x)=\overline Q_i+\sum_{\ell=1}^{N_p}
+c_{i\ell}\phi_{i\ell}(\bm x),\qquad
+\frac{1}{V_i}\int_{\Omega_i}\phi_{i\ell}\,\mathrm dV=0\]}
+\eqpage{\[M\frac{3Q^{n+1}-4Q^n+Q^{n-1}}{2\Delta t}=R(Q^{n+1})\]}
+\eqpage{\[D^{(k)}=R(Q^{(k)})-
+M\frac{a_0Q^{(k)}+a_1Q^n+a_2Q^{n-1}}{\Delta t}\]}
+\eqpage{\[\left[\frac{\Gamma^{(k)}}{\Delta\tau_i}
++\frac{a_0M}{\Delta t}-J_R^{\mathrm{approx}}\right]\delta Q^{(k)}=D^{(k)},
+\qquad Q^{(k+1)}=Q^{(k)}+\omega\delta Q^{(k)}\]}
+\end{document}

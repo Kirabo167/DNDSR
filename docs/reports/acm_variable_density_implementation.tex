@@ -1,0 +1,343 @@
+% !TeX program = xelatex
+% File: acm_variable_density_implementation.tex
+% Purpose: Strict derivation, discrepancy audit and implementation record for variable-density ACM.
+% Author/Modifier: Runzhi Ma
+% Date: 2026-09-04
+\documentclass[UTF8,11pt,a4paper]{ctexart}
+\usepackage[a4paper,left=22mm,right=22mm,top=23mm,bottom=24mm]{geometry}
+\usepackage{amsmath,amssymb,bm,mathtools,booktabs,longtable,tabularx,array}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{enumitem,listings,fancyhdr,hyperref,microtype}
+\hypersetup{colorlinks=true,linkcolor=MidnightBlue,urlcolor=MidnightBlue,
+ pdfauthor={Runzhi Ma},pdftitle={DNDSR变密度ACM严格推导与实现报告}}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{DNDSR 变密度 ACM}\fancyhead[R]{严格推导与实现审查}\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}\setlength{\parindent}{2em}\setlength{\parskip}{.25em}
+\setlist{nosep,leftmargin=2.2em}\renewcommand{\arraystretch}{1.25}\setlength{\emergencystretch}{2em}
+\definecolor{Good}{RGB}{27,112,62}\definecolor{Bad}{RGB}{177,35,35}\definecolor{Warn}{RGB}{177,91,0}
+\newcommand{\ok}{\textcolor{Good}{正确}}\newcommand{\bad}{\textcolor{Bad}{错误}}
+\newcommand{\warn}{\textcolor{Warn}{限制}}\newcommand{\vect}[1]{\bm{#1}}
+\lstset{basicstyle=\ttfamily\small,frame=single,breaklines=true,backgroundcolor=\color{gray!5}}
+
+\title{\bfseries DNDSR 变密度人工可压缩法\\严格推导、差异审查与模块实现报告}
+\author{推导、实现与审查：Runzhi Ma}\date{2026年9月4日}
+\begin{document}\maketitle
+\begin{abstract}
+本文从三个随附报告、不可压变密度 Navier--Stokes 方程及有限体积守恒离散出发，重新建立
+二维/三维变密度 ACM。核心结论是：必须区分物理通量雅可比 $A_n$、伪时间矩阵
+$\Gamma$、预条件算子 $B_n=\Gamma^{-1}A_n$ 和物理时间质量矩阵 $M$；它们不可互换。
+本文给出一般 $\alpha$ 的完整特征系统、Roe 恒等式、特征碰撞的 Jordan/Hermite 极限、
+高阶重构与限制器、显隐式推进、湍流守恒改写及 MPI 结构，并逐项标出原文错误。
+对应代码位于独立的 \texttt{src/ACMVariable}，未修改 Euler 或常密度 ACM 源文件。
+\end{abstract}
+\tableofcontents\newpage
+
+\section{范围、假设和变量}
+求解模型是低速、不可压、无密度扩散的变密度流：
+\begin{align}
+ \partial_t\rho+\nabla\cdot(\rho\vect u)&=0,\\
+ \partial_t(\rho\vect u)+\nabla\cdot(\rho\vect u\otimes\vect u+pI-\vect\tau)&=\rho\vect f,\\
+ \nabla\cdot\vect u&=0,\qquad
+ \vect\tau=(\mu+\mu_t)\left(\nabla\vect u+\nabla\vect u^T-\frac{2}{3}(\nabla\cdot\vect u)I\right).
+\end{align}
+由连续方程和散度约束可得 $D\rho/Dt=0$。因此密度不是 EOS 的函数，也没有 Euler 能量方程。
+本初版未加入温度、组分扩散、表面张力或浮力模型；若用户需要可混溶变密度流，必须另加组分方程，
+不能通过修改 ACM 雅可比“隐含”得到。
+
+统一三维存储
+\[\vect U=(\rho,m_x,m_y,m_z,p)^T,\qquad \vect m=\rho\vect u.\]
+二维仍使用五分量（2-D/3-C），若初值和边界给 $m_z=0$，其方程保持为零。这一选择使 CFV
+五变量模板、并行数组和特征限制器在二维、三维间直接组装。
+
+\section{严格的面法向通量与物理雅可比}
+取单位法向 $\vect n$，构造稳定的右手正交基 $T=[\vect n,\vect t_1,\vect t_2]$。
+局部状态记为 $U_n=(\rho,m_n,m_1,m_2,p)^T$，$q=m_n/\rho$，$a=m_1/\rho$，$b=m_2/\rho$。
+物理通量必须是
+\begin{equation}
+ F_n(U_n)=\left(m_n,\frac{m_n^2}{\rho}+p,
+ \frac{m_nm_1}{\rho},\frac{m_nm_2}{\rho},\frac{m_n}{\rho}\right)^T.\label{eq:F}
+\end{equation}
+第五项是 $u_n$，不是 $u_n/\rho$。直接对守恒变量求导：
+\begin{equation}
+A_n=\frac{\partial F_n}{\partial U_n}=
+\begin{pmatrix}
+0&1&0&0&0\\
+-q^2&2q&0&0&1\\
+-qa&a&q&0&0\\
+-qb&b&0&q&0\\
+-q/\rho&1/\rho&0&0&0
+\end{pmatrix}.\label{eq:A}
+\end{equation}
+注意第二行第一列只有 $-q^2$；把 $a^2+b^2$ 加进去是把 Euler 总能量雅可比误植到 ACM。
+第五行绝不能全零。全局 $A_{\vect n}=S^TA_nS$，其中 $S=\mathrm{diag}(1,T^T,1)$。
+
+\section{一般 $\alpha$ 的 $\Gamma$、逆矩阵与特征系统}
+本文明确采用代码中的 Scheme-A 守恒变量矩阵（$\gamma_1=\alpha+1$，
+$\gamma_2=2\alpha+1$）：
+\begin{equation}
+\Gamma=\begin{pmatrix}
+1&0&0&0&\gamma_1\rho/\beta^2\\
+0&1&0&0&\gamma_2m_n/\beta^2\\
+0&0&1&0&\gamma_2m_1/\beta^2\\
+0&0&0&1&\gamma_2m_2/\beta^2\\
+0&0&0&0&1/\beta^2
+\end{pmatrix},\quad
+\Gamma^{-1}=\begin{pmatrix}
+1&0&0&0&-\gamma_1\rho\\
+0&1&0&0&-\gamma_2m_n\\
+0&0&1&0&-\gamma_2m_1\\
+0&0&0&1&-\gamma_2m_2\\
+0&0&0&0&\beta^2
+\end{pmatrix}.\label{eq:G}
+\end{equation}
+这不是物理时间质量矩阵。令原始变量 $W=(\rho,q,a,b,p)^T$，
+$J=\partial U/\partial W$，则相似变换后的预条件算子为
+\begin{equation}
+B_W=J^{-1}\Gamma^{-1}A_nJ=
+\begin{pmatrix}
+q&-\alpha\rho&0&0&0\\
+0&(1-\alpha)q&0&0&1/\rho\\
+0&-\alpha a&q&0&0\\
+0&-\alpha b&0&q&0\\
+0&\beta^2&0&0&0
+\end{pmatrix}.\label{eq:Bp}
+\end{equation}
+因此
+\begin{equation}
+\det(\lambda I-B)=(\lambda-q)^3
+[\lambda^2-(1-\alpha)q\lambda-\beta^2/\rho],
+\end{equation}
+\begin{equation}
+\lambda_{\pm}=\frac{(1-\alpha)q\pm
+\sqrt{(1-\alpha)^2q^2+4\beta^2/\rho}}{2},\qquad\lambda_c=q\;(\text{三重}).\label{eq:eigs}
+\end{equation}
+实现用根乘积 $\lambda_-\lambda_+=-\beta^2/\rho$ 回算较小根，避免大 $|q|$ 时消减。
+
+三个 $q$ 模态在原始变量中是密度接触和两切向剪切：
+$r_\rho^W=(1,0,0,0,0)^T$、$r_a^W=e_3$、$r_b^W=e_4$；
+映射回守恒变量时
+$r_\rho^U=(1,q,a,b,0)^T$，而不是 $(1,0,0,0,0)^T$。
+压力归一化的声学右向量可取
+\begin{equation}
+r_\lambda^W=\left(-\frac{\alpha\rho\lambda}{\beta^2(\lambda-q)},
+\frac{\lambda}{\beta^2},-
+\frac{\alpha a\lambda}{\beta^2(\lambda-q)},-
+\frac{\alpha b\lambda}{\beta^2(\lambda-q)},\frac1{1}\right)^T,
+\quad r_\lambda^U=Jr_\lambda^W.\label{eq:R}
+\end{equation}
+$R=[r_-,r_\rho,r_a,r_b,r_+]$，$L=R^{-1}$，代码逐状态验证
+$LR=I$、$BR=R\Lambda$。这里的波强度严格是 $\vect a=L\Delta U$；不能把守恒跳跃直接代入
+原始变量左向量。
+
+\subsection{特征碰撞不是普通 Roe 回退}
+$q=\lambda_\pm$ 的条件为
+\begin{equation}\alpha\rho q^2=\beta^2,\quad \alpha>0.\end{equation}
+此处 $B$ 通常亏损一个特征向量。直接求逆 $R$ 或设 $\alpha=0$ 都不严格。实现对一般点使用
+$\Gamma R|\Lambda|L\Delta U$；碰撞和病态邻域使用最小多项式上的合流 Hermite 插值计算
+$f(B)$，其中 $f(\lambda)$ 是 Harten 熵修正的绝对值，并在重根保留 $f'(q)$，即 Jordan 极限。
+边界碰撞则使用分离声学模态的多项式谱投影，不反演奇异特征矩阵。
+
+\section{Roe、Rusanov 与黏性通量}
+平方根密度 Roe 平均为
+\begin{equation}
+\bar\rho=\sqrt{\rho_L\rho_R},\quad
+\bar{\vect u}=\frac{\sqrt{\rho_L}\vect u_L+\sqrt{\rho_R}\vect u_R}
+{\sqrt{\rho_L}+\sqrt{\rho_R}},\quad \bar p=(p_L+p_R)/2.
+\end{equation}
+它逐项满足 $A(\bar U)(U_R-U_L)=F(U_R)-F(U_L)$，包含第五个散度通量。
+数值通量为
+\[\widehat F=\tfrac12(F_L+F_R)-\tfrac12\Gamma(\bar U)|B(\bar U)|\Delta U.\]
+Rusanov 使用同一 $\Gamma(\bar U)\Delta U$，但速度取
+$s=\max\{\rho(B_L),\rho(B_{\bar U}),\rho(B_R)\}$；只取 Roe 平均会低估低密度侧声速。
+
+黏性部分先按链式法则把守恒梯度变为原始梯度：
+$\nabla\vect u=(\nabla\vect m-\vect u\otimes\nabla\rho)/\rho$。
+面梯度使用非正交修正
+\begin{equation}
+G_f=\tfrac12(G_L+G_R)+\vect n\,
+\frac{(W_R-W_L)-\vect d\cdot\tfrac12(G_L+G_R)}{\vect d\cdot\vect n}.
+\end{equation}
+它在线性场上严格恢复梯度；不能把 $2V_L/S_f$ 当成任意内部面的中心距，也不能在平均后再额外
+叠加一次法向差分（会在正交线性场放大两倍）。
+
+\section{有限体积、高阶重构与限制器}
+单元半离散残差采用同一个面通量对两侧反号装配；MPI ghost 拉取发生在重构、算子乘和 LU--SGS
+扫前。支持：FirstOrder；Green--Gauss 二阶；CFV Variational（JSON 的 \texttt{maxOrder} 控制
+阶数）。后两者均在面高斯点重构。密度候选值用单元级比例回退保证 $\rho>\rho_{floor}$。
+
+LocalExtrema 对五个守恒量邻域最小/最大值求共同 $\theta\in[0,1]$。WBAP/CWBAP 复用 CFV
+通用五变量核；变换使用本文 $L,R$。碰撞时特征限制无唯一特征坐标，局部回退为守恒变量多项式
+限制，而非奇异矩阵求逆。三维实例调用维数模板的多项式范数核
+\texttt{FWBAP\_L2\_Biway\_PolynomialNorm<3,5>}，不存在二维范数误用。
+
+\section{时间推进与严格的 DAE 分离}
+物理时间模型为
+\begin{equation}
+M\frac{dU}{dt}+R(U)=0,\qquad M=\mathrm{diag}(1,1,1,1,0),\label{eq:M}
+\end{equation}
+而伪时间为 $\Gamma(U)dU/d\tau=R(U)$（代码 $R$ 采用更新号约定）。压力绝不能进入 BDF 历史。
+BDF2 只有一次系数：
+\begin{equation}M(3U^{n+1}-4U^n+U^{n-1})/(2\Delta t)-R(U^{n+1})=0.\end{equation}
+把已经除以 $2\Delta t$ 的括号再乘 $3/(2\Delta t)$ 是确定错误。
+
+\begin{longtable}{p{.25\linewidth}p{.19\linewidth}p{.48\linewidth}}
+\toprule 入口&用途&实现含义\\\midrule
+ExplicitSSPRK3&稳态伪时间&三阶段三阶 Shu--Osher；每阶段用 $\Gamma^{-1}R$，MPI 一致检查密度\\
+ImplicitEulerBlockJacobi&伪时间&非线性 BE，局部 $5\times5$ 块\\
+ImplicitEulerLUSGS/GMRES&伪时间&冻结一阶面雅可比；ACM $5\times5$ LU--SGS 或通用 GMRES\\
+BDF2DualTimeLUSGS/GMRES&物理时间&首步 BDF1，随后 BDF2；$M$ 只作用前四分量\\
+pseudoODECode 0,101,202--204&伪时间&共享 SDIRK/ESDIRK/梯形引擎\\
+pseudoODECode 1,102,103&伪时间&共享 BDF 引擎\\
+pseudoODECode 2&伪时间&共享类名虽含 SSPRK4，实际公式是 SSPRK3，按实际标记\\
+pseudoODECode 401,411--413&伪时间&共享 Hermite3 引擎\\
+physicalODECode 0,1,102,103,202--204,401,411--413&物理时间&独立压力 stage，差分历史为 $(\rho,\vect m,0,\rho\phi)$\\
+physicalODECode 2,101&物理时间&\warn：配置时拒绝；非 stiffly-accurate 终值需独立压力投影，不能伪装支持\\
+\bottomrule
+\end{longtable}
+
+状态相关 $\Gamma$ 的后向 Euler 项必须用乘积求导：
+\begin{equation}
+\frac{\partial}{\partial U}\left[\Gamma(U)(U-U^0)/\Delta\tau\right]
+=\frac1{\Delta\tau}\left[\Gamma(U)+
+\mathrm{diag}\left(\frac{(\alpha+1)\Delta p}{\beta^2},
+\frac{(2\alpha+1)\Delta p}{\beta^2}I_3,0\right)\right].\label{eq:Gprod}
+\end{equation}
+旧草稿只保留 $\Gamma/\Delta\tau$；本次已补上式~\eqref{eq:Gprod}。
+物理 BDF 对角加 $c_0M/\Delta t$，二者不能混用。
+
+\section{隐式面雅可比、LU--SGS 与 GMRES}
+物理 $A_n$ 有解析式~\eqref{eq:A}；完整数值通量还含 Roe 平均、$|B|$、边界 ghost 链式法则和
+黏性非正交修正。当前隐式一阶算子在每个面两侧用中心差分形成精确于离散通量的 $5\times5$
+块 $J_f^L,J_f^R$；高阶重构、限制器、$\mu_t$ 在一次线性求解内冻结。这是 Newton--Krylov 的
+一阶近似雅可比，不应称为完整高阶解析 Jacobian。
+
+GMRES 直接复用 \texttt{Solver/Linear.hpp}，矩阵向量积进行 halo 交换，预条件可选块 Jacobi 或
+独立 ACM LU--SGS。LU--SGS 用真实 $5\times5$ 对角块和面耦合块前后扫，不套用 Euler 能量行。
+文档中 $D\approx a_{eff}\Gamma+d_tM$ 的上三角闭式只在每单元冻结 $\Gamma$、用 LF 谱标量、
+$A_n$ 面和满足几何闭合的特定近似下成立；它不是一般非结构高阶数值通量的精确对角块。
+
+\section{边界条件}
+所有 Euler 名称均有 ACM 语义，但不借用 Euler 热力学：Wall/WallIsothermal 反射全部速度，
+WallInvis 与 Symmetry 只反射法向速度；Out 外推；OutP 镜像指定面压力；In 指定
+$(\rho,\rho\vect u,p)$；InPsTs 在无 EOS 模型中只能解释为“密度+速度入口”；Far 按一般
+$\alpha$ 特征速度只注入入射模态；Special-0 为常状态，Special-1 是验证用平移余弦密度。
+配置中的 moving frame/anchor 等保留字段若非零会明确拒绝，避免静默误解释。
+
+\section{湍流模块及变密度守恒改写}
+模块支持 Laminar、标准 SA、Wilcox $k$--$\omega$、Menter SST 及项目兼容的 realizable
+$k$--$\epsilon$。它们不 include/修改 Euler 源码。输运历史用 $\rho\phi$，对流通量严格复用流场
+Riemann 质量通量 $\widehat{\rho u_n}$，扩散、源项使用局部密度。壁面距离由 Geom 的真正最近壁
+几何计算，不沿网格线估计。
+
+标准 SA 原始方程是非守恒形式。将其乘 $\rho$ 并把
+$\rho(\nu+\tilde\nu)\nabla\tilde\nu/\sigma$ 放入散度后，必须补
+\begin{equation}S_{\rho,SA}=-\frac{\nu+\tilde\nu}{\sigma}
+\nabla\rho\cdot\nabla\tilde\nu,\end{equation}
+否则变密度下已悄悄换成另一模型。本次实现已加入该项。标准 SA 方程、常数、$\mu_t=\rho
+\tilde\nu f_{v1}$ 和壁面距离注意事项可与 NASA Turbulence Modeling Resource 对照
+\footnote{\url{https://tmbwg.github.io/turbmodels/spalart.html}}；Wilcox 与 SST 对照
+\footnote{\url{https://tmbwg.github.io/turbmodels/wilcox.html}}
+\footnote{\url{https://tmbwg.github.io/turbmodels/sst.html}}。
+
+\textbf{边界：}SA 壁面 $\tilde\nu=0$；$\omega$ 壁面按 $\mu/(\rho d^2)$ 量级；入口/远场采用
+JSON 正值；出口外推。正值上下界和 $\mu_t/\mu$ 上限是显式可配置的数值保护。
+\textbf{适用性限制：}这些是 Favre 型守恒输运的工程 RANS 闭合，不含湍流质量扩散、标量混合
+和变密度浮力项；realizable $k$--$\epsilon$ 是与现有 Euler 实现兼容的项目变体，不能不加说明地
+称作任一文献的逐项标准版本。两方程各向同性 $-2\rho kI/3$ 当前解释为已吸收到求解压力中；
+后处理若需要热力学静压应输出 $p_{static}=p_{stored}-2\rho k/3$。
+
+\section{三个输入文档的错误清单}
+\begin{longtable}{p{.27\linewidth}p{.33\linewidth}p{.33\linewidth}}
+\toprule 来源位置/说法&判定与反例&正确处理\\\midrule
+3D报告式(22)末通量写 $u/\rho$&\bad；与散度约束及随后雅可比矛盾&式~\eqref{eq:F}末项 $u_n$\\
+3D报告式(25)密度导数含切向速度平方&\bad；Euler 能量行污染&式~\eqref{eq:A}\\
+3D报告式(26)写 $(q-\lambda)^3$&\bad；五阶首项符号错误&写 $(\lambda-q)^3$\\
+3D报告式(28)守恒密度向量 $(1,0,0,0,0)$&\bad；$B r\ne q r$&$(1,q,a,b,0)^T$\\
+3D报告式(29--32)混用原始/守恒波强度&\bad；量纲和 $\alpha\to0$ 极限异常&用 $L\Delta U$，$R_U=JR_W$\\
+报告切向构造直接叉乘固定轴&\warn；法向平行固定轴时退化&选绝对投影最小坐标轴再 Gram--Schmidt\\
+3D报告式(36)BDF 重复 $d_{dt}$&\bad；量纲为 $1/t^2$&一次 BDF 商和质量矩阵~\eqref{eq:M}\\
+预处理报告式(39--40)第五行全零&\bad；则必有零特征值，与声学根矛盾&保留 $(-q/\rho,1/\rho,0,0,0)$\\
+预处理报告变量换元仍写 $\Gamma_B=S\Gamma_AS^{-1}$&\warn；若物理通量不变，这是方程整体换基而非仅变量缩放&先声明是变量变换还是方程相似变换，再一致变换 $A,\Gamma$\\
+改错报告称某面积/体积公式形式不同即错误&证据不足；等价多边形公式可同值&用线性场、闭合面积向量、正体积单元测试判定\\
+改错报告用 $\alpha<0.01$ 判断碰撞&\bad；非数学碰撞条件&用 $\alpha\rho q^2=\beta^2$ 与基条件数\\
+只冻 $\Gamma/\Delta\tau$ 为精确 BE Jacobian&\bad；漏乘积导数&式~\eqref{eq:Gprod}\\
+\bottomrule
+\end{longtable}
+
+\section{二维与三维实现路径}
+\subsection{二维}
+网格维数为2，面基仍嵌入三维；$m_z$ 为被动剪切模态。重构模板为 CFV $<2>$、变量数5；
+黏性梯度第三空间行补零；CFL 用二维单元体积/边长但波谱仍由式~\eqref{eq:eigs}。验证包括
+任意二维法向、非正交线性梯度、静止/平移密度接触和 1/多 MPI rank 一致性。
+
+\subsection{三维}
+网格维数为3，正交基包含两个动态切向方向；重构和 WBAP 范数均显式实例化 $<3,5>$。
+三维黏性应变率、壁面距离、面 Jacobian、LU--SGS 和 VTK-HDF 输出均保留三分量。
+不得调用二维多项式范数核；回归测试需随机法向和全三维线性场。
+
+\section{实现伪代码}
+\begin{lstlisting}[language=C++]
+for each nonlinear/stage evaluation:
+  pull MPI ghosts(U)
+  reconstruct U polynomial with FirstOrder/GG/CFV-VR
+  if WBAP/CWBAP:
+    for each neighbor face: RoeMean -> L,R; limit characteristic coefficients
+    at collision: limit conservative coefficients
+  enforce one density-positive scaling per reconstructed face state
+  prepare segregated RANS gradients and frozen mu_t
+  for each process face and quadrature point:
+    rotate U_L,U_R to orthonormal face frame
+    Fhat = 0.5*(F_L+F_R-Gamma_bar*abs(B_bar)*(U_R-U_L))
+    gradW_f = corrected_nonorthogonal_gradient(chain_rule(gradU))
+    Fhat -= viscous_flux(gradW_f, mu+mu_t)
+    store Fhat[rho] for turbulence advection
+    add -Fhat*S/V_L; add +Fhat*S/V_R
+  add rho*RANS_source and SA density-product correction
+
+physical BDF solve:
+  defect = spatial_R(U) - M*(c0*U+c1*Un+c2*Unm1)/dt
+  J = frozen_spatial_J + c0*M/dt + Gamma/dTau
+  solve J*dU = defect using ACM-LUSGS or generic GMRES
+  update rho,m and pressure; pressure has no physical history
+\end{lstlisting}
+
+\section{验证矩阵与验收标准}
+\begin{enumerate}
+\item 符号：$A=\partial F/\partial U$、$\Gamma^{-1}\Gamma=I$、式~\eqref{eq:Bp}、特征多项式、Roe secant。
+\item 核测试：160组随机密度/速度/法向检查有限差分 Jacobian、$LR=I$、$BR=R\Lambda$、旋转反对称性；
+在精确碰撞点检查 $f(B)^2=B^2$、$f(B)B=Bf(B)$ 及邻域连续性。
+\item 黏性：任意非正交连接向量上的线性原始场必须恢复到机器精度；密度链式法则单独检查。
+\item 时间：常残差零保持；BDF 只作用前四分量；式~\eqref{eq:Gprod} 与数值差分一致；显式负密度在
+MPI 所有 rank 同时拒绝，隐式更新回退但不逐单元截断守恒量。
+\item 空间/MPI：二维和三维制造平移接触在 1、2、4 rank 上比较全局质量、$L_2$ 误差和输出；
+误差随网格/阶数下降，最终质量差只来自指定边界通量。
+\item 湍流：每个模式做均匀自由流、壁面极限、正值、源项单元测试；再与 TMR 零压梯度平板/方形通道
+基准比较。未完成基准验证前，RANS 状态应标作研究实现，而非生产认证。
+\end{enumerate}
+
+\section{文件和接口映射}
+\begin{longtable}{p{.29\linewidth}p{.63\linewidth}}
+\toprule 文件&主要职责\\\midrule
+ACMState/ACMFlux/ACM.cpp&五变量状态、旋转、$A,\Gamma,B,R,L$、Roe/Jordan、边界、黏性\\
+ACMEvaluator.hpp/.hxx&CFV 重构、限制器、MPI 面残差、CFL、数值面 Jacobian、LU--SGS\\
+ACMTime/ACMBDF2/ACMPhysicalTime&SSPRK3、BE、BDF/ESDIRK/SDIRK/Hermite DAE/ODE 适配\\
+ACMTurbulence*.hpp/.hxx/.cpp&四种运行模式、守恒 $\rho\phi$ 输运、壁面距离、源和扩散\\
+ACMConfig/ACMSolver/SingleBlockApp&单 JSON、网格分区、模块装配、GMRES、并行输出、短入口\\
+scripts/verify\_acm\_variable\_symbolic.py&独立 SymPy 恒等式，不加载项目动态库\\
+test/cpp/ACMVariable/test\_core.cpp&数值差分、碰撞、黏性、边界、时间及 SA 回归\\
+\bottomrule
+\end{longtable}
+所有新增文件均有文件级作者说明；公开/核心函数按 Doxygen 说明作用、参数、返回值和异常。
+
+\section{最终结论}
+本次在当前工作区实测结果为：符号脚本全部恒等式通过；C++ 核测试 8 组、1494 个
+随机/确定性断言全部通过；2-rank 和 4-rank 真实 CGNS 网格回归得到二维和三维静止密度
+接触最大残差均为 $0$；2-rank 二维平移余弦密度用 BDF1 启动、CWBAP、Roe、GMRES 时，
+一个 $\Delta t=10^{-3}$ 的物理步在4次非线性迭代后把 RMS 缺陷从
+$1.964\times10^{-2}$ 降至 $9.569\times10^{-8}$。二维、三维可执行文件均重新编译通过。
+
+严格可用的主链为：守恒状态~$[\rho,\rho\vect u,p]$、式~\eqref{eq:F}--\eqref{eq:A}、
+明确选择的式~\eqref{eq:G}、一般 $\alpha$ 特征系统、平方根密度 Roe、碰撞处矩阵函数极限、
+原始梯度链式法则、$M\ne\Gamma$ 的 DAE 时间离散。三个输入文档可作为思路来源，但其中列出的
+通量/Jacobian/变量变换/BDF/碰撞判据不能原样编码。现有独立模块已按该链修正，Euler 和常密度
+ACM 保持不变。RANS 模块已具备计算结构，但其最终工程可信度仍须按本报告 TMR 基准矩阵验收。
+\end{document}

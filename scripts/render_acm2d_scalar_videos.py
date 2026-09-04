@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render separate density, velocity-magnitude, and pressure ACM2D videos."""
+"""Render separate density, velocity-magnitude, u, and pressure ACM2D videos."""
 
 from __future__ import annotations
 
@@ -24,13 +24,15 @@ from render_acm2d_history import build_triangulation, step_from_path
 FIELD_LABELS = {
     "density": r"Density $\rho$ (constant model value, not solved)",
     "velocity": r"Velocity magnitude $|\mathbf{V}|$",
+    "u": r"Streamwise velocity $u$",
+    "v": r"Transverse velocity $v$",
     "pressure": r"Pressure $p$",
 }
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Create separate ACM2D density, velocity-magnitude, and pressure videos."
+        description="Create separate ACM2D scalar-field videos."
     )
     parser.add_argument("input_directory", type=Path)
     parser.add_argument("output_directory", type=Path)
@@ -39,11 +41,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--video-prefix", required=True)
     parser.add_argument("--max-step", type=int, default=4000)
     parser.add_argument("--physical-time-step", type=float)
+    parser.add_argument("--time-kind", choices=("physical", "pseudo"), default="physical")
     parser.add_argument("--rho0", type=float, default=1.0)
     parser.add_argument("--fps", type=int, default=12)
     parser.add_argument("--xlim", nargs=2, type=float, default=(-5.0, 35.0))
     parser.add_argument("--ylim", nargs=2, type=float, default=(-6.0, 6.0))
     parser.add_argument("--contour-levels", type=int, default=41)
+    parser.add_argument(
+        "--fields", nargs="+", choices=tuple(FIELD_LABELS),
+        default=("density", "velocity", "pressure"),
+    )
     return parser.parse_args()
 
 
@@ -70,6 +77,10 @@ def read_field(path: str, field: str, rho0: float) -> np.ndarray:
         velocity = np.asarray(handle["VTKHDF/CellData/Velocity"][:], dtype=float)
     if field == "velocity":
         return np.linalg.norm(velocity[:, :2], axis=1)
+    if field == "u":
+        return velocity[:, 0]
+    if field == "v":
+        return velocity[:, 1]
     if field == "density":
         return np.full(velocity.shape[0], rho0, dtype=float)
     raise ValueError(f"Unsupported field: {field}")
@@ -81,6 +92,8 @@ def global_ranges(
     minimum_speed = np.inf
     maximum_speed = 0.0
     maximum_pressure = 0.0
+    minimum_u, maximum_u = np.inf, -np.inf
+    maximum_abs_v = 0.0
     for path in paths:
         with h5py.File(path, "r") as handle:
             velocity = np.asarray(handle["VTKHDF/CellData/Velocity"][:, :2], dtype=float)
@@ -89,16 +102,25 @@ def global_ranges(
         minimum_speed = min(minimum_speed, float(np.nanmin(speed)))
         maximum_speed = max(maximum_speed, float(np.nanmax(speed)))
         maximum_pressure = max(maximum_pressure, float(np.nanmax(np.abs(pressure))))
+        minimum_u = min(minimum_u, float(np.nanmin(velocity[:, 0])))
+        maximum_u = max(maximum_u, float(np.nanmax(velocity[:, 0])))
+        maximum_abs_v = max(maximum_abs_v, float(np.nanmax(np.abs(velocity[:, 1]))))
     density_padding = max(abs(rho0) * 5.0e-4, 5.0e-4)
+    u_padding = max(0.02 * (maximum_u - minimum_u), 1.0e-6)
     display_limits = {
         "density": (rho0 - density_padding, rho0 + density_padding),
         "velocity": (0.0, max(1.02 * maximum_speed, 1.0e-6)),
+        "u": (minimum_u - u_padding, maximum_u + u_padding),
+        "v": (-max(1.02 * maximum_abs_v, 1.0e-6),
+              max(1.02 * maximum_abs_v, 1.0e-6)),
         "pressure": (-max(1.02 * maximum_pressure, 1.0e-6),
                      max(1.02 * maximum_pressure, 1.0e-6)),
     }
     contour_limits = {
         "density": (rho0, rho0),
         "velocity": (minimum_speed, maximum_speed),
+        "u": (minimum_u, maximum_u),
+        "v": (-maximum_abs_v, maximum_abs_v),
         "pressure": (-maximum_pressure, maximum_pressure),
     }
     return display_limits, contour_limits
@@ -148,6 +170,7 @@ def render_frame(
     rho0: float,
     physical_time: float,
     case_label: str,
+    time_kind: str,
     xlim: tuple[float, float],
     ylim: tuple[float, float],
     contour_count: int,
@@ -157,6 +180,8 @@ def render_frame(
     color_maps = {
         "density": "viridis",
         "velocity": "turbo",
+        "u": "turbo",
+        "v": "RdBu_r",
         "pressure": "RdBu_r",
     }
 
@@ -184,9 +209,12 @@ def render_frame(
     axis.set_aspect("equal", adjustable="box")
     axis.set_xlabel("x / D", fontsize=13)
     axis.set_ylabel("y / D", fontsize=13)
+    if time_kind == "physical":
+        time_text = f"physical step {step},  t* = {physical_time:.2f}"
+    else:
+        time_text = f"steady pseudo step {step}"
     axis.set_title(
-        f"{case_label} — {FIELD_LABELS[field]}\n"
-        f"physical step {step},  t* = {physical_time:.2f}",
+        f"{case_label} — {FIELD_LABELS[field]}\n{time_text}",
         fontsize=16,
     )
     axis.tick_params(labelsize=11)
@@ -275,7 +303,7 @@ def main() -> None:
     if any(right <= left for left, right in zip(ordered_times, ordered_times[1:])):
         raise SystemExit("Physical times must be strictly increasing")
 
-    for field in ("density", "velocity", "pressure"):
+    for field in args.fields:
         output = args.output_directory / (
             f"{args.video_prefix}_{field}_contours_steps_0000_{args.max_step:04d}.mp4"
         )
@@ -295,6 +323,7 @@ def main() -> None:
                 args.rho0,
                 physical_times[Path(path).name],
                 args.case_label,
+                args.time_kind,
                 tuple(args.xlim),
                 tuple(args.ylim),
                 args.contour_levels,

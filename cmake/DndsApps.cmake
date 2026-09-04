@@ -137,6 +137,8 @@ ADD_EXE_APP("${DNDS_APPS_Geom}" "app/Geom" "geom;dnds;" ON cpp)
 ADD_EXE_APP("${DNDS_APPS_CFV}" "app/CFV" "cfv;geom;dnds;" ON cpp)
 # Build ACM independently from the existing Euler equation module while reusing CFV/Geom. Modifier: Runzhi Ma.
 ADD_EXE_APP("${DNDS_APPS_ACM}" "app/ACM" "acm;cfv;geom;dnds;" ON cpp)
+# Independent variable-density applications. Author: Runzhi Ma.
+ADD_EXE_APP("acmVariable2D;acmVariable3D" "app/ACMVariable" "acmVariable;cfv;geom;dnds;" ON cpp)
 ADD_EXE_APP("${DNDS_APPS_Euler}" "app/Euler" "cfv;geom;dnds;" ON cpp)
 
 

@@ -107,6 +107,8 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/src/Geom)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/CFV)
 # Constant-density ACM module integration. Modifier: Runzhi Ma.
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/ACM)
+# Separate variable-density equation module; original solvers remain unchanged. Runzhi Ma.
+add_subdirectory(${CMAKE_SOURCE_DIR}/src/ACMVariable)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/Euler)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/EulerP)
 

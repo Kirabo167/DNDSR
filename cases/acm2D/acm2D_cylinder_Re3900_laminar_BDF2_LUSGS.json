@@ -3,8 +3,8 @@
 // Mesh: data/mesh/CylinderA1.cgns; cylinder center (0,0), diameter D=1.
 // Nondimensional flow: rho=1, U_inf=1, D=1, so mu=rho*U_inf*D/Re_D=1/3900.
 // Time integration: backward-Euler startup followed by BDF2 dual-time LU-SGS.
-// Run length: 4000 physical steps with dt=0.01, giving t*=t*U_inf/D=40.
-// Output: initial field plus one field every 100 physical steps (41 fields in total).
+// Run length: 10000 physical steps with dt=0.01, giving t*=t*U_inf/D=100.
+// Output: initial field plus one field every 50 physical steps (201 fields in total).
 // Intended launch from build/ with 32 MPI ranks:
 // OMP_NUM_THREADS=1 mpirun -np 32 ./app/acm2D.exe \
 //   ../cases/acm2D/acm2D_cylinder_Re3900_laminar_BDF2_LUSGS.json
@@ -31,10 +31,10 @@
     // Physical BDF2 outer steps with local-CFL pseudo-time iterations.
     "timeMarchSettings": {
         "integrator": "BDF2DualTimeLUSGS",
-        "nSteps": 4000,
+        "nSteps": 10000,
         // Fallback pseudo-time step when useCFLTimeStep=false.
         "pseudoTimeStep": 0.0005,
-        // Uniform nondimensional physical time step; 4000 steps reach t*=40.
+        // Uniform nondimensional physical time step; 10000 steps reach t*=100.
         "physicalTimeStep": 0.01,
         "useCFLTimeStep": true,
         "useLocalTimeStep": true,
@@ -102,9 +102,9 @@
         "limiterType": "CWBAP"
     },
 
-    // Files are numbered 00000000, 00000100, ..., 00004000.
+    // Files are numbered 00000000, 00000050, ..., 00010000.
     "outputSettings": {
-        "interval": 100,
+        "interval": 50,
         "directory": "../data/outACM/acm2D_CylinderRe3900_BDF2_LUSGS",
         "prefix": "CylinderA1_Re3900_laminar_BDF2_LUSGS",
         "writeInitial": true

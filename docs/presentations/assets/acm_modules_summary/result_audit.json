@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-09-03T20:48:54",
+  "data_source": "/mnt/ssd-SATARAID5/home/mrz/.local/share/Trash/files/acm2D_CylinderRe3900_BDF2_LUSGS",
+  "config_source": "/mnt/ssd-SATARAID5/home/mrz/projects/DNDSR/cases/acm2D/acm2D_cylinder_Re3900_laminar_BDF2_LUSGS.json",
+  "physical_steps": 4000,
+  "snapshot_count": 41,
+  "cell_count": 23791,
+  "final_time": 40.0,
+  "snapshot_interval": 100,
+  "mpi_ranks": 16,
+  "rho0": 1.0,
+  "density_is_config_constant": true,
+  "final_cell_extrema": {
+    "u": [
+      -0.7921089500006154,
+      1.8179333092505965
+    ],
+    "v": [
+      -1.363849970391218,
+      1.32600301754682
+    ],
+    "speed": [
+      0.00016486931371081958,
+      1.837652987088185
+    ],
+    "p": [
+      -1.9703471405585091,
+      0.5186434455837068
+    ]
+  },
+  "global_snapshot_extrema": {
+    "u": [
+      -1.6740004815398946,
+      2.011317649668927
+    ],
+    "v": [
+      -1.4570936226084374,
+      1.5131897525189182
+    ],
+    "speed": [
+      0.00015478787109923857,
+      2.0134580458318383
+    ],
+    "p": [
+      -2.3268846596265904,
+      0.596298172677244
+    ]
+  },
+  "last_initial_defect": 0.3085,
+  "last_final_defect": 0.01065,
+  "converged_step_count": 0,
+  "all_iterations_equal_15": true,
+  "media": {
+    "density": {
+      "name": "CylinderA1_Re3900_BDF2_density_contours_steps_0000_4000.mp4",
+      "bytes": 45442,
+      "sha256": "f812482731085e1d5cfc92837e0b83a7e3ca4371e854faff2a79bbb18c0db184"
+    },
+    "velocity": {
+      "name": "CylinderA1_Re3900_BDF2_velocity_contours_steps_0000_4000.mp4",
+      "bytes": 815972,
+      "sha256": "cf49fc28368d80c43bac77c1810fa1bece0d7e7727605c22030e50157cb5e07a"
+    },
+    "u": {
+      "name": "CylinderA1_Re3900_BDF2_u_contours_steps_0000_4000.mp4",
+      "bytes": 653773,
+      "sha256": "7c52879db7e5005b8c75dcd6175dc2dfe489871983b0c45c32bc8a057a20df03"
+    },
+    "pressure": {
+      "name": "CylinderA1_Re3900_BDF2_pressure_contours_steps_0000_4000.mp4",
+      "bytes": 530142,
+      "sha256": "79fe9ea566b8595c7b41245472e54e072d2278abf70c0a9c22f1337734fed01f"
+    }
+  }
+}

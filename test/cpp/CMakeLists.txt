@@ -476,6 +476,11 @@ function(acm_add_mpi_test TEST_NAME SRC_FILE LIBS)
 endfunction()
 
 add_custom_target(acm_unit_tests)
+# Independent variable-density algebra tests. Author: Runzhi Ma.
+acm_add_unit_test(variable_core "ACMVariable/test_core.cpp" "acmVariable;cfv;geom;dnds")
+acm_add_mpi_test(variable_mpi "ACMVariable/test_mpi.cpp" "acmVariable;cfv;geom;dnds")
+add_custom_target(acm_variable_unit_tests DEPENDS acm_test_variable_core acm_test_variable_mpi)
+add_dependencies(all_unit_tests acm_variable_unit_tests)
 add_dependencies(all_unit_tests acm_unit_tests)
 
 acm_add_unit_test(core "ACM/test_ACMCore.cpp" "acm;cfv;geom;dnds")
