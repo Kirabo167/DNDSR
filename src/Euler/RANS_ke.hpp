@@ -26,6 +26,7 @@
 #pragma once
 
 #include "Euler.hpp"
+#include "DNDS/Config/ConfigParam.hpp"
 
 /** @brief When set to 1, cap turbulent viscosity at 1e5 * mu_laminar for k-epsilon. */
 #define KE_LIMIT_MUT 1
@@ -50,6 +51,60 @@
 /** @brief RANS turbulence model functions (eddy viscosity, viscous flux, source terms). */
 namespace DNDS::Euler::RANS
 {
+    /** @brief Spalart-Allmaras kernel configuration. */
+    struct SAConfig
+    {
+        real productionLimit = 1e5; ///< Upper multiplier in P <= productionLimit * |D|.
+
+        DNDS_DECLARE_CONFIG(SAConfig)
+        {
+            DNDS_FIELD(productionLimit, "SA production-to-destruction limit multiplier",
+                       DNDS::Config::range(0.0));
+        }
+    };
+
+    /** @brief Wilcox k-omega kernel configuration. */
+    struct KOmegaConfig
+    {
+        real turbulentViscosityLimit = 1e5; ///< Upper multiplier in mu_t <= limit * mu.
+        real productionLimit = 20;          ///< Upper multiplier in Pk <= limit * betaStar * rho*k*omega.
+
+        DNDS_DECLARE_CONFIG(KOmegaConfig)
+        {
+            DNDS_FIELD(turbulentViscosityLimit, "Wilcox k-omega turbulent-viscosity limit multiplier",
+                       DNDS::Config::range(0.0));
+            DNDS_FIELD(productionLimit, "Wilcox k-omega production limit multiplier",
+                       DNDS::Config::range(0.0));
+        }
+    };
+
+    /** @brief Menter k-omega SST kernel configuration. */
+    struct KOmegaSSTConfig
+    {
+        real turbulentViscosityLimit = 1e5; ///< Upper multiplier in mu_t <= limit * mu.
+        real productionLimit = 20;          ///< Upper multiplier in Pk <= limit * betaStar * rho*k*omega.
+
+        DNDS_DECLARE_CONFIG(KOmegaSSTConfig)
+        {
+            DNDS_FIELD(turbulentViscosityLimit, "SST turbulent-viscosity limit multiplier",
+                       DNDS::Config::range(0.0));
+            DNDS_FIELD(productionLimit, "SST production limit multiplier",
+                       DNDS::Config::range(0.0));
+        }
+    };
+
+    /** @brief Realizable k-epsilon kernel configuration. */
+    struct RKEConfig
+    {
+        real turbulentViscosityLimit = 1e5; ///< Upper multiplier in mu_t <= limit * mu.
+
+        DNDS_DECLARE_CONFIG(RKEConfig)
+        {
+            DNDS_FIELD(turbulentViscosityLimit, "Realizable k-epsilon turbulent-viscosity limit multiplier",
+                       DNDS::Config::range(0.0));
+        }
+    };
+
     /** @brief Spalart-Allmaras model constants used across multiple files.
      *
      *  Canonical definitions from Spalart & Allmaras (1994).
@@ -58,8 +113,8 @@ namespace DNDS::Euler::RANS
      */
     namespace SA
     {
-        static constexpr real cnu1 = 7.1;   ///< SA model constant c_{v1} controlling the viscous damping function f_{v1}.
-        static constexpr real cn1 = 16.0;    ///< SA model constant c_{n1} for the negative-nuTilde extension function f_n.
+        static constexpr real cnu1 = 7.1;        ///< SA model constant c_{v1} controlling the viscous damping function f_{v1}.
+        static constexpr real cn1 = 16.0;        ///< SA model constant c_{n1} for the negative-nuTilde extension function f_n.
         static constexpr real sigma = 2.0 / 3.0; ///< SA model diffusion coefficient sigma.
     }
 
@@ -88,7 +143,7 @@ namespace DNDS::Euler::RANS
      * @return         Turbulent dynamic viscosity mu_t (>= 0).
      */
     template <int dim, class TU, class TDiffU>
-    real GetMut_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d)
+    real GetMut_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, const RKEConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -111,7 +166,7 @@ namespace DNDS::Euler::RANS
         real mut = cmu * fmu * rho * sqr(k) / epsilon;
         mut = std::min(mut, phi * rho * k / S);
 #if KE_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
         if (std::isnan(mut) || !std::isfinite(mut))
         {
@@ -145,7 +200,7 @@ namespace DNDS::Euler::RANS
      * @param[out] vFlux   Output viscous flux vector; entries at I4+1 and I4+2 are set.
      */
     template <int dim, class TU, class TN, class TDiffU, class TVFlux>
-    void GetVisFlux_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxyPrim, TN &&uNorm, real mut, real d, real muPhy, TVFlux &vFlux)
+    void GetVisFlux_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxyPrim, TN &&uNorm, real mut, real d, real muPhy, TVFlux &vFlux, const RKEConfig &)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -189,7 +244,7 @@ namespace DNDS::Euler::RANS
      * @param mode      Source computation mode: 0 = full source, 1 = implicit diagonal (destruction only).
      */
     template <int dim, class TU, class TDiffU, class TSource>
-    void GetSource_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, TSource &source, int mode)
+    void GetSource_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, TSource &source, int mode, const RKEConfig &)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -272,7 +327,7 @@ namespace DNDS::Euler::RANS
      *         after the Newton iteration, for convergence diagnostics.
      */
     template <int dim, class TU>
-    std::tuple<real, real> SolveZeroGradEquilibrium(TU &u, real muPhy) // this is tested to be not applicable!
+    std::tuple<real, real> SolveZeroGradEquilibrium(TU &u, real muPhy, const RKEConfig &config) // this is tested to be not applicable!
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -290,7 +345,7 @@ namespace DNDS::Euler::RANS
         auto getDE = [&](real re) -> real
         {
             uc(I4 + 2) = re;
-            GetSource_RealizableKe<dim>(uc, diffU, muPhy, src);
+            GetSource_RealizableKe<dim>(uc, diffU, muPhy, 0, src, 0, config);
             return src(I4 + 1);
         };
         std::cout << "Mu " << muPhy << std::endl;
@@ -332,7 +387,7 @@ namespace DNDS::Euler::RANS
      * @param[out] source  Output Jacobian diagonal vector; entries at I4+1 and I4+2 are set.
      */
     template <int dim, class TU, class TDiffU, class TSource>
-    void GetSourceJacobianDiag_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, TSource &source)
+    void GetSourceJacobianDiag_RealizableKe(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, TSource &source, const RKEConfig &)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -397,7 +452,7 @@ namespace DNDS::Euler::RANS
      * @param[out] source  Output numerical Jacobian diagonal vector; entries at I4+1 and I4+2 are set.
      */
     template <int dim, class TU, class TDiffU, class TSource>
-    void GetSourceJacobianDiag_RealizableKe_ND(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, TSource &source)
+    void GetSourceJacobianDiag_RealizableKe_ND(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, TSource &source, const RKEConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -411,9 +466,9 @@ namespace DNDS::Euler::RANS
         real epsRe = (u0(I4 + 2) + smallReal) * std::sqrt(smallReal);
         u0(I4 + 1) += epsRk;
         u1(I4 + 2) += epsRe;
-        GetSource_RealizableKe<dim>(UMeanXy, DiffUxy, muf, sb);
-        GetSource_RealizableKe<dim>(u0, DiffUxy, muf, s0);
-        GetSource_RealizableKe<dim>(u1, DiffUxy, muf, s1);
+        GetSource_RealizableKe<dim>(UMeanXy, DiffUxy, muf, 0, sb, 0, config);
+        GetSource_RealizableKe<dim>(u0, DiffUxy, muf, 0, s0, 0, config);
+        GetSource_RealizableKe<dim>(u1, DiffUxy, muf, 0, s1, 0, config);
         source(I4 + 1) = -(s0(I4 + 1) - sb(I4 + 1)) / epsRk;
         source(I4 + 2) = -(s1(I4 + 2) - sb(I4 + 2)) / epsRe;
         source(I4 + 1) = std::max(source(I4 + 1), 0.) * 10;
@@ -440,7 +495,7 @@ namespace DNDS::Euler::RANS
      * @return         Turbulent dynamic viscosity mu_t (>= 0).
      */
     template <int dim, class TU, class TDiffU>
-    real GetMut_SST(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d)
+    real GetMut_SST(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, const KOmegaSSTConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -470,7 +525,7 @@ namespace DNDS::Euler::RANS
         // F2 = 0;
         real mut = a1 * k / std::max(OmegaMag * F2, a1 * omegaaa) * rho;
 #if KW_SST_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
 
         if (std::isnan(mut) || !std::isfinite(mut))
@@ -508,7 +563,7 @@ namespace DNDS::Euler::RANS
      * @param[out] vFlux   Output viscous flux vector; entries at I4+1 and I4+2 are set.
      */
     template <int dim, class TU, class TN, class TDiffU, class TVFlux>
-    void GetVisFlux_SST(TU &&UMeanXy, TDiffU &&DiffUxyPrim, TN &&uNorm, real mutIn, real d, real muf, TVFlux &vFlux)
+    void GetVisFlux_SST(TU &&UMeanXy, TDiffU &&DiffUxyPrim, TN &&uNorm, real mutIn, real d, real muf, TVFlux &vFlux, const KOmegaSSTConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -550,7 +605,7 @@ namespace DNDS::Euler::RANS
         // F2 = 0;
         real mut = a1 * k / std::max(OmegaMag * F2, a1 * omegaaa) * rho;
 #if KW_SST_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
 
         real sigK = sigK1 * F1 + sigK2 * (1 - F1);
@@ -606,7 +661,7 @@ namespace DNDS::Euler::RANS
      * @param mode      Source computation mode: 0 = full source, 1 = implicit diagonal (destruction only).
      */
     template <int dim, class TU, class TDiffU, class TSource>
-    void GetSource_SST(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, real lLES, TSource &source, int mode)
+    void GetSource_SST(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, real lLES, TSource &source, int mode, const KOmegaSSTConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -651,7 +706,7 @@ namespace DNDS::Euler::RANS
         // F2 = 0;
         real mut = a1 * k / std::max(OmegaMag * F2, a1 * omegaaa) * rho; // use S/OmegaMag for SST: S: CFD++, OmegaMag: Turbulence Modeling Validation, Testing, and Developmen
 #if KW_SST_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
         real nutHat = std::max(mut / rho, 1e-8);
 
@@ -660,7 +715,7 @@ namespace DNDS::Euler::RANS
         real PkTilde = Pk;
 #if KW_SST_PROD_LIMITS == 1
         PkTilde = std::max(PkTilde, verySmallReal);
-        PkTilde = std::min(Pk, 20 * betaStar * rho * k * omegaaa); // CFD++'s limiting: 10 times
+        PkTilde = std::min(Pk, config.productionLimit * betaStar * rho * k * omegaaa); // CFD++'s limiting: 10 times
 #endif
 
         real gammaC = gamma1 * F1 + gamma1 * (1 - F1);
@@ -712,7 +767,7 @@ namespace DNDS::Euler::RANS
      * @return         Turbulent dynamic viscosity mu_t (>= 0).
      */
     template <int dim, class TU, class TDiffU>
-    real GetMut_KOWilcox(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d)
+    real GetMut_KOWilcox(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, const KOmegaConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -737,7 +792,7 @@ namespace DNDS::Euler::RANS
 #endif
         real mut = k / omegaaaTut * rho;
 #if KW_WILCOX_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
 
         if (std::isnan(mut) || !std::isfinite(mut))
@@ -773,7 +828,7 @@ namespace DNDS::Euler::RANS
      * @param[out] vFlux   Output viscous flux vector; entries at I4+1 and I4+2 are set.
      */
     template <int dim, class TU, class TN, class TDiffU, class TVFlux>
-    void GetVisFlux_KOWilcox(TU &&UMeanXy, TDiffU &&DiffUxyPrim, TN &&uNorm, real mutIn, real d, real muf, TVFlux &vFlux)
+    void GetVisFlux_KOWilcox(TU &&UMeanXy, TDiffU &&DiffUxyPrim, TN &&uNorm, real mutIn, real d, real muf, TVFlux &vFlux, const KOmegaConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -803,7 +858,7 @@ namespace DNDS::Euler::RANS
 #endif
         real mut = k / omegaaaTut * rho;
 #if KW_WILCOX_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
 
         vFlux(I4 + 1) = diffKO(Seq012, 0).dot(uNorm) * (muf + mut * sigK);
@@ -824,7 +879,8 @@ namespace DNDS::Euler::RANS
      * - **Version 2 (simplified):** alpha = 13/25, beta = 0.075, vorticity-based production,
      *   no stress limiter, no cross-diffusion.
      *
-     * Production of k is optionally capped at 20 * beta* * rho * k * omega (CFL3D-style)
+     * Production of k is optionally capped at
+     * @c config.productionLimit * beta* * rho * k * omega (CFL3D-style)
      * when @c KW_WILCOX_PROD_LIMITS is enabled.
      *
      * When @p mode == 0, the full source vector is returned:
@@ -845,9 +901,10 @@ namespace DNDS::Euler::RANS
      * @param d         Wall distance (unused here, kept for interface consistency).
      * @param[out] source  Output source vector; entries at I4+1 and I4+2 are set.
      * @param mode      Source computation mode: 0 = full source, 1 = implicit diagonal (destruction only).
+     * @param config    Wilcox k-omega hard-limit settings.
      */
     template <int dim, class TU, class TDiffU, class TSource>
-    void GetSource_KOWilcox(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, TSource &source, int mode)
+    void GetSource_KOWilcox(TU &&UMeanXy, TDiffU &&DiffUxy, real muf, real d, TSource &source, int mode, const KOmegaConfig &config)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
         static const auto Seq012 = Eigen::seq(Eigen::fix<0>, Eigen::fix<dim - 1>);
@@ -886,7 +943,7 @@ namespace DNDS::Euler::RANS
 #endif
         real mut = k / omegaaaTut * rho;
 #if KW_WILCOX_LIMIT_MUT == 1
-        mut = std::min(mut, 1e5 * muf); // CFL3D
+        mut = std::min(mut, config.turbulentViscosityLimit * muf); // CFL3D
 #endif
 
         real ChiOmega = std::abs(((OmegaM2 * OmegaM2).array() * SR2.array()).sum() * 0.125 / cube(betaS * omegaaa));
@@ -919,7 +976,7 @@ namespace DNDS::Euler::RANS
         // Pk = std::min(Pk, OmegaM2.squaredNorm() * 0.5 * mut); // compare with CFL3D approx
 
         Pk = std::max(Pk, verySmallReal);
-        Pk = std::min(Pk, betaS * rho * k * omegaaa * 20); // CFL3D
+        Pk = std::min(Pk, config.productionLimit * betaS * rho * k * omegaaa); // CFL3D
 #endif
 
         // POmega = std::min(POmega, beta * rho * sqr(omegaaa) * 20); // CFL3D
@@ -981,6 +1038,7 @@ namespace DNDS::Euler::RANS
      * @param[out] source  Output source vector; entry at I4+1 is set.
      * @param rotCor    Rotation correction flag: 0 = disabled, nonzero = enabled (c_rot = 2.0).
      * @param mode      Source computation mode: 0 = full source, 1 = implicit diagonal (positive).
+     * @param saConfig  SA source-term hard limits.
      */
     template <int dim, class TU, class TDiffU, class TSource>
     void GetSource_SA(TU &&UMeanXy, TDiffU &&DiffUxy, real muRef, real mufPhy, real gamma,
@@ -989,6 +1047,7 @@ namespace DNDS::Euler::RANS
                       real hMax,
                       int DESMode,
                       TSource &source, int rotCor, int mode,
+                      const SAConfig &saConfig,
                       int SAVersion = 0)
     {
         static const auto Seq123 = Eigen::seq(Eigen::fix<1>, Eigen::fix<dim>);
@@ -1034,10 +1093,10 @@ namespace DNDS::Euler::RANS
         if (settings.frameConstRotation.enabled)
             Omega += Geom::CrossVecToMat(settings.frameConstRotation.vOmega())(Seq012, Seq012); // to static frame rotation
 #endif
-        const real S = Omega.norm() * std::sqrt(2.0);                               // is omega's magnitude
+        const real S = Omega.norm() * std::sqrt(2.0); // is omega's magnitude
         const real SS = SAVersion == 0
-                            ? (diffU + diffU.transpose()).norm() * (1. / std::sqrt(2.0))  // corrected strain rate magnitude
-                            : (diffU + diffU.transpose()).norm();                          // legacy (Frobenius of 2*S_ij)
+                            ? (diffU + diffU.transpose()).norm() * (1. / std::sqrt(2.0)) // corrected strain rate magnitude
+                            : (diffU + diffU.transpose()).norm();                        // legacy (Frobenius of 2*S_ij)
         real SRotCor = 0.0;
         if (rotCor)
         {
@@ -1060,12 +1119,12 @@ namespace DNDS::Euler::RANS
         real lDES = d;
         // DDES shield
         {
-            real lRANS = d;
-            real fwStar = .424;
-            real nuTur = mufPhy / UMeanXy(0) * std::max((Chi * fnu1), 0.0);
-            real nufPhy = mufPhy / UMeanXy(0);
-            real rd = (nuTur + nufPhy) / (sqr(kappa) * sqr(d) * std::max(smallReal, diffUNorm));
-            real fd = 1. - std::tanh(cube(8 * rd));
+            const real lRANS = d;
+            const real fwStar = .424;
+            const real nuTur = mufPhy / UMeanXy(0) * std::max((Chi * fnu1), 0.0);
+            const real nufPhy = mufPhy / UMeanXy(0);
+            const real rd = (nuTur + nufPhy) / (sqr(kappa) * sqr(d) * std::max(smallReal, diffUNorm));
+            const real fd = 1. - std::tanh(cube(8 * rd));
             real psiSqr = 0.0;
             if (Chi <= 0)
                 psiSqr = 100.0;
@@ -1168,6 +1227,9 @@ namespace DNDS::Euler::RANS
             P = cb1 * (1 - ct3) * std::abs(S + SRotCor) * nuh;
         }
 #endif
+
+        // ! production limit
+        P = std::min(P, saConfig.productionLimit * std::abs(D));
 
         if (mode == 0)
             source(I4 + 1) = UMeanXy(0) * (P - D + diffNu.squaredNorm() * cb2 / sigma) / muRef -

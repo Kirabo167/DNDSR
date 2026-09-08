@@ -27,12 +27,35 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
+#include <chrono>
+#include <cstdint>
 
 using namespace DNDS;
 using namespace DNDS::Euler;
 
 static MPIInfo g_mpi;
 static constexpr real GOLDEN_NOT_ACQUIRED = 1e300;
+
+static std::filesystem::path testTempDir()
+{
+    static std::filesystem::path path;
+    if (path.empty())
+    {
+        unsigned long long nonce = 0;
+        if (g_mpi.rank == 0)
+        {
+            nonce = static_cast<unsigned long long>(
+                std::chrono::high_resolution_clock::now().time_since_epoch().count());
+            nonce ^= static_cast<unsigned long long>(
+                reinterpret_cast<std::uintptr_t>(&path));
+        }
+        MPI_Bcast(&nonce, 1, MPI_UNSIGNED_LONG_LONG, 0, g_mpi.comm);
+        path = std::filesystem::temp_directory_path() /
+               ("dndsr_euler_pipeline_" + std::to_string(nonce));
+        std::filesystem::create_directories(path);
+    }
+    return path;
+}
 
 // ===================================================================
 // Helper: resolve path relative to project root
@@ -61,10 +84,12 @@ template <EulerModel model>
 static std::string writeTempConfig(const std::string &caseJsonPath, const std::string &tag,
                                    const nlohmann::ordered_json &overrides = {})
 {
-    auto tmpDir = std::filesystem::temp_directory_path() / "dndsr_euler_test";
-    std::filesystem::create_directories(tmpDir);
-    std::string defaultPath = (tmpDir / (tag + "_default.json")).string();
-    std::string cfgPath = (tmpDir / (tag + ".json")).string();
+    const auto tmpDir = testTempDir();
+    // CTest may execute the np=1/2/4/8 variants concurrently.  Keep one shared
+    // file per communicator, while avoiding cross-communicator truncation races.
+    std::string mpiTag = tag + "_np" + std::to_string(g_mpi.size);
+    std::string defaultPath = (tmpDir / (mpiTag + "_default.json")).string();
+    std::string cfgPath = (tmpDir / (mpiTag + ".json")).string();
 
     // Step 1: Write defaults
     {

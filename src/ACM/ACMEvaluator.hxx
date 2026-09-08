@@ -289,8 +289,8 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const index otherCell = _mesh->CellFaceOther(iCell, iFace);
-                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace) ? 0 : 1;
+                const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
+                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 State neighbour;
                 if (otherCell != UnInitIndex)
                 {
@@ -301,7 +301,8 @@ namespace DNDS::ACM
                 }
                 else
                 {
-                    const Vector3 outward = ToVector3(_vfv->GetFaceNormFromCell(iFace, iCell, -1, -1));
+                    const Vector3 outward = ToVector3(
+                        _vfv->GetFaceNormFromCell(iFace, iCell, if2c, -1));
                     neighbour = GenerateBoundaryForFace(
                         _mesh->GetFaceZone(iFace),
                         mean,
@@ -317,7 +318,7 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace) ? 0 : 1;
+                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 const auto quadrature = _vfv->GetFaceQuad(iFace);
                 for (int iG = 0; iG < quadrature.GetNumPoints(); iG++)
                 {
@@ -530,6 +531,7 @@ namespace DNDS::ACM
                                     faceToCell[0],
                                     faceToCell[1],
                                     iFace,
+                                    0,
                                     _vfv->GetCellQuadraturePPhys(faceToCell[1], -1)) -
                                 _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
                         }
@@ -585,6 +587,11 @@ namespace DNDS::ACM
         for (index iFace = 0; iFace < _mesh->NumFaceProc(); iFace++)
         {
             const auto faceToCell = _mesh->face2cell[iFace];
+            // The face-centric residual adds and subtracts the same integrated
+            // flux when both incidences belong to one periodic cell.  Its exact
+            // contribution to dR_i/dU_i is therefore zero as well.
+            if (faceToCell[1] == faceToCell[0])
+                continue;
             const auto quadrature = _vfv->GetFaceQuad(iFace);
             for (int iG = 0; iG < quadrature.GetNumPoints(); iG++)
             {
@@ -791,6 +798,7 @@ namespace DNDS::ACM
                             faceToCell[0],
                             faceToCell[1],
                             iFace,
+                            0,
                             _vfv->GetCellQuadraturePPhys(faceToCell[1], -1)) -
                         _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
                 else
@@ -902,14 +910,27 @@ namespace DNDS::ACM
                                 _settings.alpha) /
                             pseudoTimeStep[static_cast<std::size_t>(iCell)];
             const real inverseVolume = 1.0 / _vfv->GetCellVol(iCell);
-            for (const index iFace : _mesh->cell2face[iCell])
+            const auto cellFaces = _mesh->cell2face[iCell];
+            for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
-                const auto faceToCell = _mesh->face2cell[iFace];
+                const index iFace = cellFaces[iCellFace];
+                const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
+                const rowsize if2c =
+                    _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 const auto &faceBlock = faceJacobians[static_cast<std::size_t>(iFace)];
-                if (faceToCell[0] == iCell)
+                if (if2c == 0)
                     block += inverseVolume * faceBlock.left;
                 else
                     block -= inverseVolume * faceBlock.right;
+
+                // A self-periodic face couples the opposite incidence back to
+                // the same algebraic unknown.  Store that contribution in the
+                // diagonal so block Jacobi and LU-SGS see the same local block
+                // as the complete matrix-vector product.
+                if (otherCell == iCell)
+                    block += if2c == 0
+                                 ? inverseVolume * faceBlock.right
+                                 : -inverseVolume * faceBlock.left;
             }
             DNDS_check_throw_info(block.allFinite(), "ACM implicit diagonal block is non-finite");
             diagonal[static_cast<std::size_t>(iCell)] = block;
@@ -938,14 +959,19 @@ namespace DNDS::ACM
         {
             State value = diagonal[static_cast<std::size_t>(iCell)] * increment[iCell];
             const real inverseVolume = 1.0 / _vfv->GetCellVol(iCell);
-            for (const index iFace : _mesh->cell2face[iCell])
+            const auto cellFaces = _mesh->cell2face[iCell];
+            for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
-                const auto faceToCell = _mesh->face2cell[iFace];
-                const index otherCell = _mesh->CellFaceOther(iCell, iFace);
-                if (otherCell == UnInitIndex)
+                const index iFace = cellFaces[iCellFace];
+                const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
+                // Self-periodic coupling is already folded into diagonal during
+                // assembly; treating it again as off-diagonal would double count it.
+                if (otherCell == UnInitIndex || otherCell == iCell)
                     continue;
+                const rowsize if2c =
+                    _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 const auto &faceBlock = faceJacobians[static_cast<std::size_t>(iFace)];
-                const Matrix4 coupling = faceToCell[0] == iCell
+                const Matrix4 coupling = if2c == 0
                                              ? inverseVolume * faceBlock.right
                                              : -inverseVolume * faceBlock.left;
                 value += coupling * increment[otherCell];
@@ -1024,14 +1050,17 @@ namespace DNDS::ACM
             {
                 State value = _lusgsCorrection[iCell];
                 const real inverseVolume = 1.0 / _vfv->GetCellVol(iCell);
-                for (const index iFace : _mesh->cell2face[iCell])
+                const auto cellFaces = _mesh->cell2face[iCell];
+                for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
                 {
-                    const auto faceToCell = _mesh->face2cell[iFace];
-                    const index otherCell = _mesh->CellFaceOther(iCell, iFace);
+                    const index iFace = cellFaces[iCellFace];
+                    const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
                     if (otherCell == UnInitIndex || otherCell >= nOwned || otherCell >= iCell)
                         continue;
+                    const rowsize if2c =
+                        _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                     const auto &faceBlock = faceJacobians[static_cast<std::size_t>(iFace)];
-                    const Matrix4 coupling = faceToCell[0] == iCell
+                    const Matrix4 coupling = if2c == 0
                                                  ? inverseVolume * faceBlock.right
                                                  : -inverseVolume * faceBlock.left;
                     value -= coupling * _lusgsCorrection[otherCell];
@@ -1045,14 +1074,17 @@ namespace DNDS::ACM
                 const index iCell = iScan - 1;
                 State correction = State::Zero();
                 const real inverseVolume = 1.0 / _vfv->GetCellVol(iCell);
-                for (const index iFace : _mesh->cell2face[iCell])
+                const auto cellFaces = _mesh->cell2face[iCell];
+                for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
                 {
-                    const auto faceToCell = _mesh->face2cell[iFace];
-                    const index otherCell = _mesh->CellFaceOther(iCell, iFace);
+                    const index iFace = cellFaces[iCellFace];
+                    const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
                     if (otherCell == UnInitIndex || otherCell >= nOwned || otherCell <= iCell)
                         continue;
+                    const rowsize if2c =
+                        _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                     const auto &faceBlock = faceJacobians[static_cast<std::size_t>(iFace)];
-                    const Matrix4 coupling = faceToCell[0] == iCell
+                    const Matrix4 coupling = if2c == 0
                                                  ? inverseVolume * faceBlock.right
                                                  : -inverseVolume * faceBlock.left;
                     correction -= coupling * _lusgsCorrection[otherCell];

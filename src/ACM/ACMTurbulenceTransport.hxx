@@ -181,8 +181,8 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const index otherCell = _mesh->CellFaceOther(iCell, iFace);
-                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace) ? 0 : 1;
+                const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
+                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 const Geom::tPoint faceCenter =
                     _vfv->GetFaceQuadraturePPhysFromCell(iFace, iCell, if2c, -1);
                 real thisLength =
@@ -191,8 +191,8 @@ namespace DNDS::ACM
                 State otherFlow;
                 TurbulenceState otherTurbulence;
                 Vector3 outward = ToVector3(
-                    _vfv->GetFaceNormFromCell(iFace, iCell, -1, -1));
-                outward *= _mesh->CellIsFaceBack(iCell, iFace) ? 1.0 : -1.0;
+                    _vfv->GetFaceNormFromCell(iFace, iCell, if2c, -1));
+                outward *= if2c == 0 ? 1.0 : -1.0;
 
                 if (otherCell != UnInitIndex)
                 {
@@ -201,6 +201,7 @@ namespace DNDS::ACM
                              iCell,
                              otherCell,
                              iFace,
+                             if2c,
                              _vfv->GetCellQuadraturePPhys(otherCell, -1)) -
                          faceCenter)
                             .norm();
@@ -287,7 +288,9 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const index otherCell = _mesh->CellFaceOther(iCell, iFace);
+                const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
+                const rowsize if2c =
+                    _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 TurbulenceState neighbour =
                     otherCell == UnInitIndex
                         ? GenerateBoundary(iFace, mean, iCell)
@@ -297,8 +300,8 @@ namespace DNDS::ACM
                         _mesh->GetFaceZone(iFace)) == BoundaryType::BCFar)
                 {
                     Vector3 outward = ToVector3(
-                        _vfv->GetFaceNormFromCell(iFace, iCell, -1, -1));
-                    outward *= _mesh->CellIsFaceBack(iCell, iFace) ? 1.0 : -1.0;
+                        _vfv->GetFaceNormFromCell(iFace, iCell, if2c, -1));
+                    outward *= if2c == 0 ? 1.0 : -1.0;
                     if (State(flow[iCell]).template head<3>().dot(outward) >= 0)
                         neighbour = mean;
                 }
@@ -314,7 +317,7 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace) ? 0 : 1;
+                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 const auto quadrature = _vfv->GetFaceQuad(iFace);
                 for (int iG = 0; iG < quadrature.GetNumPoints(); iG++)
                 {
@@ -352,8 +355,8 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const index otherCell = _mesh->CellFaceOther(iCell, iFace);
-                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace) ? 0 : 1;
+                const index otherCell = _mesh->CellFaceOther(iCell, iFace, iCellFace);
+                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 State neighbourFlow;
                 if (otherCell != UnInitIndex)
                 {
@@ -369,8 +372,8 @@ namespace DNDS::ACM
                 else
                 {
                     Vector3 outward = ToVector3(
-                        _vfv->GetFaceNormFromCell(iFace, iCell, -1, -1));
-                    outward *= _mesh->CellIsFaceBack(iCell, iFace) ? 1.0 : -1.0;
+                        _vfv->GetFaceNormFromCell(iFace, iCell, if2c, -1));
+                    outward *= if2c == 0 ? 1.0 : -1.0;
                     neighbourFlow = GenerateBoundaryState(
                         _boundaryHandler->GetConditionFromID(_mesh->GetFaceZone(iFace)),
                         flowMean,
@@ -388,7 +391,7 @@ namespace DNDS::ACM
             for (rowsize iCellFace = 0; iCellFace < cellFaces.size(); iCellFace++)
             {
                 const index iFace = cellFaces[iCellFace];
-                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace) ? 0 : 1;
+                const rowsize if2c = _mesh->CellIsFaceBack(iCell, iFace, iCellFace) ? 0 : 1;
                 const auto quadrature = _vfv->GetFaceQuad(iFace);
                 for (int iG = 0; iG < quadrature.GetNumPoints(); iG++)
                 {
@@ -577,6 +580,7 @@ namespace DNDS::ACM
                             faceToCell[0],
                             faceToCell[1],
                             iFace,
+                            0,
                             _vfv->GetCellQuadraturePPhys(faceToCell[1], -1)) -
                         _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
                 }
@@ -737,6 +741,7 @@ namespace DNDS::ACM
                                 faceToCell[0],
                                 faceToCell[1],
                                 iFace,
+                                0,
                                 _vfv->GetCellQuadraturePPhys(faceToCell[1], -1)) -
                             _vfv->GetCellQuadraturePPhys(faceToCell[0], -1));
                     }

@@ -182,7 +182,7 @@ namespace DNDS::NCFV
         Euler::Gas::InviscidFlux_IdealGas_Dispatcher<dimension>(
             _physics.riemannSolver,
             left, right, left, right,
-            gridVelocity, unitNormal, _physics.gamma, flux,
+            gridVelocity, unitNormal, _physics.gamma, _physics.gamma, flux,
             0.0, 1.0, 1.0,
             []() {}, acousticMinus, contact, acousticPlus);
         return flux;
@@ -350,9 +350,11 @@ namespace DNDS::NCFV
         Gradient leftPrimitiveGradient;
         Gradient rightPrimitiveGradient;
         Euler::Gas::GradientCons2Prim_IdealGas<dimension>(
-            left, leftGradient, leftPrimitiveGradient, _physics.gamma);
+            left, leftGradient, leftPrimitiveGradient, _physics.gamma,
+            Eigen::Vector<real, 0>{});
         Euler::Gas::GradientCons2Prim_IdealGas<dimension>(
-            right, rightGradient, rightPrimitiveGradient, _physics.gamma);
+            right, rightGradient, rightPrimitiveGradient, _physics.gamma,
+            Eigen::Vector<real, 0>{});
         Gradient primitiveGradient =
             0.5 * (leftPrimitiveGradient + rightPrimitiveGradient);
 
@@ -374,7 +376,7 @@ namespace DNDS::NCFV
             viscosity * cp / _physics.viscous.prandtlNumber;
         Euler::Gas::ViscousFlux_IdealGas<dimension>(
             faceState, primitiveGradient, unitNormal, false,
-            _physics.gamma, viscosity, 0.0, false,
+            _physics.gamma, _physics.gamma, viscosity, 0.0, false,
             conductivity, cp, flux);
         return flux;
     }
@@ -396,7 +398,8 @@ namespace DNDS::NCFV
 
         Gradient primitiveGradient;
         Euler::Gas::GradientCons2Prim_IdealGas<dimension>(
-            inside, insideGradient, primitiveGradient, _physics.gamma);
+            inside, insideGradient, primitiveGradient, _physics.gamma,
+            Eigen::Vector<real, 0>{});
         State fluxState = inside;
         bool adiabatic = false;
 
@@ -430,7 +433,7 @@ namespace DNDS::NCFV
             viscosity * cp / _physics.viscous.prandtlNumber;
         Euler::Gas::ViscousFlux_IdealGas<dimension>(
             fluxState, primitiveGradient, unitNormal, adiabatic,
-            _physics.gamma, viscosity, 0.0, false,
+            _physics.gamma, _physics.gamma, viscosity, 0.0, false,
             conductivity, cp, flux);
         return flux;
     }
