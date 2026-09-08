@@ -206,11 +206,12 @@ serves as the non-reactive fallback.
 
 ## State-Convert CLI Tool (`eulerState`)
 
-`app/eulerState.exe` converts a single Euler state between all
-representations using the PhysicsProperties API:
+From the configured build directory, `./app/eulerState.exe` converts a single
+Euler state between all representations using the PhysicsProperties API:
 
 ```
-eulerState --model NS_EX --nVars 14 --from cons-sensible --scaling code \
+cd build
+./app/eulerState.exe --model NS_EX --nVars 14 --from cons-sensible --scaling code \
   --config "gamma=1.4,Rgas=287,U0=379,rho0=1" --mechanism h2o2.yaml \
   --state "[1.0,0,0,0,6.0,0.028,0,0,0.222,0,0,0,0,0]"
 ```

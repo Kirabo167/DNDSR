@@ -1,3 +1,37 @@
+# Kirabo167 fork: v0.3.1 integration
+
+The fork integrated the official v0.3.1 commit into its existing v0.2.1-based
+development line at merge commit `783243c`. In addition to the upstream
+features below, the integration:
+
+- preserves and adapts ACM, ACMVariable, and NCFV to the v0.3.1 mesh-incidence
+  and Gas APIs;
+- handles periodic self-face coupling consistently in ACM Block-Jacobi and
+  LU-SGS implicit operators;
+- makes the Wilcox k-omega kernel consume the configured `productionLimit`;
+- refreshes contributor/build/package metadata, adds reproducible CPU,
+  reactive, schema, Python, CUDA, and CI presets, and pins the header-only
+  dependency bundle with SHA-256 verification;
+- makes committed configuration schemas describe the full Cantera-enabled
+  feature set while preserving underscore-prefixed StateValue metadata and
+  validating legacy examples;
+- repairs the Python wheel/install layout, removes stale bundled MPI/C++
+  runtimes, and documents that current wheels are local, MPI-ABI-specific
+  artifacts pending third-party redistribution review;
+- verifies the baseline matrix (102/102 CTest entries: 100 C++/MPI plus two
+  Python suite entries), Python bindings/tests (49 passed, 1 skipped), and the
+  full Cantera-enabled C++/MPI matrix (108/108 CTest entries, including the
+  focused 8/8 reactive subset);
+- records the feature delta, migration requirements, external test meshes,
+  and CPU/CUDA scope in
+  [`docs/guides/v0.3.1_new_features_zh.md`](docs/guides/v0.3.1_new_features_zh.md).
+
+Subsequent fork commits retain the official v0.3.1 feature baseline but use a
+PEP 440 post-release version such as `0.3.1.postN+g<commit>` rather than
+claiming the unmodified upstream release tag.
+
+---
+
 # 🚀 DNDSR v0.3.1 — Reactive-State Repair, RANS Controls & Shared Skills
 
 5 commits · 31 files changed · 1,412 insertions · 569 deletions
@@ -19,7 +53,7 @@ This patch release hardens reactive-flow initialization and chemistry source eva
 
 - **Spalart-Allmaras production cap**: introduced `SAConfig.productionLimit`; the default increases from 100 to `1e5` to recover ordinary-SA convergence, while the Orion case explicitly retains 100.
 - **Two-equation model controls**: exposed the existing production and turbulent-viscosity limits for Wilcox k-omega, SST, and realizable k-epsilon models without changing their historical defaults.
-- **End-to-end configuration wiring**: concrete RANS config objects now flow through viscosity, source, and viscous-flux kernels and are represented in all eight Euler JSON schemas.
+- **End-to-end configuration wiring**: concrete RANS config objects now flow through viscosity, source, and viscous-flux kernels and are represented in all nine Euler JSON schemas.
 - **Focused regression coverage**: expanded RANS tests for defaults, JSON round-trips, and the physical effect of the SA production limit.
 
 ---
@@ -121,11 +155,11 @@ The headline feature: full multi-species reactive Navier-Stokes with Cantera-bas
 
 ## 🧮 Core Library (`src/DNDS/` — 18 files, +951 / −120)
 
-- **RM9 limiter**: 9th-order monotonicity-preserving reconstruction — extends the VR framework with a new high-order limiter family
+- **Roe_M9 flux**: H-corrected Roe dissipation with Harten-Yee-style entropy treatment; this is a Riemann scheme, not a ninth-order reconstruction limiter
 - **RCM ordering**: Reverse Cuthill-McKee matrix bandwidth reduction — `orderingCode = 3` for improved ILU preconditioner quality
 - **`ddP` chain rule**: corrected dual-density-pressure chain rule in Jacobian assembly for all derived thermodynamic quantities
 - **Output directory centralization**: `OutputDir.hpp` — single source of truth for solver output path construction
-- **StateValue JSON tolerance**: `_xxx` suffixed keys accepted in StateValue JSON for forward compatibility
+- **StateValue JSON tolerance**: underscore-prefixed keys accepted in StateValue JSON for forward compatibility
 - **`nTimeStep = 0` support**: mesh-only solver runs now allowed (serialize mesh at initialization, no time advancement)
 - **`meshOutAtInit`**: serializes the mesh at solver initialization for verification workflows
 - **Array serializer cross-Array support**: partial implementation of cross-format Array conversion; SA restarts readable by 2EQ solver
@@ -194,7 +228,7 @@ The headline feature: full multi-species reactive Navier-Stokes with Cantera-bas
 | New C++ files (Euler) | 7 (ChemicalSource, SourceTermContributor, Physics refactors) |
 | New skills | 3 (cj-detonation, cantera-cxx, pyvista-post) |
 | New solver targets | 5 (eulerEX, eulerEX3D, eulerState, canteraConstVolTrajectory, euler2EQ3D) |
-| New reconstruction limiters | 2 (RM1, RM9) |
+| New Riemann variants highlighted | 2 (Roe_M1, Roe_M9) |
 | CI workflow changes | +45 / −24 lines |
 
 ---

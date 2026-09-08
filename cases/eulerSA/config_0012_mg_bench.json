@@ -203,7 +203,7 @@
         "useScalarJacobian": false,
         // "useRoeJacobian": true,
         "riemannSolverType": "Roe_M1",
-        "rsMeanValueEig": true,
+        "rsMeanValueEig": 1,
         "uRecBetaCompressPower": 1,
         "wallDistScheme": 1,
         "wallDistExection": 5,

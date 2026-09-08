@@ -21,17 +21,23 @@ ctest --test-dir build -R geom_elements --output-on-failure
 
 ## Target Summary
 
-| CMake target | CTest name | Source file | Timeout |
+| CMake target | CTest name | Source file | Type |
 |---|---|---|---|
-| `geom_test_elements` | `geom_elements` | test_Elements.cpp | 120 s |
-| `geom_test_quadrature` | `geom_quadrature` | test_Quadrature.cpp | 120 s |
-| `geom_test_mesh_index_conversion` | `geom_mesh_index_conversion_np{1,2,4}` | test_MeshIndexConversion.cpp | 120 s |
-| `geom_test_mesh_pipeline` | `geom_mesh_pipeline_np{1,2,4}` | test_MeshPipeline.cpp | 120 s |
-| `geom_test_mesh_distributed_read` | `geom_mesh_distributed_read_np{1,2,4}` | test_MeshDistributedRead.cpp | 120 s |
-| `geom_test_mesh_connectivity` | `geom_mesh_connectivity_np{1,2,4}` | test_MeshConnectivity.cpp | 120 s |
-| `geom_test_mesh_connectivity_ghost` | `geom_mesh_connectivity_ghost_np{1,2,4}` | test_MeshConnectivity_Ghost.cpp | 120 s |
-| `geom_test_mesh_connectivity_interpolate` | `geom_mesh_connectivity_interpolate_np{1,2,4}` | test_MeshConnectivity_Interpolate.cpp | 120 s |
-| `geom_test_mesh_reorder` | `geom_mesh_reorder_np{1,2,4}` | test_MeshReorder.cpp | 120 s |
+| `geom_test_elements` | `geom_elements` | test_Elements.cpp | Serial |
+| `geom_test_quadrature` | `geom_quadrature` | test_Quadrature.cpp | Serial |
+| `geom_test_mesh_index_conversion` | `geom_mesh_index_conversion_np{1,2,4,8}` | test_MeshIndexConversion.cpp | MPI |
+| `geom_test_mesh_pipeline` | `geom_mesh_pipeline_np{1,2,4,8}` | test_MeshPipeline.cpp | MPI |
+| `geom_test_mesh_distributed_read` | `geom_mesh_distributed_read_np{1,2,4,8}` | test_MeshDistributedRead.cpp | MPI |
+| `geom_test_mesh_connectivity` | `geom_mesh_connectivity_np{1,2,4,8}` | test_MeshConnectivity.cpp | MPI |
+| `geom_test_mesh_connectivity_ghost` | `geom_mesh_connectivity_ghost_np{1,2,4,8}` | test_MeshConnectivity_Ghost.cpp | MPI |
+| `geom_test_mesh_connectivity_interpolate` | `geom_mesh_connectivity_interpolate_np{1,2,4,8}` | test_MeshConnectivity_Interpolate.cpp | MPI |
+| `geom_test_mesh_reorder` | `geom_mesh_reorder_np{1,2,4,8}` | test_MeshReorder.cpp | MPI |
+| `geom_test_mesh_cgns_multizone` | `geom_mesh_cgns_multizone` | test_MeshCGNSMultiZone.cpp | Serial |
+
+`DNDS_TEST_TIMEOUT` defaults to 1800 seconds. Serial tests use that value;
+MPI tests use 1800 seconds at np=1/2, 2700 seconds at np=4, and 3600 seconds
+at np=8. Setting `DNDS_TEST_TIMEOUT` at configure time scales the same policy
+from the supplied base value.
 
 ---
 
@@ -180,3 +186,12 @@ for the underlying MPI primitive.
   pull-set entries are off-rank, within `[0, globalSize)`, sorted, and
   unique. Confirms all expected adjacency and companion entries are
   registered by `UnstructuredMesh::buildReorderRegistry`.
+
+---
+
+## Multi-Zone CGNS Assembly (test_MeshCGNSMultiZone.cpp) {#geom_test_mesh_cgns_multizone}
+@see test_MeshCGNSMultiZone.cpp
+
+Serial regression coverage for one-sided CGNS connectivity assembly. The test
+generates 2x2 and 3x3 multi-block meshes, verifies interface-node
+deduplication, and checks that every assembled coordinate is initialized.

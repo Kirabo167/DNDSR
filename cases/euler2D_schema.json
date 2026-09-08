@@ -1,6 +1,6 @@
 {
     "type": "object",
-    "description": "DNDSR euler3D configuration",
+    "description": "DNDSR euler2D configuration",
     "properties": {
         "timeMarchControl": {
             "type": "object",
@@ -3347,5 +3347,5 @@
         }
     },
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "DNDSR euler3D configuration"
+    "title": "DNDSR euler2D configuration"
 }

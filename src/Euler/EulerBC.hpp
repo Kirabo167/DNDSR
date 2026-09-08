@@ -115,6 +115,7 @@ namespace DNDS::Euler
             tagged["type"] = "object";
             tagged["required"] = json::array({"type", "state"});
             tagged["additionalProperties"] = false;
+            tagged["patternProperties"] = json{{"^_", json::object()}};
             tagged["properties"] = json::object();
             tagged["properties"]["type"] = json{{"const", "nonState"}};
             tagged["properties"]["state"] = numArray();
@@ -154,6 +155,7 @@ namespace DNDS::Euler
             s["properties"] = props;
             s["required"] = required;
             s["additionalProperties"] = false;
+            s["patternProperties"] = json{{"^_", json::object()}};
             return s;
         };
 

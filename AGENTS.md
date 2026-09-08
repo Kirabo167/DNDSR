@@ -24,8 +24,15 @@ Compact Finite Volume methods with MPI parallelism and optional CUDA GPU support
   - `CFV/` — Compact Finite Volume, variational reconstruction
   - `Euler/` — Compressible N-S solvers (2D/3D, SA, k-omega RANS)
   - `EulerP/` — Alternative evaluator with CUDA GPU support
+  - `Solver/` — Header-only ODE, Krylov, and direct-solver utilities
+  - `ACM/` — Constant-density artificial-compressibility solver
+  - `ACMVariable/` — Variable-density artificial-compressibility solver
+  - `NCFV/` — Third-order node-centred finite-volume solver
 - `app/` — C++ application entry points (solver executables)
-- `test/` — Python tests (pytest + pytest-mpi + pytest-timeout)
+- `test/` — Test suite
+  - `cpp/` — C++ unit tests (doctest, registered with CTest)
+  - `DNDS/`, `Geom/`, `CFV/`, `Euler/`, `EulerP/` — Python tests
+    (pytest + pytest-timeout; use `mpirun` explicitly)
 - `cases/` — JSON configuration files for solver runs
 - `external/` — Git submodule (`cfd_externals`) and header-only libraries
 
@@ -39,18 +46,21 @@ Compact Finite Volume methods with MPI parallelism and optional CUDA GPU support
 
 ```bash
 # Configure (from project root)
-mkdir build && cd build
-CC=mpicc CXX=mpicxx cmake ..
+CC=mpicc CXX=mpicxx cmake -S . -B build -DDNDS_USE_CANTERA=OFF
 # ^ Use CC=mpicc CXX=mpicxx when unsure which MPI CMake will find.
 
 # Or use CMake presets (see CMakePresets.json)
 cmake --preset release-test   # Release with tests enabled
 cmake --preset debug          # Debug with tests enabled
+cmake --preset reactive-test  # Release with Cantera and reactive tests
 cmake --preset cuda           # Release with CUDA and tests
 
 # Build a specific target (-j for parallel)
-cmake --build . -t euler -j 8
-# Available targets: euler, euler3D, eulerSA, eulerSA3D, euler2EQ, euler2EQ3D
+cmake --build build -t euler -j 8
+# Solver targets: euler, euler2D, euler3D, eulerSA, eulerSA3D, euler2EQ, euler2EQ3D,
+# eulerEX, eulerEX3D, ACM, acm2D, acm3D, acmVariable2D,
+# acmVariable3D, NCFV
+# Tools: eulerState; with Cantera: canteraConstVolTrajectory, cantera_Test
 # Python modules: dnds_pybind11, geom_pybind11, cfv_pybind11, eulerP_pybind11
 ```
 
@@ -58,13 +68,13 @@ cmake --build . -t euler -j 8
 
 ```bash
 # Full install
-CC=/usr/bin/gcc CXX=/usr/bin/g++ CMAKE_BUILD_PARALLEL_LEVEL=16 pip install . --verbose
+CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=16 pip install . --no-build-isolation --verbose
 
 # Editable install
-CC=/usr/bin/gcc CXX=/usr/bin/g++ CMAKE_BUILD_PARALLEL_LEVEL=16 pip install -e . --verbose
+CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=16 pip install -e . --no-build-isolation --verbose
 
-# Rebuild C++ pybind11 targets only (from build_py/)
-cmake --build . -t dnds_pybind11 geom_pybind11 cfv_pybind11 -j32 && cmake --install .
+# Or rebuild/install the in-place modules from the release-test preset
+cmake --build --preset python -j32 && cmake --install build --component py
 ```
 
 ### Using the DNDSR Python Module (from build/)
@@ -90,15 +100,26 @@ To use the pybind11-based Python module from a CMake build directory:
    PYTHONPATH=<project_root>/python python my_script.py
    ```
 
-The `.so` files are built against the venv's Python (3.12). Always use
-`venv/bin/python`, not the system Python.
+The `.so` files are built against the active virtual environment. Python 3.12
+is the CI-tested development baseline (package metadata permits Python 3.10+).
+Always use that environment's interpreter (normally `venv/bin/python`) rather
+than an unrelated system or Conda Python.
 
 ### External Dependencies
 
 ```bash
 git submodule update --init --recursive --depth=1
+
+# Cantera/external build requirements (inside the active venv)
+pip install -r external/cfd_externals/requirements.txt
+
+# Download and extract the header-only bundle.
+bash scripts/install_headeronly_deps.sh
+
 cd external/cfd_externals
 CC=mpicc CXX=mpicxx python cfd_externals_build.py
+cd ../..
+bash scripts/install_python_deps.sh
 ```
 
 ## Test Commands
@@ -172,9 +193,9 @@ mechanism) are relative to the CWD at invocation time** — typically
 
 ```bash
 # From build/ — typical invocation
-cd build
-DNDS_MECH_PATH=../external/cfd_externals/install/data \
-  ./app/eulerEX.exe 14 ../cases/eulerEX/react_test.json
+(cd build && \
+  DNDS_MECH_PATH=../external/cfd_externals/install/data \
+  ./app/eulerEX.exe 14 ../cases/eulerEX/react_test.json)
 ```
 
 **Path conventions in configs:**
@@ -189,7 +210,9 @@ read-only queries (`json.load`, `json.tool` validation).  Configs may
 contain hand-maintained `caseNotes["/**/"]` sections and inline
 comments that must be preserved across edits.
 
-Tests use **pytest** with **pytest-mpi** and **pytest-timeout**. Test files live under `test/`. A default 120-second timeout is configured in `pyproject.toml` to prevent hung MPI tests from blocking CI.
+Tests use **pytest** with **pytest-timeout**; MPI Python runs invoke `mpirun`
+explicitly. Test files live under `test/`. A default 120-second timeout is
+configured in `pyproject.toml` to prevent hung tests from blocking CI.
 
 ```bash
 # Run all tests
@@ -220,10 +243,11 @@ variable at configure time).
 
 ```bash
 # Configure with tests enabled (from build directory)
-cmake .. -DDNDS_BUILD_TESTS=ON
+cmake .. -DDNDS_BUILD_TESTS=ON -DDNDS_USE_CANTERA=OFF
 
 # Configure with custom OMP threads (optional)
-DNDS_TEST_OMP_THREADS=4 cmake .. -DDNDS_BUILD_TESTS=ON
+DNDS_TEST_OMP_THREADS=4 cmake .. \
+  -DDNDS_BUILD_TESTS=ON -DDNDS_USE_CANTERA=OFF
 
 # Build all C++ unit tests (all categories)
 cmake --build . -t all_unit_tests -j8
@@ -233,21 +257,26 @@ cmake --build . -t dnds_unit_tests -j8   # DNDS/ tests only
 cmake --build . -t geom_unit_tests -j8   # Geom/ tests only
 cmake --build . -t cfv_unit_tests -j8    # CFV/ tests only
 cmake --build . -t euler_unit_tests -j8  # Euler/ tests only
+cmake --build . -t acm_unit_tests -j8    # ACM/ tests only
+cmake --build . -t acm_variable_unit_tests -j8 # ACMVariable/ tests only
 cmake --build . -t solver_unit_tests -j8 # Solver/ tests only
+cmake --build . -t ncfv_unit_tests -j8   # NCFV/ tests only
 
-# Run all C++ tests via CTest
-ctest --test-dir . --output-on-failure
+# Run all C++ tests via CTest (exclude separately managed pytest entries)
+ctest --test-dir . -LE python --output-on-failure
 
 # Run with aggregated doctest summary (shows total test cases + assertions)
-python scripts/ctest_summary.py --output-on-failure
-python scripts/ctest_summary.py -R "^dnds_"   # filter by category
+python ../scripts/ctest_summary.py --output-on-failure
+python ../scripts/ctest_summary.py -R "^dnds_"   # filter by category
 
 # Run tests by category prefix
 ctest --test-dir . -R "^dnds_" --output-on-failure   # DNDS tests
 ctest --test-dir . -R "^geom_" --output-on-failure   # Geom tests
 ctest --test-dir . -R "^cfv_" --output-on-failure    # CFV tests
 ctest --test-dir . -R "^euler_" --output-on-failure  # Euler tests
+ctest --test-dir . -R "^acm_" --output-on-failure    # ACM/ACMVariable tests
 ctest --test-dir . -R "^solver_" --output-on-failure # Solver tests
+ctest --test-dir . -R "^ncfv_" --output-on-failure   # NCFV tests
 
 # Run only np=2 MPI tests across all categories
 ctest --test-dir . -R "_np2$" --output-on-failure
@@ -265,12 +294,18 @@ mpirun -np 4 ./test/cpp/dnds_test_mpi
 - **Geom:** `geom_test_elements`, `geom_test_quadrature`, `geom_test_mesh_index_conversion`,
   `geom_test_mesh_pipeline`, `geom_test_mesh_distributed_read`, `geom_test_mesh_connectivity`,
   `geom_test_mesh_connectivity_ghost`, `geom_test_mesh_connectivity_interpolate`,
-  `geom_test_mesh_reorder`
+  `geom_test_mesh_reorder`, `geom_test_mesh_cgns_multizone`
 - **CFV:** `cfv_test_reconstruction`, `cfv_test_limiters`, `cfv_test_reconstruction3d`,
   `cfv_test_device_transferable` (CUDA only)
 - **Euler:** `euler_test_gas_thermo`, `euler_test_riemann_solvers`, `euler_test_rans`,
-  `euler_test_evaluator_pipeline`
+  `euler_test_evaluator_pipeline`; with Cantera: `euler_test_source_chemical`,
+  `euler_test_uv`, `euler_test_physics_properties`, `euler_test_chem_ode`,
+  `euler_test_evaluator_reactive`
+- **ACM:** `acm_test_core`, `acm_test_time`, `acm_test_turbulence`,
+  `acm_test_self_periodic`, `acm_test_parallel`
+- **ACMVariable:** `acm_test_variable_core`, `acm_test_variable_mpi`
 - **Solver:** `solver_test_ode`, `solver_test_linear`, `solver_test_direct`, `solver_test_scalar`
+- **NCFV:** `ncfv_test_geometry`, `ncfv_test_parallel`, `ncfv_test_io`
 
 **Note:** When writing new C++ tests with `using namespace DNDS;`, always qualify
 `DNDS::index`, `DNDS::real`, and `DNDS::rowsize` in declarations to avoid ambiguity
@@ -400,8 +435,10 @@ Key concepts agents should know:
 - **MPI:** MPI-3 compatible (OpenMPI or MPICH)
 - **CMake:** >= 3.21
 - **C++ libs:** Eigen, Boost, CGAL, nlohmann_json, fmt, pybind11, HDF5, CGNS, Metis, ParMetis
-- **Python:** >= 3.10, numpy, scipy, pytest, pytest-mpi, mpi4py, h5py
-- **Optional:** CUDA toolkit, SuperLU_dist
+- **Python:** package metadata permits >= 3.10; CI and development use 3.12;
+  numpy, scipy, pytest, pytest-timeout, mpi4py, h5py;
+  `mpi4py` and `h5py` must use the selected MPI and cfd_externals HDF5
+- **Optional:** CUDA toolkit, Cantera 3.2, SuperLU_dist
 
 ## GitHub CLI (`gh`) Policy
 

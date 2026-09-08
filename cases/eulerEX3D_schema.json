@@ -1874,6 +1874,9 @@
                                 "state"
                             ],
                             "additionalProperties": false,
+                            "patternProperties": {
+                                "^_": {}
+                            },
                             "properties": {
                                 "type": {
                                     "type": "string",
@@ -1959,6 +1962,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "type": "string",
@@ -2037,6 +2043,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "type": "string",
@@ -2505,6 +2514,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "type": "string",
@@ -2561,7 +2573,10 @@
                             "name",
                             "value"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -2600,6 +2615,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "type": "string",
@@ -2656,7 +2674,10 @@
                             "name",
                             "value"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -2695,6 +2716,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "type": "string",
@@ -2751,7 +2775,10 @@
                             "name",
                             "value"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -2790,6 +2817,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "type": "string",
@@ -2846,7 +2876,10 @@
                             "name",
                             "value"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -2881,6 +2914,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "const": "nonState"
@@ -2923,7 +2959,10 @@
                             "name",
                             "value"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -2958,6 +2997,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "const": "nonState"
@@ -2999,7 +3041,10 @@
                             "type",
                             "name"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -3034,6 +3079,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "const": "nonState"
@@ -3075,7 +3123,10 @@
                             "type",
                             "name"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -3110,6 +3161,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "const": "nonState"
@@ -3152,7 +3206,10 @@
                             "name",
                             "value"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -3187,6 +3244,9 @@
                                             "state"
                                         ],
                                         "additionalProperties": false,
+                                        "patternProperties": {
+                                            "^_": {}
+                                        },
                                         "properties": {
                                             "type": {
                                                 "const": "nonState"
@@ -3228,7 +3288,10 @@
                             "type",
                             "name"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     },
                     {
                         "type": "object",
@@ -3268,7 +3331,10 @@
                             "type",
                             "name"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "patternProperties": {
+                            "^_": {}
+                        }
                     }
                 ]
             }

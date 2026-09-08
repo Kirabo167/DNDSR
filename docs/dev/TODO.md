@@ -3,7 +3,7 @@
 **Status:** Living document tracking active development tasks and recently
 completed work. Items are grouped by topic, not by priority.
 
-> **Last audited:** 2026-04-20. Struck-through items have been verified as
+> **Last audited:** 2026-09-08. Struck-through items have been verified as
 > complete. For historical brainstorming (not actively maintained), see
 > @ref ideas.
 >
@@ -102,10 +102,11 @@ completed work. Items are grouped by topic, not by priority.
 ### Python package build
 
 - ~~Fix scikit-build-core `cmake.args` (split `"-G Ninja"` into `["-G", "Ninja"]`)~~ (done)
-- ~~Change `build.tool-args = ["-j0"]` to bounded `["-j8"]` to prevent OOM~~ (done)
-- ~~Uncomment `"DNDSR" = "src/DNDSR"` in `[tool.scikit-build.wheel.packages]`~~ (done)
+- ~~Map `"DNDSR" = "python/DNDSR"` in
+  `[tool.scikit-build.wheel.packages]`~~ (done)
 - ~~Add `[tool.pytest.ini_options]` with testpaths, markers, timeout~~ (done)
-- Add `cmake.define` entries for essential build options
+- ~~Add `cmake.define` entries for essential build options~~ (done — Python
+  builds explicitly disable Cantera and C++ tests)
 
 ## Refactoring
 
@@ -271,8 +272,8 @@ non-periodic mesh paths remain clean.
   twice in `EulerEvaluator.hpp`, `EulerSolver.hpp`, and
   `EulerEvaluatorSettings.hpp`; `Solver/Linear.hpp` is included twice in
   `EulerSolver.hpp`
-- Remove test source (`test_FiniteVolume.cpp`) from the CFV production
-  library (line 27 of `src/CFV/CMakeLists.txt`)
+- ~~Remove test source (`test_FiniteVolume.cpp`) from the CFV production
+  library~~ (done)
 - Move `test/Geom/OversetCart/` (7-file library package) out of `test/`
   into `src/` since it is library code, not tests
 - ~~Delete `src/Geom/GeomUtils.py` (outdated duplicate of `utils.py` with bugs)~~ (done)
@@ -282,9 +283,12 @@ non-periodic mesh paths remain clean.
 
 ### C++ test framework (doctest) — done
 
-Doctest v2.4.11 is integrated under `external/doctest/`. Tests live in `test/cpp/`.
-Built with `cmake -DDNDS_BUILD_TESTS=ON`, run with `ctest -R dnds_`.
-MPI tests registered at np=1, np=2, np=4.
+Doctest v2.4.12 is integrated under `external/doctest/`. Tests live in
+`test/cpp/`. Configure with `cmake --preset release-test`, build with
+`cmake --build --preset tests`, and run with `ctest --preset unit` (or use
+`ctest --test-dir build -R '^dnds_'` for the DNDS subset).
+MPI tests are registered at np=1, np=2, np=4, and np=8 by default; set
+`DNDS_TEST_NP_LIST` at configure time to use a smaller matrix.
 
 ### Completed DNDS core C++ unit tests (`test/cpp/DNDS/`)
 
@@ -318,9 +322,9 @@ MPI tests registered at np=1, np=2, np=4.
 ### Test infrastructure improvements remaining
 
 - ~~Create a shared `test/conftest.py` with an MPI fixture~~ (done — exists at `test/conftest.py`)
-- Add `[tool.pytest.ini_options]` to `pyproject.toml`:
+- ~~Add `[tool.pytest.ini_options]` to `pyproject.toml` with
   `testpaths = ["test"]`, custom markers (`mpi`, `cuda`, `slow`),
-  and a default timeout
+  and a default timeout~~ (done)
 - ~~Remove the `sys.path.append` hack in `test/DNDS/test_basic.py`
   (unnecessary with a proper editable install)~~ (done)
 - ~~Fix `test/Geom/test_basic_geom.py`: remove the `while True: pass`
@@ -480,8 +484,10 @@ C++ sources (`*.hpp`, `*.cpp`, `*_pybind.cpp`) remain in `src/` unchanged.
 #### Step 4: Update test imports
 
 - Remove `sys.path.append` hacks from test files
-- Tests use `from DNDSR import DNDS` (works with `pip install -e .`)
-- Update CI/Makefile to `pip install -e .` before running tests
+- Tests use `from DNDSR import DNDS` (works with
+  `pip install -e . --no-build-isolation`)
+- Update CI/Makefile to `pip install -e . --no-build-isolation` before running
+  tests
 
 #### Step 5: Fix stub generation
 
@@ -505,9 +511,9 @@ C++ sources (`*.hpp`, `*.cpp`, `*_pybind.cpp`) remain in `src/` unchanged.
 | Mode | What happens |
 |------|-------------|
 | **Pure C++ build** | `cmake --build . -t euler` — only compiles C++ under `src/`, no Python artifacts |
-| **Editable install** | `pip install -e .` — builds pybind11 targets, installs `.so` into `python/DNDSR/*/_ext/`, pip links `python/DNDSR/` |
-| **Editable C++ rebuild** | `cmake --build build_py -t dnds_pybind11 ... && cmake --install build_py` — `.so` lands in `python/`, Python picks it up immediately |
-| **Package build** | `pip install .` — wheel contains `DNDSR/` with `.so` files, pure Python, and stubs |
+| **Editable install** | `pip install -e . --no-build-isolation` — builds pybind11 targets in `build_py/{wheel_tag}`, then links the source package |
+| **In-place C++ rebuild** | `cmake --build --preset python -j8 && cmake --install build --component py` — `.so` lands under `python/DNDSR/`; use `PYTHONPATH="$PWD/python"` |
+| **Package build** | `pip install . --no-build-isolation` — wheel contains `DNDSR/` with `.so` files, pure Python, and stubs |
 
 ### Items carried forward (not part of restructure)
 

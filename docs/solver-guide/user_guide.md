@@ -60,8 +60,9 @@ generation.
 # Build first (see @ref building)
 cmake --build build -t eulerSA -j8
 
-# Run
-mpirun -np 4 ./build/app/Euler/eulerSA cases/naca0012/eulerSA_config.json
+# Run from build/ without changing the caller's repository-root directory
+(cd build && \
+  mpirun -np 4 ./app/eulerSA.exe ../cases/eulerSA/eulerSA_config.json)
 ```
 
 > **TODO:** Add notes on:

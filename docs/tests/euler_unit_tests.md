@@ -25,7 +25,18 @@ ctest --test-dir build -R euler_gas_thermo --output-on-failure
 | `euler_test_gas_thermo` | `euler_gas_thermo` | test_GasThermo.cpp | Serial |
 | `euler_test_riemann_solvers` | `euler_riemann_solvers` | test_RiemannSolvers.cpp | Serial |
 | `euler_test_rans` | `euler_rans` | test_RANS.cpp | Serial |
-| `euler_test_evaluator_pipeline` | `euler_evaluator_pipeline_np{1,2,4}` | test_EulerEvaluator.cpp | MPI (600 s) |
+| `euler_test_evaluator_pipeline` | `euler_evaluator_pipeline_np{1,2,4,8}` | test_EulerEvaluator.cpp | MPI |
+| `euler_test_source_chemical` | `euler_source_chemical` | test_SourceChemical.cpp | Serial, Cantera only |
+| `euler_test_uv` | `euler_uv` | test_UV.cpp | Serial, Cantera only |
+| `euler_test_physics_properties` | `euler_physics_properties` | test_PhysicsProperties.cpp | Serial, Cantera only |
+| `euler_test_chem_ode` | `euler_chem_ode` | test_ChemODE.cpp | Serial, Cantera only |
+| `euler_test_evaluator_reactive` | `euler_evaluator_reactive_np{1,2,4,8}` | test_EulerEvaluatorReactive.cpp | MPI, Cantera only |
+
+The Cantera-only targets are registered when `DNDS_USE_CANTERA=ON`. The base
+`DNDS_TEST_TIMEOUT` is 1800 seconds by default; MPI tests use 1x/1.5x/2x that
+value for np <= 2, np = 4, and np >= 8 respectively. The evaluator pipeline
+uses `DNDS_TEST_TIMEOUT_PIPELINE` (five times the base, 9000 seconds by
+default) at every registered process count.
 
 ---
 
@@ -33,7 +44,7 @@ ctest --test-dir build -R euler_gas_thermo --output-on-failure
 @see test_GasThermo.cpp
 
 Serial tests for ideal-gas thermodynamics and Euler eigenvector routines
-in `Gas.hpp`.  24 test cases.  No MPI or mesh; all
+in `Gas.hpp`.  29 test cases.  No MPI or mesh; all
 functions are pure.
 
 ### IdealGasThermal
@@ -109,7 +120,7 @@ eigenvectors.
 @see test_RiemannSolvers.cpp
 
 Serial tests for Roe, HLLC, and HLLEP Riemann solvers in `Gas.hpp`.
-11 test cases.
+15 test cases, including variable-gamma and base-energy regressions.
 
 ### Consistency (F(U,U) = exact flux)
 
@@ -124,7 +135,12 @@ Serial tests for Roe, HLLC, and HLLEP Riemann solvers in `Gas.hpp`.
 
 | Test case | Description |
 |---|---|
-| `Roe variants M1-M8 consistency` | eigScheme 1,3,4,5,6,7,8 pass consistency; 2 and 9 are unimplemented. |
+| `Roe variants M1-M9 consistency` | eigScheme 1 through 9 pass the identical-state consistency check. |
+
+`Roe_M9` (eigScheme 9) is implemented and selected by both the scalar and
+batch runtime dispatchers. It uses the M8 H-correction plus Harten-Yee
+structure with `max(aL, aR)` in place of the Roe-averaged sound speed. The
+variant-consistency test directly exercises its runtime dispatcher path.
 
 ### Symmetry (F(UL,UR,n) = -F(UR,UL,-n))
 
@@ -157,13 +173,11 @@ Serial tests for Roe, HLLC, and HLLEP Riemann solvers in `Gas.hpp`.
 ## RANS Turbulence Models (test_RANS.cpp) {#euler_test_rans}
 @see test_RANS.cpp
 
-Serial tests for k-omega Wilcox 2006, k-omega SST, and Realizable k-epsilon
-model functions in `RANS_ke.hpp`.  26 test cases.
-
-The SA model is excluded because `GetSource_SA` references
-`EulerEvaluator::settings` (evaluator context) and cannot be tested
-standalone.  SA coverage is provided through the EulerEvaluator pipeline
-test on the NACA0012 case.
+Serial tests for Spalart-Allmaras, k-omega Wilcox 2006, k-omega SST, and
+Realizable k-epsilon model functions and configuration plumbing. 30 test
+cases. In addition to the NACA0012 evaluator-pipeline coverage, the standalone
+suite directly checks `SAConfig` JSON/default behavior and verifies that
+`SAConfig.productionLimit` changes the physical SA source.
 
 ### Turbulent Viscosity (GetMut)
 
@@ -216,12 +230,21 @@ test on the NACA0012 case.
 | `GetVisFlux_RealizableKe: zero gradient -> zero flux` | Same for Realizable k-epsilon. |
 | `GetVisFlux_KOWilcox: k-gradient produces k-flux` | Non-zero dk/dx generates flux in the k-equation. |
 
+### Configuration and Production-Limit Plumbing
+
+| Test case | Description |
+|---|---|
+| `RANS configs: defaults and JSON round-trip preserve historical limits` | Checks SA, Wilcox, SST, and realizable-k-epsilon defaults and JSON round-trips. |
+| `Euler evaluator settings: RANS configs are flat nested sections` | Verifies the typed RANS sections in `EulerEvaluatorSettings`. |
+| `GetSource_KOWilcox: production limit changes the k source` | Confirms the configured Wilcox cap reaches the source kernel. |
+| `GetSource_SA: production limit changes the physical source` | Confirms the configured SA cap changes the standalone physical source. |
+
 ---
 
 ## EulerEvaluator Pipeline (test_EulerEvaluator.cpp) {#euler_test_evaluator}
 @see test_EulerEvaluator.cpp
 
-MPI integration test (np=1,2,4, 600 s timeout) exercising the full
+MPI integration test (np=1,2,4,8; 9000 s default timeout) exercising the full
 evaluator pipeline: config → mesh → initialize DOF → EvaluateDt →
 EvaluateRHS → Jacobi solve (Forward + Backward).
 
@@ -253,3 +276,17 @@ For each case:
 6. `LUSGSMatrixInit + Forward + Backward` — one Jacobi-style iteration
    (despite the LU-SGS name, the code path uses Jacobi when configured).
 7. Check RHS and increment norms against golden values (tolerance 1e-6).
+
+---
+
+## Cantera-Enabled Test Suites
+
+These suites are compiled and registered only with `DNDS_USE_CANTERA=ON`:
+
+| Source | Doctest cases | Coverage |
+|---|---:|---|
+| test_SourceChemical.cpp | 3 | Chemical source evaluation and repaired source states |
+| test_UV.cpp | 2 | Reactive conservative/primitive state conversions |
+| test_PhysicsProperties.cpp | 26 | Mixture thermodynamics, transport, and derived properties |
+| test_ChemODE.cpp | 7 | Stiff chemistry ODE integration and Jacobian behavior |
+| test_EulerEvaluatorReactive.cpp | 1 | Reactive evaluator pipeline and cell-mean repair at np=1,2,4,8 |

@@ -55,7 +55,8 @@ Also see AGENTS.md for the full Python test workflow.
 
 ### `ModuleNotFoundError: No module named 'DNDSR'`
 
-> **TODO:** Explain editable install (`pip install -e .`) vs. `PYTHONPATH`.
+> **TODO:** Explain editable install (`pip install -e . --no-build-isolation`)
+> vs. `PYTHONPATH`.
 
 ### Type stubs are out of date
 

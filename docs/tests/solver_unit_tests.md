@@ -21,12 +21,15 @@ ctest --test-dir build -R solver_ode --output-on-failure
 
 ## Target Summary
 
-| CMake target | CTest name | Source file | Timeout |
+| CMake target | CTest name | Source file | Default timeout |
 |---|---|---|---|
-| `solver_test_ode` | `solver_ode` | test_ODE.cpp | 60 s |
-| `solver_test_linear` | `solver_linear` | test_Linear.cpp | 60 s |
-| `solver_test_direct` | `solver_direct` | test_Direct.cpp | 60 s |
-| `solver_test_scalar` | `solver_scalar` | test_Scalar.cpp | 60 s |
+| `solver_test_ode` | `solver_ode` | test_ODE.cpp | 900 s |
+| `solver_test_linear` | `solver_linear` | test_Linear.cpp | 900 s |
+| `solver_test_direct` | `solver_direct` | test_Direct.cpp | 900 s |
+| `solver_test_scalar` | `solver_scalar` | test_Scalar.cpp | 900 s |
+
+Solver tests use `DNDS_TEST_TIMEOUT_SOLVER`, which is half of the configured
+`DNDS_TEST_TIMEOUT` base value (1800 seconds by default).
 
 ---
 

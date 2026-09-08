@@ -56,7 +56,7 @@ namespace DNDS::Euler::Gas
      * | Roe_M6     | Roe + H-correction only (eigScheme 6).                       |
      * | Roe_M7     | Roe + Harten-Yee fix only, no H-correction (eigScheme 7).    |
      * | Roe_M8     | Roe + H-correction + Harten-Yee fix (eigScheme 8).           |
-     * | Roe_M9     | Reserved (eigScheme 9, currently asserts false).              |
+     * | Roe_M9     | Rotated/H-corrected Roe dissipation (eigScheme 9).            |
      */
     enum RiemannSolverType
     {

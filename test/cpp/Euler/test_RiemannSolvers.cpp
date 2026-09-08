@@ -436,14 +436,13 @@ TEST_CASE("Roe base-energy contact has no spurious momentum flux")
     }
 }
 
-TEST_CASE("Roe variants M1-M8 consistency")
+TEST_CASE("Roe variants M1-M9 consistency")
 {
     auto U = prim2cons(1.0, 50.0, 0.0, 0.0, 100000.0);
     Eigen::Vector3d n(1.0, 0.0, 0.0);
     auto Fexact = exactNormalFlux(U, n);
 
-    // Note: Roe_M9 (eigScheme=9) is reserved and intentionally not included.
-    for (auto rs : {Roe_M1, Roe_M2, Roe_M3, Roe_M4, Roe_M5, Roe_M6, Roe_M7, Roe_M8})
+    for (auto rs : {Roe_M1, Roe_M2, Roe_M3, Roe_M4, Roe_M5, Roe_M6, Roe_M7, Roe_M8, Roe_M9})
     {
         CAPTURE(rs);
         auto F = callDispatcher(rs, U, U, n);

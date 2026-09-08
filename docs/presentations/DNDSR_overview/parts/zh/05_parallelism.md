@@ -235,7 +235,7 @@ fv.to_host();
 </div>
 </div>
 
-构建：`cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · Thrust修复通过 `CMAKE_CUDA_ARCHITECTURE=native`。
+构建：`cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · 目标架构通过 `CMAKE_CUDA_ARCHITECTURES=native` 设置。
 
 ---
 <!-- _footer: "src/EulerP/EulerP_Evaluator.hpp · EulerP_Evaluator_impl.{hpp,cpp,cu}" -->
@@ -321,7 +321,7 @@ public:
 
 ### 已避免的陷阱
 
-- **Thrust + CMake：** `CMAKE_CUDA_ARCHITECTURE=native` 修复了Thrust内部机制中的一类编译错误。
+- **Thrust + CMake：** `CMAKE_CUDA_ARCHITECTURES=native` 选择本机 GPU 目标，并避免 Thrust 的架构不匹配错误。
 - **意外的 `to_device`：** 面缓冲区创建路径中的一个错误曾不必要地将主机缓冲区复制到设备；在v0.2.0中修复。
 - **`py::classh` 持有者：** 确保CUDA指针在跨Python GC边界存活时Python↔C++所有权安全。
 

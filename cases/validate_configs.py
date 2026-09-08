@@ -33,11 +33,11 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# JSON with // comments
+# JSON with C/C++ comments
 # ---------------------------------------------------------------------------
 
 def strip_comments(text: str) -> str:
-    """Remove C-style ``//`` line comments outside of JSON strings."""
+    """Remove ``//`` and ``/* ... */`` comments outside JSON strings."""
     result: list[str] = []
     i = 0
     in_string = False
@@ -58,6 +58,19 @@ def strip_comments(text: str) -> str:
                 while i < len(text) and text[i] != "\n":
                     i += 1
                 continue
+            elif c == "/" and i + 1 < len(text) and text[i + 1] == "*":
+                comment_start = i
+                i += 2
+                while i + 1 < len(text) and text[i:i + 2] != "*/":
+                    # Preserve line numbers in any subsequent JSON error.
+                    if text[i] == "\n":
+                        result.append("\n")
+                    i += 1
+                if i + 1 >= len(text):
+                    raise json.JSONDecodeError(
+                        "Unterminated block comment", text, comment_start)
+                i += 2
+                continue
             else:
                 result.append(c)
         i += 1
@@ -73,31 +86,35 @@ def load_json_with_comments(path: str | Path) -> dict:
 # Schema resolution
 # ---------------------------------------------------------------------------
 
-SCHEMA_PREFIX_ORDER = [
+SCHEMA_PREFIX_ORDER = sorted([
     "euler2EQ3D",
     "euler2EQ",
     "eulerSA3D",
     "eulerSA",
+    "euler2D",
     "euler3D",
+    "eulerEX3D",
     "eulerEX",
     "euler",
-]
+], key=len, reverse=True)
 
 
-def resolve_schema(config_path: Path, cases_dir: Path) -> Path | None:
+def resolve_schema(config_path: Path, cases_dir: Path,
+                   data: object | None = None) -> Path | None:
     """Return the schema path for a config, or None if not resolvable.
 
     Prefers the ``$schema`` key inside the file.  Falls back to
     heuristic matching by directory / filename prefix.
     """
-    try:
-        data = load_json_with_comments(config_path)
-    except (json.JSONDecodeError, OSError):
-        return None
+    if data is None:
+        try:
+            data = load_json_with_comments(config_path)
+        except (json.JSONDecodeError, OSError):
+            return None
 
     # 1. Explicit $schema reference
-    ref = data.get("$schema")
-    if ref and not ref.startswith("http"):
+    ref = data.get("$schema") if isinstance(data, dict) else None
+    if isinstance(ref, str) and ref and not ref.startswith("http"):
         candidate = (config_path.parent / ref).resolve()
         if candidate.is_file():
             return candidate
@@ -140,7 +157,7 @@ def main() -> int:
         return 2
 
     configs = sorted(p for p in cases_dir.rglob("*.json")
-                     if "schema" not in p.name)
+                     if not p.name.endswith("_schema.json"))
 
     schemas: dict[Path, dict] = {}
     passed = 0
@@ -150,7 +167,14 @@ def main() -> int:
     failure_details: list[tuple[Path, Path, list]] = []
 
     for cp in configs:
-        sp = resolve_schema(cp, cases_dir)
+        try:
+            data = load_json_with_comments(cp)
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"  ERR   {cp.relative_to(cases_dir)}  JSON/input error: {exc}")
+            parse_errors += 1
+            continue
+
+        sp = resolve_schema(cp, cases_dir, data)
         if sp is None:
             if not args.quiet:
                 print(f"  SKIP  {cp.relative_to(cases_dir)}  (no schema)")
@@ -160,13 +184,6 @@ def main() -> int:
         if sp not in schemas:
             with open(sp) as f:
                 schemas[sp] = json.load(f)
-
-        try:
-            data = load_json_with_comments(cp)
-        except json.JSONDecodeError as exc:
-            print(f"  ERR   {cp.relative_to(cases_dir)}  JSON parse error: {exc}")
-            parse_errors += 1
-            continue
 
         validator = Draft7Validator(schemas[sp])
         errors = list(validator.iter_errors(data))

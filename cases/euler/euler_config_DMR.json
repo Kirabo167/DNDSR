@@ -57,7 +57,7 @@
         "uniqueStamps": false,
         "meshRotZ": 0.0,
         "meshFile": "../data/mesh/UniformDM480.cgns",
-        "meshReorderCells": true, //!for MT
+        "meshReorderCells": 1, //!for MT
         // "outPltName": "../data/outUnsteady/DM480-OdeTest/testO4_c3/out_U2R2Pre0d75mInf_betaP1_JC1",
         "outPltName": "../data/outUnsteady/DM480-OdeTest/testO4_c3/out_ESDIRK4_betaP1_JC1",
         // "outPltName": "../data/outUnsteady/DM480-OdeTest/testO4_c4/out_ESDIRK3DT2_JC0",

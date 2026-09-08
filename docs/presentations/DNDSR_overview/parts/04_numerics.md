@@ -201,7 +201,7 @@ enum RiemannSolverType {
 | `Roe_M6` | H-correction only |
 | `Roe_M7` | Harten–Yee only, no H-correction |
 | `Roe_M8` | H-correction + Harten–Yee |
-| `Roe_M9` | Reserved (eigScheme 9, currently asserts false) |
+| `Roe_M9` | Rotated/H-corrected Roe dissipation (eigScheme 9) |
 | `HLLC`   | Harten–Lax–van Leer–Contact |
 | `HLLEP`  | HLLE with pressure fix |
 | `HLLEP_V1` | HLLEP variant 1 |

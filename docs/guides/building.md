@@ -10,24 +10,22 @@ Detailed explanations for each step follow in the sections below.
 sudo apt install build-essential cmake ninja-build openmpi-bin libopenmpi-dev doxygen
 ```
 
-**2. Python virtual environment**
+**2. Clone the repository**
+```bash
+git clone --recursive https://github.com/Kirabo167/DNDSR.git
+cd DNDSR
+```
+
+**3. Create the Python environment and get external dependencies**
 ```bash
 python3.12 -m venv venv
 source venv/bin/activate
-```
-
-**3. Clone and get external dependencies**
-```bash
-git clone --recursive https://github.com/CFDLAB-THU/DNDSR.git
-cd DNDSR
 
 # Cantera build deps (must be installed before cfd_externals_build.py)
 pip install -r external/cfd_externals/requirements.txt
 
 # Header-only libs first
-curl -L -o external/external_headeronlys.tar.gz \
-  https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
-cd external && tar -xzf external_headeronlys.tar.gz && cd ..
+bash scripts/install_headeronly_deps.sh
 
 # Then binary libs (needs header-onlys already extracted)
 cd external/cfd_externals
@@ -46,24 +44,36 @@ cmake --build build -t euler -j32
 
 **5. Run a case**
 ```bash
-./build/app/euler.exe cases/your_config.json
+# Run from build/ without changing the caller's repository-root directory
+(cd build && ./app/euler.exe ../cases/euler/euler_config_IV.json)
 # or parallel:
-mpirun -np 4 ./build/app/euler.exe cases/your_config.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
+
+Maintained cases resolve their mesh and output paths from the `build/`
+working directory. The IV example requires the pinned external mesh fixtures
+described below.
 
 **6. Install Python package (optional)**
 ```bash
-CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=32 pip install -e .
+CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=32 \
+  pip install -e . --no-build-isolation
 ```
 
 **7. Run tests (optional)**
+
+First fetch the pinned `cfd_meshes` fixtures described under
+[Test meshes](v0.3.1_new_features_zh.md#72-测试网格).
+
 ```bash
 # C++ tests
-cmake --build build -t euler_unit_tests -j32
-ctest --test-dir build --output-on-failure
+cmake --build --preset tests -j32
+ctest --preset unit
 
-# Python tests
-pytest test/ -v
+# Python tests (never use missing or stale native modules)
+cmake --build --preset python -j32
+cmake --install build --component py
+PYTHONPATH="$PWD/python" venv/bin/python -m pytest test/ -v
 ```
 
 ---
@@ -75,13 +85,16 @@ pytest test/ -v
 | C++ compiler    | GCC 9+ / Clang 8+ | Must support C++17                |
 | MPI             | MPI-3         | OpenMPI or MPICH                       |
 | CMake           | >= 3.21       |                                        |
-| Python          | >= 3.10       | System Python recommended (not conda)  |
+| Python          | >= 3.10       | 3.12 is CI-tested; system Python recommended |
 | Ninja           | any           | Optional but recommended for speed     |
 | Doxygen         | any           | Required for Cantera CLib codegen      |
 
-C++ libraries (managed via `external/cfd_externals` submodule):
-Eigen, Boost, CGAL, nlohmann_json, fmt, pybind11, HDF5, CGNS,
-Metis, ParMetis, ZLIB.  Optional: CUDA toolkit, SuperLU_dist.
+C++ libraries from the pinned header bundle: Eigen, Boost, CGAL,
+nlohmann_json, fmt, and pybind11. Binary libraries built by the
+`external/cfd_externals` submodule include HDF5, CGNS, Metis, ParMetis,
+ZLIB, and Cantera. Optional system dependencies include the CUDA toolkit and
+SuperLU_dist; Cantera use in DNDSR itself is controlled by
+`DNDS_USE_CANTERA`.
 
 ## Building External Dependencies
 
@@ -91,21 +104,17 @@ submodule.
 
 ### Header-only libraries (Eigen, Boost, CGAL, fmt, pybind11, ...)
 
-Download the latest release tarball from GitHub and extract it into
-the `external/` directory:
+Download the pinned release, verify its SHA-256 digest, and extract it into the
+`external/` directory:
 
 ```bash
-curl -L -o external/external_headeronlys.tar.gz \
-  https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
-cd external
-tar -xzf external_headeronlys.tar.gz
-cd ..
+bash scripts/install_headeronly_deps.sh
 ```
 
 After extraction, directories such as `external/eigen/`,
 `external/boost/`, `external/CGAL/`, etc. should exist.
 
-### Binary libraries (HDF5, CGNS, Metis, ParMetis, ZLIB)
+### Binary libraries (HDF5, CGNS, Metis, ParMetis, ZLIB, Cantera)
 
 ```bash
 git submodule update --init --recursive --depth=1
@@ -124,7 +133,7 @@ order:
 
 | #  | Module                    | Purpose                                                  |
 |----|---------------------------|----------------------------------------------------------|
-| 1  | `DndsStdlibSetup.cmake`  | Detect and bundle libstdc++ or libc++ for the Python package |
+| 1  | `DndsStdlibSetup.cmake`  | Detect the host libstdc++ or libc++ (system runtime; not bundled) |
 | 2  | `DndsOptions.cmake`      | All user-facing cache options, commit recording, ccache  |
 | 3  | `DndsCudaSetup.cmake`    | CUDA language enable, toolkit discovery, CCCL include path |
 | 4  | `DndsCompilerFlags.cmake`| LTO, MPI discovery, platform flags, OpenMP               |
@@ -135,8 +144,9 @@ order:
 | 9  | `DndsDocs.cmake`         | Doxygen documentation target                             |
 | 10 | `DndsTooling.cmake`      | compile_commands.json post-processing, automatic stub generation |
 
-Between modules 6 and 7, the five core library subdirectories are
-added: `src/DNDS`, `src/Geom`, `src/CFV`, `src/Euler`, `src/EulerP`.
+Between modules 6 and 7, the library subdirectories are added:
+`src/DNDS`, `src/Geom`, `src/CFV`, `src/Euler`, `src/EulerP`, `src/ACM`,
+`src/ACMVariable`, and `src/NCFV`.
 
 ## System Build Dependencies
 
@@ -147,7 +157,7 @@ Ensure MPI and basic build tools are available before proceeding:
 sudo apt install build-essential cmake ninja-build openmpi-bin libopenmpi-dev doxygen
 
 # RHEL/Fedora
-sudo dnf install gcc-c++ cmake ninja-build openmpi-devel
+sudo dnf install gcc-c++ cmake ninja-build openmpi-devel doxygen
 ```
 
 ## Python Virtual Environment
@@ -179,28 +189,46 @@ bash scripts/install_python_deps.sh
 ### Using CMake Presets
 
 ```bash
-cmake --preset release-test        # Release with unit tests enabled
-cmake --build --preset tests -j32  # Build all C++ unit tests
-ctest --preset unit                # Run unit tests
+cmake --preset release-test        # Baseline CPU, Cantera/CUDA off
+cmake --build --preset tests -j32  # Build every C++ unit-test category
+ctest --preset unit                # Run C++ tests (not pytest entries)
 ```
 
 Available presets (defined in `CMakePresets.json`):
 
-| Preset          | Build Type | Tests | Build Dir       | Notes                         |
-|-----------------|------------|-------|-----------------|-------------------------------|
-| `default`       | Release    | OFF   | `build/`        | Minimal solver build          |
-| `debug`         | Debug      | ON    | `build-debug/`  | Full debug symbols            |
-| `release-test`  | Release    | ON    | `build/`        | Main development preset       |
-| `cuda`          | Release    | ON    | `build-cuda/`   | Enables CUDA GPU support      |
-| `ci`            | Release    | ON    | `build-ci/`     | CI (no ccache)                |
+| Configure preset | Build type | Tests | Cantera | CUDA | Build directory |
+|------------------|------------|-------|---------|------|-----------------|
+| `default`        | Release    | OFF   | OFF     | OFF  | `build-default/` |
+| `debug`          | Debug      | ON    | OFF     | OFF  | `build-debug/` |
+| `release-test`   | Release    | ON    | OFF     | OFF  | `build/` |
+| `reactive-test`  | Release    | ON    | ON      | OFF  | `build-reactive/` |
+| `cuda`           | Release    | ON    | OFF     | ON   | `build-cuda/` |
+| `ci`             | Release    | ON    | ON      | OFF  | `build-ci/` |
 
-> **Note:** Each preset writes to its own build directory (`build/`, `build-debug/`, `build-cuda/`, etc.).
-> If you switch presets, use the corresponding directory in subsequent `cmake --build` and `ctest` commands.
+The feature switches are explicit in every preset. This prevents a cached
+Cantera or CUDA setting from leaking into an unrelated build. Shared presets
+also disable ccache for reproducibility; enable it in a local
+`CMakeUserPresets.json` when desired. Useful build and test preset pairs are:
+
+| Purpose | Build command | Test command |
+|---------|---------------|--------------|
+| All baseline C++ tests | `cmake --build --preset tests` | `ctest --preset unit` |
+| DNDS core only | `cmake --build --preset dnds-tests` | `ctest --preset dnds` |
+| Full Cantera-enabled C++ matrix | `cmake --build --preset reactive` | `ctest --preset reactive` |
+| Focused chemistry tests | same reactive build | `ctest --preset reactive-focused` |
+| All pybind11 modules | `cmake --build --preset python` | `ctest --preset python` after install |
+| CUDA modules/tests | `cmake --build --preset cuda` | `ctest --preset cuda` |
+
+`ctest --preset all` includes both C++ and Python CTest entries. Build and
+install the four pybind11 modules before using it. `CMakeUserPresets.json` may
+be used for machine-specific compilers and paths and is intentionally ignored
+by Git.
 
 ### Manual CMake Configuration
 
 ```bash
-cmake -S . -B build -G Ninja -DDNDS_BUILD_TESTS=ON
+CC=mpicc CXX=mpicxx cmake -S . -B build -G Ninja \
+  -DDNDS_BUILD_TESTS=ON -DDNDS_USE_CANTERA=OFF
 cmake --build build -t euler -j32           # Build a solver
 cmake --build build -t dnds_unit_tests -j32 # Build C++ tests
 ctest --test-dir build -R dnds_ --output-on-failure
@@ -213,17 +241,30 @@ when unsure which MPI implementation CMake will find.
 
 Each Euler model variant generates a separate executable:
 
-| Target        | Model      | Dimension |
-|---------------|------------|-----------|
-| `euler`       | Navier-Stokes | 2D/3D auto |
-| `euler2D`     | Navier-Stokes | 2D only    |
-| `euler3D`     | Navier-Stokes | 3D only    |
-| `eulerSA`     | Spalart-Allmaras | 2D/3D |
-| `eulerSA3D`   | Spalart-Allmaras | 3D only |
-| `euler2EQ`    | k-omega 2-equation | 2D/3D |
-| `euler2EQ3D`  | k-omega 2-equation | 3D only |
-| `eulerEX`     | Extended   | 2D/3D     |
-| `eulerEX3D`   | Extended   | 3D only   |
+| Target        | Model      | Mesh geometry | Velocity components |
+|---------------|------------|---------------|---------------------|
+| `euler`       | Navier-Stokes | 2D | 3 |
+| `euler2D`     | Navier-Stokes | 2D | 2 |
+| `euler3D`     | Navier-Stokes | 3D | 3 |
+| `eulerSA`     | Spalart-Allmaras | 2D | 3 |
+| `eulerSA3D`   | Spalart-Allmaras | 3D | 3 |
+| `euler2EQ`    | k-omega 2-equation | 2D | 3 |
+| `euler2EQ3D`  | k-omega 2-equation | 3D | 3 |
+| `eulerEX`     | Multi-species reactive Navier-Stokes | 2D | 3 |
+| `eulerEX3D`   | Multi-species reactive Navier-Stokes | 3D | 3 |
+
+`eulerEX`, `eulerEX3D`, and `eulerState` still compile in the Cantera-free
+compatibility build, but Cantera thermochemistry/kinetics and the
+`canteraConstVolTrajectory` tool require `DNDS_USE_CANTERA=ON`. Reactive CFD is
+currently CPU-only.
+
+This fork also builds the following independent solver families:
+
+| Target(s) | Model |
+|-----------|-------|
+| `ACM`, `acm2D`, `acm3D` | Constant-density artificial compressibility |
+| `acmVariable2D`, `acmVariable3D` | Variable-density artificial compressibility |
+| `NCFV` | Third-order node-centred finite volume |
 
 ### CMake Cache Options
 
@@ -233,11 +274,12 @@ Key options (set via `-D<OPTION>=<VALUE>` or in a preset):
 |------------------------------|---------|----------------------------------------|
 | `DNDS_BUILD_TESTS`          | OFF     | Build C++ unit tests (doctest)         |
 | `DNDS_USE_CUDA`             | OFF     | Enable CUDA GPU support                |
+| `DNDS_USE_CANTERA`          | ON      | Enable Cantera chemistry and reactive-flow tests |
 | `DNDS_USE_OMP`              | ON      | Enable OpenMP                          |
 | `DNDS_FAST_BUILD_FAST`      | ON      | Use -O3 -g0 on core library modules   |
 | `DNDS_LTO`                  | OFF     | Link-time optimization                 |
 | `DNDS_LTO_THIN`             | OFF     | Use -flto=thin (Clang)                 |
-| `DNDS_PYBIND11_NO_LTO`     | OFF     | Disable LTO for pybind11 modules only  |
+| `DNDS_PYBIND11_NO_LTO`     | ON      | Disable LTO for pybind11 modules only  |
 | `DNDS_NATIVE_ARCH`          | OFF     | Use -march=native                      |
 | `DNDS_UNSAFE_MATH_OPT`     | OFF     | Use -funsafe-math-optimizations        |
 | `DNDS_USE_CCACHE`           | auto    | Use ccache (auto-detected, off for pip)|
@@ -248,6 +290,10 @@ Key options (set via `-D<OPTION>=<VALUE>` or in a preset):
 | `DNDS_USE_PRECOMPILED_HEADER` | OFF  | Use precompiled headers                |
 | `DNDS_EIGEN_USE_BLAS`      | OFF     | Use external BLAS in Eigen             |
 | `DNDS_EIGEN_USE_LAPACK`    | OFF     | Use external LAPACK in Eigen           |
+
+These are raw CMake defaults. The checked-in presets deliberately select a
+clear feature matrix: `release-test` disables Cantera, `reactive-test` enables
+it, and `cuda` enables CUDA without implying reactive GPU support.
 
 ## Building the Python Package
 
@@ -260,8 +306,8 @@ install them (and auto-generate type stubs) into `python/DNDSR/`:
 
 ```bash
 source venv/bin/activate
-cmake -S . -B build -G Ninja
-cmake --build build -t dnds_pybind11 geom_pybind11 cfv_pybind11 eulerP_pybind11 -j32
+cmake --preset release-test
+cmake --build --preset python -j32
 cmake --install build --component py
 ```
 
@@ -283,7 +329,8 @@ cmake --install build --component py   # reinstalls .so AND regenerates stubs
 
 #### 2. Editable install (development with pip)
 
-Uses scikit-build-core.  Builds into a separate `build_py/` directory:
+Uses scikit-build-core. Builds into a wheel-tagged subdirectory under
+`build_py/`, so different Python ABIs cannot share one CMake cache:
 
 ```bash
 source venv/bin/activate
@@ -294,28 +341,38 @@ This configures and builds all four pybind11 targets, installs `.so`
 files into `python/DNDSR/<Module>/_ext/`, generates `.pyi` stubs, and
 registers the package as editable in the venv.
 
-After the initial install, rebuild only the C++ parts:
+After C++ changes, rerun the editable install command, or use the configured
+`release-test` in-place build:
 
 ```bash
-cmake --build build_py -t dnds_pybind11 geom_pybind11 cfv_pybind11 eulerP_pybind11 -j32
-cmake --install build_py --component py
+cmake --build --preset python -j32
+cmake --install build --component py
 ```
 
 #### 3. Full wheel install
 
 ```bash
-CMAKE_BUILD_PARALLEL_LEVEL=32 pip install . --verbose
+CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=32 \
+  pip install . --no-build-isolation --verbose
 ```
 
-Builds a wheel with `.so` files, bundled shared libraries, and `.pyi`
-stubs included.
+Builds a local wheel with `.so` files, bundled shared libraries, and `.pyi`
+stubs included. Build it only from a fully prepared checkout and use it with
+the same MPI implementation/ABI as the build host. The separately distributed
+header bundle and compiled external libraries mean the generated sdist is not
+currently a self-contained installation artifact. Do not publish or
+redistribute a wheel until the ParMETIS redistribution permission and all
+third-party license/notice requirements have been reviewed and satisfied.
+The repository-level `THIRD_PARTY_DEPENDENCIES.md` records the current binary
+inventory and release checklist.
 
 ### Controlling Build Parallelism
 
-The default is `-j0` (all available cores).  Override via environment:
+`pyproject.toml` does not inject a fixed Ninja `-j` option. Set CMake's standard
+parallelism variable so one unambiguous limit reaches the generated build:
 
 ```bash
-SKBUILD_BUILD_TOOL_ARGS="-j8" pip install -e . --no-build-isolation
+CMAKE_BUILD_PARALLEL_LEVEL=8 pip install -e . --no-build-isolation
 ```
 
 ### Pybind11 Module Targets
@@ -344,7 +401,7 @@ the `py` component that runs `scripts/generate-stubs.sh` after all
 `.so` files are installed.  This happens in both workflows:
 
 - `cmake --install build --component py` (in-place build)
-- `pip install -e .` (scikit-build-core editable install)
+- `pip install -e . --no-build-isolation` (scikit-build-core editable install)
 
 The script runs `pybind11-stubgen` for each submodule (DNDS, Geom,
 CFV, EulerP), writes raw output to `stubs/`, and copies `.pyi` files
@@ -361,17 +418,47 @@ PYTHONPATH=python ./scripts/generate-stubs.sh
 
 ### Stubs in wheels
 
-The `.pyi` files under `python/DNDSR/` are included in sdist/wheel
-builds via `pyproject.toml` `sdist.include`.  They are generated at
-build time and packaged into the wheel, so end users get type hints
-without running stubgen themselves.
+The `.pyi` files under `python/DNDSR/` are staged into wheel builds by the
+CMake install step. They are generated while building the wheel and are not
+copied from platform-specific artifacts left in the source distribution, so
+wheel users get type hints without running stubgen themselves.
+
+## Reactive Flow and Cantera
+
+The `reactive-test` preset is the supported CPU validation configuration for
+EulerEX chemistry. It assumes the pinned `cfd_externals` submodule has already
+been built with Cantera. Its `reactive` build/test pair compiles and exercises
+all C++ modules with Cantera enabled; use `reactive-focused` for only the eight
+chemistry/reactive checks:
+
+```bash
+CC=mpicc CXX=mpicxx cmake --preset reactive-test
+cmake --build --preset reactive -j32
+ctest --preset reactive
+# Optional focused rerun:
+ctest --preset reactive-focused
+```
+
+At runtime, point Cantera to additional mechanism/data directories when the
+configuration does not use an explicit mechanism path:
+
+```bash
+export DNDS_MECH_PATH=/path/to/mechanisms
+export CANTERA_DATA=/path/to/cantera/data
+```
+
+The standalone Python flame/reference scripts use the Python Cantera package,
+which is separate from the C++ library built by `cfd_externals`. It is included
+in the contributor `requirements.txt` and is also available through the
+`chemistry` package extra.
 
 ## CUDA Support
 
 ### Enabling CUDA
 
 ```bash
-cmake -S . -B build-cuda -G Ninja -DDNDS_USE_CUDA=ON
+cmake -S . -B build-cuda -G Ninja \
+  -DDNDS_USE_CUDA=ON -DDNDS_USE_CANTERA=OFF
 cmake --build build-cuda -t euler -j32
 ```
 
@@ -379,7 +466,8 @@ Or use the `cuda` preset:
 
 ```bash
 cmake --preset cuda
-cmake --build build-cuda -j32
+cmake --build --preset cuda -j32
+ctest --preset cuda
 ```
 
 ### CUDA 13.1 (CCCL 3.x) Compatibility
@@ -404,48 +492,63 @@ GPU-accelerated versions of the test apps are built when
 - `cuda_test`, `array_cuda_Test`, `array_cuda_Bench`, `arrayDOF_test_cuda`
 - `eulerP_pybind11` (Python bindings with GPU evaluator)
 
+The CUDA preset does not enable reactive chemistry. EulerEX reactive CFD has
+no CUDA implementation in v0.3.1; validate chemistry independently with the
+`reactive-test` preset.
+
 ## Running Tests
 
 ### C++ Unit Tests
 
-C++ tests use [doctest](https://github.com/doctest/doctest) and live
-under `test/cpp/`.  MPI tests are registered with CTest at np=1, np=2,
-and np=4 (DNDS and Geom tests additionally at np=8).
+C++ tests use [doctest](https://github.com/doctest/doctest) and live under
+`test/cpp/`. By default, MPI-aware tests are registered at np=1, 2, 4, and 8;
+the NCFV I/O regression is intentionally limited to np=1 and 2. Override the
+general matrix at configure time with `DNDS_TEST_NP_LIST`.
 
 ```bash
-cmake --build build -t dnds_unit_tests -j32
-ctest --test-dir build -R dnds_ --output-on-failure
+cmake --build --preset tests -j32
+ctest --preset unit
 
 # Run a single test executable directly
 ./build/test/cpp/dnds_test_array
 mpirun -np 4 ./build/test/cpp/dnds_test_mpi
 ```
 
-Available test executables: `dnds_test_array`, `dnds_test_mpi`,
-`dnds_test_array_transformer`, `dnds_test_array_derived`,
-`dnds_test_array_dof`, `dnds_test_index_mapping`,
-`dnds_test_serializer`, `dnds_test_permutation_transfer`.
+Aggregate build targets are `dnds_unit_tests`, `geom_unit_tests`,
+`cfv_unit_tests`, `euler_unit_tests`, `acm_unit_tests`,
+`acm_variable_unit_tests`, `solver_unit_tests`, and `ncfv_unit_tests`.
+`all_unit_tests` depends on all of them. Cantera-enabled Euler tests are added
+to `euler_unit_tests` by the `reactive-test` configuration.
+
+Several Geom, CFV, and Euler regressions use external CGNS fixtures under
+`data/mesh/`. The main repository intentionally ignores these files. Follow
+the pinned `cfd_meshes` instructions in
+[the v0.3.1 migration guide](v0.3.1_new_features_zh.md#72-测试网格) before
+interpreting a CGNS-open failure as a solver regression.
 
 ### Python Tests
 
-Python tests use pytest with pytest-mpi and pytest-timeout, and live under `test/`.  The root
+Python tests use pytest with pytest-timeout and live under `test/`; MPI runs
+invoke `mpirun` explicitly. The root
 `test/conftest.py` adds `python/` to `sys.path` so tests work with
 both `PYTHONPATH=python` and `pip install -e .`.
 
 ```bash
-pytest test/DNDS/test_basic.py -v
+cmake --build --preset python -j32
+cmake --install build --component py
+PYTHONPATH="$PWD/python" venv/bin/python -m pytest test/DNDS/test_basic.py -v
 
 # With MPI
-mpirun -np 4 python -m pytest test/DNDS/test_basic.py
+PYTHONPATH="$PWD/python" mpirun -np 4 venv/bin/python -m pytest test/DNDS/test_basic.py
 
 # All tests
-pytest test/ -x --timeout=120
+PYTHONPATH="$PWD/python" venv/bin/python -m pytest test/ -x --timeout=120
 ```
 
 CTest also registers pytest suites when `DNDS_BUILD_TESTS=ON`:
 
 ```bash
-ctest --test-dir build -R pytest_ --output-on-failure
+ctest --preset python
 ```
 
 ## Build Mode Summary
@@ -453,11 +556,11 @@ ctest --test-dir build -R pytest_ --output-on-failure
 | Mode                     | Command                                               | Build Dir   | Stubs         |
 |--------------------------|-------------------------------------------------------|-------------|---------------|
 | **Pure C++ build**       | `cmake --build build -t euler -j32`                   | `build/`    | N/A           |
-| **C++ unit tests**       | `cmake --build build -t dnds_unit_tests -j32`         | `build/`    | N/A           |
+| **C++ unit tests**       | `cmake --build --preset tests -j32`                    | `build/`    | N/A           |
 | **In-place Python**      | `cmake --install build --component py`                | `build/`    | Auto-generated|
-| **Editable install**     | `pip install -e . --no-build-isolation`                | `build_py/` | Auto-generated|
-| **Editable C++ rebuild** | `cmake --build build_py -t ... && cmake --install ...`| `build_py/` | Auto-generated|
-| **Full wheel**           | `pip install .`                                       | `build_py/` | Included in wheel|
+| **Editable install**     | `pip install -e . --no-build-isolation`               | `build_py/<wheel-tag>/` | Auto-generated|
+| **In-place C++ rebuild** | `cmake --build --preset python && cmake --install build --component py` | `build/` | Auto-generated|
+| **Local wheel install**  | `pip install . --no-build-isolation`                  | `build_py/<wheel-tag>/` | Included in wheel|
 
 ## Developer Tooling
 
@@ -482,34 +585,40 @@ The build system uses a shipped, modified version of compdb at
 If the shipped version is not found, it falls back to a
 system-installed `compdb` executable (`pip install compdb`).
 
-### Doxygen Documentation
+### Unified Sphinx and Doxygen Documentation
 
 ```bash
+pip install -r docs/sphinx/requirements.txt
+# Reconfigure after installing Sphinx; documentation targets are discovered
+# during CMake configure.
+cmake --preset release-test
 cmake --build build -t docs
 ```
 
-Output goes to `build/docs/html/`.
+The unified site goes to `build/docs/sphinx/`; its embedded raw Doxygen API is
+also available at `build/docs/html/`.
 
 ### CMake Utility Targets
 
 | Target                     | Description                                      |
 |----------------------------|--------------------------------------------------|
 | `process-compile-commands` | Post-process compile_commands.json for clangd    |
-| `docs`                     | Build Doxygen HTML documentation                 |
-| `dnds_unit_tests`          | Build all C++ unit test executables               |
+| `docs`                     | Build the unified Sphinx site with Doxygen API   |
+| `dnds_unit_tests`          | Build DNDS core unit-test executables             |
+| `all_unit_tests`           | Build every registered C++ unit-test category     |
 
 ### Shared Library Bundling
 
-Both the in-place and pip install workflows copy external shared
-libraries (MPI, HDF5, CGNS, Metis, ParMetis, zlib, libstdc++) into
-`python/DNDSR/_lib/dndsr_external/`.  The pybind11 `.so` files have
-`RPATH` set to find these bundled copies, so the package works without
-`LD_LIBRARY_PATH` manipulation.
+Both the in-place and pip install workflows copy CGNS, HDF5, Metis,
+ParMetis, and zlib into the package's `DNDSR/_lib/dndsr_external/`
+directory. The pybind11 modules use RPATH to find this controlled subset.
 
-`DndsStdlibSetup.cmake` detects whether the compiler uses libstdc++
-or libc++ and bundles the appropriate runtime.  RPATH uses
-`--disable-new-dtags` to ensure the bundled libstdc++ takes precedence
-over any `LD_LIBRARY_PATH` (important when conda is active).
+MPI and the C++ standard library (`libstdc++`/`libc++`) are intentionally not
+bundled because they must remain consistent with the host runtime; loading a
+second allocator/runtime can cause symbol conflicts and double frees. Cantera
+is also an external runtime dependency for Cantera-enabled C++ builds. Use the
+same compiler/MPI stack throughout and, when necessary, source the generated
+`<build>/install/DNDSR/set_library_path.sh` before running executables.
 
 ### pyproject.toml Configuration
 
@@ -519,10 +628,12 @@ settings in `pyproject.toml`:
 
 | Setting                | Value                   | Purpose                       |
 |------------------------|-------------------------|-------------------------------|
-| `build-dir`           | `build_py`              | Separate from the C++ build   |
+| `build-dir`           | `build_py/{wheel_tag}`  | Separate cache for each Python ABI |
+| `install.components` | `py`                    | Stage only Python package artifacts |
+| `minimum-version`     | build-system requirement | Stable scikit-build-core defaults |
 | `build.targets`       | 4 pybind11 targets      | Only build Python bindings    |
 | `cmake.args`          | `["-G", "Ninja"]`       | Use Ninja generator           |
-| `build.tool-args`     | `["-j0"]`               | All cores by default          |
+| `cmake.define.DNDS_USE_CANTERA` | `OFF` | Python bindings do not expose reactive Euler |
 | `wheel.packages`      | `python/DNDSR`          | Package root                  |
 
 When scikit-build-core configures CMake it sets `SKBUILD_PROJECT_NAME`,

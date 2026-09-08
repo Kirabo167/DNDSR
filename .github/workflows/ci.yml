@@ -14,7 +14,7 @@
 #
 # Test matrix:
 #   - C++ unit tests (doctest + ctest)
-#   - Python tests (pytest + pytest-mpi)
+#   - Python tests (pytest, with mpi4py initialized by the test fixtures)
 #
 # External data:
 #   - harryzhou2000/cfd_meshes   → checked out into data/mesh/
@@ -35,7 +35,6 @@ on:
     types: [created]
 
 env:
-  HEADERONLYS_URL: https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
   OMPI_MCA_rmaps_base_oversubscribe: "1"
 
 jobs:
@@ -218,13 +217,11 @@ jobs:
             external/nlohmann
             external/pybind11
             external/pybind11_json
-          key: headeronlys-v1
+          key: headeronlys-${{ runner.os }}-${{ hashFiles('scripts/install_headeronly_deps.sh') }}
 
       - name: Download and extract header-only externals
         if: steps.cache-headeronlys.outputs.cache-hit != 'true'
-        run: |
-          curl -L -o external/external_headeronlys.tar.gz "$HEADERONLYS_URL"
-          cd external && tar -xzf external_headeronlys.tar.gz
+        run: bash scripts/install_headeronly_deps.sh
 
       - name: Save header-only externals cache
         if: always()
@@ -244,7 +241,7 @@ jobs:
             external/nlohmann
             external/pybind11
             external/pybind11_json
-          key: headeronlys-v1
+          key: headeronlys-${{ runner.os }}-${{ hashFiles('scripts/install_headeronly_deps.sh') }}
 
       # ------------------------------------------------------------------
       # 6. cfd_externals (zlib, hdf5, cgns, parmetis)
@@ -331,6 +328,8 @@ jobs:
           source venv/bin/activate
           CC=mpicc CXX=mpicxx cmake -B build -G Ninja \
             -DDNDS_BUILD_TESTS=ON \
+            -DDNDS_USE_CANTERA=ON \
+            -DDNDS_USE_CUDA=OFF \
             -DPython_EXECUTABLE="$VIRTUAL_ENV/bin/python" \
             -DPython3_EXECUTABLE="$VIRTUAL_ENV/bin/python"
         env:
@@ -342,8 +341,8 @@ jobs:
       - name: Build C++ unit tests
         run: cmake --build build -t all_unit_tests -j$(nproc)
 
-      - name: Build Euler solvers
-        run: cmake --build build -t euler euler3D eulerSA eulerSA3D euler2EQ euler2EQ3D eulerEX eulerEX3D canteraConstVolTrajectory eulerState -j$(nproc)
+      - name: Build solver applications
+        run: cmake --build build -t euler euler2D euler3D eulerSA eulerSA3D euler2EQ euler2EQ3D eulerEX eulerEX3D canteraConstVolTrajectory eulerState ACM acm2D acm3D acmVariable2D acmVariable3D NCFV -j$(nproc)
 
       # ------------------------------------------------------------------
       # 11. Build pybind11 targets
@@ -367,7 +366,7 @@ jobs:
       # ------------------------------------------------------------------
       - name: Run C++ tests
         timeout-minutes: 30
-        run: ctest --test-dir build --output-on-failure --timeout 600
+        run: ctest --test-dir build --output-on-failure --timeout 600 -E "^pytest_"
         env:
           DNDS_MECH_PATH: ${{ github.workspace }}/external/cfd_externals/install/data
           CANTERA_DATA: ${{ github.workspace }}/external/cfd_externals/install/data

@@ -29,9 +29,9 @@
 
 ```bash
 # Build + run everything
-cmake -B build -DDNDS_BUILD_TESTS=ON
+CC=mpicc CXX=mpicxx cmake --preset release-test
 cmake --build build -t all_unit_tests -j8
-ctest --test-dir build --output-on-failure
+ctest --preset unit
 ```
 
 ---
@@ -73,7 +73,7 @@ ctest --test-dir build --output-on-failure
 
 ```cpp
 TEST_CASE("ArrayTransformer: round-trip ghost pull" *
-          doctest::description("np=1,2,4") *
+          doctest::description("np=1,2,4,8") *
           doctest::timeout(120.0)) {
     MPIInfo mpi; mpi.setWorld();
     auto father = make_ssp<ParArray<real, 5>>();
@@ -176,7 +176,7 @@ else
 <!-- _footer: "docs/tests/overview.md:104-124" -->
 <!-- _class: tight -->
 
-## Python 测试 — pytest + pytest-mpi
+## Python 测试 — pytest + pytest-timeout
 
 <div class="cols">
 <div>
@@ -257,7 +257,7 @@ PYTHONPATH=<root>/python pytest test/ -v
       "cacheVariables": { "DNDS_USE_CUDA": "ON",
                           "CMAKE_CUDA_ARCHITECTURES": "native" } },
     { "name": "ci",     "inherits": "release-test",
-      "cacheVariables": { "DNDS_TEST_NP_LIST":     "1;2;4",
+      "cacheVariables": { "DNDS_TEST_NP_LIST":     "1;2;4;8",
                           "DNDS_TEST_OMP_THREADS": "2" } }
   ]
 }
@@ -294,7 +294,7 @@ install.components = ["py"]     # only install the py component
 ```bash
 CC=mpicc CXX=mpicxx \
     CMAKE_BUILD_PARALLEL_LEVEL=32 \
-    pip install -e .
+    pip install -e . --no-build-isolation
 ```
 
 - 构建全部 `*_pybind11` 目标。

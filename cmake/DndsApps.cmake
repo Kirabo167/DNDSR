@@ -83,7 +83,7 @@ if (NOT SKBUILD_PROJECT_NAME) # do not create links for SCIKIT-BUILD build
 endif()
 # Stub generation runs automatically as the final step of
 # `cmake --install build --component py` (see DndsTooling.cmake).
-# The generated .pyi files in python/DNDSR/ should be committed to git.
+# Generated .pyi files are install artifacts and remain ignored by git.
 
 # -------------------------------------------------------------------
 # ADD_EXE_APP helper function

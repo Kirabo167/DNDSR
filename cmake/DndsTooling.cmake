@@ -84,6 +84,19 @@ install(CODE "
         message(WARNING \"Stub generation failed (exit \${_stubgen_result}). \"
             \"Stubs may be stale. Run manually: PYTHONPATH=python ./scripts/generate-stubs.sh\")
     else()
+        # The source tree copy supports editable installs. Also stage the
+        # generated stubs under CMAKE_INSTALL_PREFIX so regular wheels contain
+        # them without placing platform binaries in the source distribution.
+        file(GLOB_RECURSE _dnds_stub_files
+            \"${PROJECT_SOURCE_DIR}/python/DNDSR/*.pyi\")
+        foreach(_dnds_stub IN LISTS _dnds_stub_files)
+            file(RELATIVE_PATH _dnds_stub_rel
+                \"${PROJECT_SOURCE_DIR}/python\" \"\${_dnds_stub}\")
+            get_filename_component(_dnds_stub_dir \"\${_dnds_stub_rel}\" DIRECTORY)
+            file(INSTALL
+                DESTINATION \"\${CMAKE_INSTALL_PREFIX}/\${_dnds_stub_dir}\"
+                TYPE FILE FILES \"\${_dnds_stub}\")
+        endforeach()
         message(STATUS \"Stub generation complete.\")
     endif()
 " COMPONENT py)

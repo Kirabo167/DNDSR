@@ -1,7 +1,8 @@
 """scikit-build-core metadata provider for DNDSR version.
 
 Reads the base version from the VERSION file and appends git describe
-info for non-release commits (PEP 440 format).
+information in PEP 440 format. Commits after the matching release tag are
+post-releases; commits toward a newer VERSION are development releases.
 
 Usage in pyproject.toml:
     [project]
@@ -16,6 +17,17 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 from typing import Any
+
+
+def _version_from_pkg_info(root: Path) -> str | None:
+    """Recover the already-computed version when building from an sdist."""
+    try:
+        for line in (root / "PKG-INFO").read_text(encoding="utf-8").splitlines():
+            if line.startswith("Version: "):
+                return line.removeprefix("Version: ").strip()
+    except FileNotFoundError:
+        pass
+    return None
 
 
 def dynamic_metadata(
@@ -38,7 +50,14 @@ def dynamic_metadata(
             text=True,
         ).strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
-        # No git or no tags — return base with commit hash if possible
+        # An sdist has no .git directory. Reuse the version written into its
+        # core metadata so sdist -> wheel preserves the exact version.
+        packaged = _version_from_pkg_info(root)
+        if packaged:
+            return packaged
+
+        # No git, tags, or package metadata — retain a unique commit hash when
+        # possible (for example in a shallow source checkout).
         try:
             short = subprocess.check_output(
                 ["git", "rev-parse", "--short=7", "HEAD"],
@@ -46,7 +65,7 @@ def dynamic_metadata(
                 stderr=subprocess.DEVNULL,
                 text=True,
             ).strip()
-            return f"{base}.dev0+{short}"
+            return f"{base}.dev0+g{short}"
         except (subprocess.CalledProcessError, FileNotFoundError):
             return base
 
@@ -55,14 +74,17 @@ def dynamic_metadata(
 
     m = re.match(r"^v(\d+\.\d+\.\d+)-(\d+)-g([0-9a-f]+)$", desc)
     if not m:
-        return base
+        return _version_from_pkg_info(root) or base
 
+    tag_version = m.group(1)
     distance = int(m.group(2))
     commit = m.group(3)
 
-    if distance == 0:
+    if distance == 0 and tag_version == base:
         return base
-    return f"{base}.dev{distance}+{commit}"
+    if tag_version == base:
+        return f"{base}.post{distance}+g{commit}"
+    return f"{base}.dev{distance}+g{commit}"
 
 
 def get_requires_for_dynamic_metadata(

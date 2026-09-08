@@ -129,7 +129,8 @@ struct GhostRequirement {
 ### 测试
 
 - **`docs/tests/overview.md`** — 黄金值、确定性、测试套件汇总。
-- 各模块测试页面：`docs/tests/{dnds,geom,cfv,euler,solver}_unit_tests.md`。
+- DNDS、Geom、CFV、Euler 和 Solver 有独立详情页；ACM、ACMVariable、NCFV
+  和 EulerP 的覆盖情况汇总在测试概览中。
 
 </div>
 </div>
@@ -146,7 +147,7 @@ struct GhostRequirement {
 ```bash
 cmake --preset release-test
 cmake --build build -t euler -j32
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
 <br>

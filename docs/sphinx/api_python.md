@@ -13,7 +13,7 @@ To build this reference with full autodoc support:
 1. Build and install the pybind11 modules:
    `cmake --build build -t dnds_pybind11 geom_pybind11 cfv_pybind11 eulerP_pybind11 -j32`
    `cmake --install build --component py`
-2. Install the package: `pip install -e .`
+2. Install the package: `pip install -e . --no-build-isolation`
 3. Build docs: `cmake --build build -t docs`
 ```
 

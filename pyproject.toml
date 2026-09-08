@@ -1,7 +1,8 @@
-# usage:
-# CC=/usr/bin/gcc CXX=/usr/bin/g++ CMAKE_BUILD_PARALLEL_LEVEL=32 pip install . --verbose
-# Override build parallelism: SKBUILD_BUILD_TOOL_ARGS="-j8" pip install . --verbose
-# (default: -j0 = use all cores)
+# Before building, use scripts/install_python_deps.sh so mpi4py and h5py match
+# the selected MPI and cfd_externals HDF5.
+#
+# wheel/full install:
+# CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=32 pip install . --no-build-isolation --verbose
 #
 # editable (use the same compiler as the main C++ build):
 # CC=mpicc CXX=mpicxx CMAKE_BUILD_PARALLEL_LEVEL=32 pip install -e . --no-build-isolation
@@ -18,42 +19,100 @@
 
 [build-system]
 requires = [
-    "scikit-build-core>=0.3.3",
-    "pybind11",
-    "pybind11-stubgen",
-    "typing_extensions",
-    "numpy",
-    "ninja",
+    "scikit-build-core>=0.11",
+    "pybind11>=2.11,<4",
+    "pybind11-stubgen>=2.5",
+    "typing_extensions>=4.8",
+    "numpy>=1.25,<3",
 ]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "DNDSR"
+description = "MPI-parallel Compact Finite Volume research solvers with optional CUDA and Cantera support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-only"
+license-files = [
+    "LICENSE",
+    "THIRD_PARTY_DEPENDENCIES.md",
+    "licenses/*.txt",
+]
 dynamic = ["version"]
+dependencies = [
+    "numpy>=1.25,<3",
+    "mpi4py>=4,<5",
+]
+keywords = [
+    "computational-fluid-dynamics",
+    "finite-volume",
+    "mpi",
+    "reactive-flow",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.urls]
+Repository = "https://github.com/Kirabo167/DNDSR"
+Documentation = "https://cfdlab-thu.github.io/DNDSR/"
+ForkDocumentation = "https://github.com/Kirabo167/DNDSR/tree/main/docs"
+Issues = "https://github.com/Kirabo167/DNDSR/issues"
 
 [project.optional-dependencies]
+test = [
+    "h5py>=3.16,<4",
+    "pytest>=7.4",
+    "pytest-timeout>=2.2",
+]
+chemistry = [
+    "cantera>=3.2,<3.3",
+]
+postprocess = [
+    "h5py>=3.16,<4",
+    "scipy>=1.11,<2",
+    "sympy>=1.12,<2",
+    "pandas>=2,<3",
+    "matplotlib>=3.7,<4",
+    "dash>=2.14,<4",
+    "plotly>=5.18,<7",
+    "Pillow>=9.5",
+    "python-pptx>=0.6.21",
+    "imageio-ffmpeg>=0.4.9",
+    "pyvista>=0.43,<1",
+    "numba>=0.58,<1",
+]
 docs = [
+    "matplotlib>=3.7,<4",
     "sphinx>=7.2,<9",
     "breathe>=4.35",
     "myst-parser>=3.0",
     "sphinxawesome-theme>=6.0",
     "sphinx-copybutton>=0.5",
 ]
-# Formatter / pre-commit hook tools. Keep in sync with requirements.txt.
-# scikit-build-core does not (yet) support reading dependencies from
-# requirements.txt via [tool.setuptools.dynamic], so the two lists are
-# maintained in parallel. requirements.txt is the single source of truth
-# for `pip install -r requirements.txt`; this extra exists so
-# `pip install -e .[dev]` also pulls in the formatters.
-# (clang-format is a system package, not on PyPI.)
+# Contributor essentials. mpi4py and h5py should still be installed through
+# scripts/install_python_deps.sh so they use the project's MPI and HDF5.
+# clang-format is provided by the system package manager.
 dev = [
-    "autopep8",
-    "nbstripout",
+    "h5py>=3.16,<4",
+    "pytest>=7.4",
+    "pytest-timeout>=2.2",
+    "jsonschema>=4.17,<5",
+    "PyYAML>=6,<7",
+    "autopep8>=2",
+    "nbstripout>=0.6",
 ]
 
 
 [tool.scikit-build]
 experimental = true
+minimum-version = "build-system.requires"
 metadata.version.provider = "version_provider"
 metadata.version.provider-path = "cmake"
 
@@ -66,15 +125,19 @@ build.targets = [
     "eulerP_pybind11",
 ]
 build.verbose = true
-build-dir = "build_py"
+build-dir = "build_py/{wheel_tag}"
 cmake.args = ["-G", "Ninja"]
-build.tool-args = ["-j0"]  # all cores; override: SKBUILD_BUILD_TOOL_ARGS="-j8"
-sdist.include = [
-    "python/DNDSR/**/*.pyi",
-    "python/DNDSR/**/*.so",
-    "python/DNDSR/**/*.dylib",
-    "python/DNDSR/**/*.pyd",
-]
+install.components = ["py"]
+wheel.exclude = ["**/.gitignore"]
+# The Git submodule source is large and still insufficient for an isolated
+# source build because header-only dependencies are distributed separately.
+sdist.exclude = ["external/cfd_externals"]
+
+# The Python package exposes the non-reactive EulerP bindings. Avoid requiring
+# the optional C++ Cantera dependency for a normal wheel/editable build.
+[tool.scikit-build.cmake.define]
+DNDS_USE_CANTERA = "OFF"
+DNDS_BUILD_TESTS = "OFF"
 
 [tool.scikit-build.wheel.packages]
 "DNDSR" = "python/DNDSR"

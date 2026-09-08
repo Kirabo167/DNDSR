@@ -7,46 +7,61 @@
 #   ./scripts/install_python_deps.sh                         # everything else (after)
 #
 # The script installs everything in this file, then builds h5py and mpi4py
-# from source against the project's HDF5 (cfd_externals) and MPI.  Those
-# two packages are deliberately excluded here because their PyPI wheels
-# bundle incompatible library versions that crash at import time.
+# from source against the project's HDF5 (cfd_externals) and selected MPI.
+# Those two packages are deliberately excluded here: ordinary h5py wheels
+# use a serial/bundled HDF5, while an arbitrary mpi4py wheel may not match the
+# MPI implementation or features used by the DNDSR native modules.
 #
 # Packages needed to *build* the cfd_externals C libraries (scons,
 # packaging, ruamel.yaml, patchelf for Cantera) are listed separately
 # in external/cfd_externals/requirements.txt and must be installed FIRST,
 # before running cfd_externals_build.py.
 #
-# pyproject.toml [project.optional-dependencies].dev mirrors the formatter
-# tools below — keep the two lists in sync when editing.
+# pyproject.toml exposes smaller install extras for package consumers. This
+# file remains the core contributor environment used by the setup script;
+# one-off utilities may document additional dependencies next to the script.
 
 # Core runtime
-numpy
-scipy
-sympy
-pandas
-matplotlib
+numpy>=1.25,<3
 # h5py        — source build required, see scripts/install_python_deps.sh
-jsonschema
-pyyaml
 # mpi4py      — source build required, see scripts/install_python_deps.sh
-dash
+
+# Scientific tools, configuration, and post-processing
+scipy>=1.11,<2
+sympy>=1.12,<2
+pandas>=2,<3
+matplotlib>=3.7,<4
+jsonschema>=4.17,<5
+PyYAML>=6,<7
+dash>=2.14,<4
+plotly>=5.18,<7
+Pillow>=9.5
+python-pptx>=0.6.21
+imageio-ffmpeg>=0.4.9
+pyvista>=0.43,<1
+numba>=0.58,<1
+
+# Reactive-flow reference scripts. The C++ Cantera library is built
+# separately by external/cfd_externals.
+cantera>=3.2,<3.3
 
 # Build / packaging
-scikit-build
-scikit-build-core
-auditwheel
-pybind11-stubgen
-typing_extensions
-compdb
-ninja
-cython
+scikit-build-core>=0.11
+pybind11>=2.11,<4
+pybind11-stubgen>=2.5
+typing_extensions>=4.8
+ninja>=1.10
+Cython>=3,<4
+packaging>=23
+pkgconfig>=1.5.5
+setuptools>=77
+wheel
 
 # Testing
-pytest
-pytest-mpi
-pytest-timeout
+pytest>=7.4
+pytest-timeout>=2.2
 
 # Formatting / pre-commit hook tools
 # (clang-format is installed via system package manager, not pip)
-autopep8
-nbstripout
+autopep8>=2
+nbstripout>=0.6

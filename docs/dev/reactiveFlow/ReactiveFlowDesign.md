@@ -145,12 +145,14 @@ Key patches applied across the solver and physics modules:
 
 #### State-conversion CLI: `eulerState`
 
-`app/eulerState.exe` converts a single Euler state between all representations
-using the PhysicsProperties API.  Supports all 8 Euler models, `--scaling code/phys`,
+From the configured build directory, `./app/eulerState.exe` converts a single
+Euler state between all representations using the PhysicsProperties API.
+It supports all 9 Euler models, `--scaling code/phys`,
 `--mechanism` for reactive, and 5 input formats:
 
 ```
-eulerState --model NS_EX --nVars 14 --from cons-sensible --scaling code \
+cd build
+./app/eulerState.exe --model NS_EX --nVars 14 --from cons-sensible --scaling code \
   --config "gamma=1.4,Rgas=287,U0=379,rho0=1" --mechanism h2o2.yaml \
   --state "[1.0,0,0,0,6.0,0.028,0,0,0.222,0,0,0,0,0]"
 ```

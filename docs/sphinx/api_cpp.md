@@ -1,8 +1,10 @@
 # C++ API Reference
 
 This section is auto-generated from the Doxygen XML output via
-[Breathe](https://breathe.readthedocs.io/). Each module is documented
-on its own page, mirroring the Doxygen class/namespace hierarchy.
+[Breathe](https://breathe.readthedocs.io/). Dedicated pages currently cover
+DNDS, Geom, CFV, Euler, EulerP, and Solver, mirroring their Doxygen
+class/namespace hierarchy. ACM, ACMVariable, and NCFV remain available through
+the full Doxygen API rather than separate Breathe pages.
 
 ```{note}
 The C++ API pages require a prior Doxygen XML build. When using CMake,

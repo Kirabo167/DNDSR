@@ -1,5 +1,5 @@
 {
-    "version": 6,
+    "version": 3,
     "cmakeMinimumRequired": {
         "major": 3,
         "minor": 21,
@@ -8,48 +8,80 @@
     "configurePresets": [
         {
             "name": "default",
-            "displayName": "Default (Release, tests off)",
-            "binaryDir": "${sourceDir}/build",
+            "displayName": "Default CPU build (Release)",
+            "description": "Non-reactive CPU build without unit tests.",
+            "binaryDir": "${sourceDir}/build-default",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "DNDS_BUILD_TESTS": "OFF",
+                "DNDS_USE_CUDA": "OFF",
+                "DNDS_USE_CANTERA": "OFF",
+                "DNDS_USE_CCACHE": "OFF"
             }
         },
         {
             "name": "debug",
-            "displayName": "Debug build with tests",
+            "displayName": "Debug CPU build with tests",
+            "description": "Non-reactive CPU build with assertions, debug symbols, and all test targets enabled.",
             "binaryDir": "${sourceDir}/build-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "DNDS_BUILD_TESTS": "ON",
+                "DNDS_USE_CUDA": "OFF",
+                "DNDS_USE_CANTERA": "OFF",
+                "DNDS_USE_CCACHE": "OFF",
                 "DNDS_FAST_BUILD_FAST": "OFF"
             }
         },
         {
             "name": "release-test",
-            "displayName": "Release build with tests",
+            "displayName": "Release CPU build with tests",
+            "description": "Baseline compatibility build: all CPU modules and tests, without Cantera or CUDA.",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "DNDS_BUILD_TESTS": "ON"
+                "DNDS_BUILD_TESTS": "ON",
+                "DNDS_USE_CUDA": "OFF",
+                "DNDS_USE_CANTERA": "OFF",
+                "DNDS_USE_CCACHE": "OFF"
+            }
+        },
+        {
+            "name": "reactive-test",
+            "displayName": "Release reactive-flow build with tests",
+            "description": "CPU build with Cantera, EulerEX/EulerEX3D, and reactive-flow tests enabled.",
+            "binaryDir": "${sourceDir}/build-reactive",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "DNDS_BUILD_TESTS": "ON",
+                "DNDS_USE_CUDA": "OFF",
+                "DNDS_USE_CANTERA": "ON",
+                "DNDS_USE_CCACHE": "OFF"
             }
         },
         {
             "name": "cuda",
             "displayName": "Release with CUDA and tests",
+            "description": "CUDA/EulerP build. Reactive CFD remains CPU-only and Cantera is disabled here.",
             "binaryDir": "${sourceDir}/build-cuda",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "DNDS_USE_CUDA": "ON",
-                "DNDS_BUILD_TESTS": "ON"
+                "DNDS_BUILD_TESTS": "ON",
+                "DNDS_USE_CANTERA": "OFF",
+                "DNDS_USE_CCACHE": "OFF"
             }
         },
         {
             "name": "ci",
-            "displayName": "CI configuration (Release, tests, no ccache)",
+            "displayName": "CI configuration",
+            "description": "Release build with all CPU and Cantera tests; ccache is disabled for reproducibility.",
             "binaryDir": "${sourceDir}/build-ci",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "DNDS_BUILD_TESTS": "ON",
+                "DNDS_USE_CUDA": "OFF",
+                "DNDS_USE_CANTERA": "ON",
                 "DNDS_USE_CCACHE": "OFF"
             }
         }
@@ -57,36 +89,169 @@
     "buildPresets": [
         {
             "name": "default",
-            "configurePreset": "default"
+            "displayName": "Build the baseline Euler solver",
+            "configurePreset": "default",
+            "targets": ["euler"]
         },
         {
             "name": "tests",
+            "displayName": "Build all C++ unit tests",
+            "configurePreset": "release-test",
+            "targets": ["all_unit_tests"]
+        },
+        {
+            "name": "dnds-tests",
+            "displayName": "Build DNDS core unit tests only",
             "configurePreset": "release-test",
             "targets": ["dnds_unit_tests"]
         },
         {
             "name": "debug",
-            "configurePreset": "debug"
+            "configurePreset": "debug",
+            "targets": ["all_unit_tests"]
+        },
+        {
+            "name": "reactive",
+            "displayName": "Build reactive solvers and tests",
+            "configurePreset": "reactive-test",
+            "targets": [
+                "eulerEX",
+                "eulerEX3D",
+                "eulerState",
+                "canteraConstVolTrajectory",
+                "cantera_Test",
+                "all_unit_tests"
+            ]
+        },
+        {
+            "name": "cuda",
+            "displayName": "Build CUDA modules and C++ tests",
+            "configurePreset": "cuda",
+            "targets": ["all_unit_tests", "eulerP_pybind11"]
+        },
+        {
+            "name": "python",
+            "displayName": "Build all pybind11 modules",
+            "configurePreset": "release-test",
+            "targets": [
+                "dnds_pybind11",
+                "geom_pybind11",
+                "cfv_pybind11",
+                "eulerP_pybind11"
+            ]
+        },
+        {
+            "name": "schemas",
+            "displayName": "Build full-featured schema generators",
+            "description": "Build every Euler variant with Cantera enabled so committed schemas describe all supported configurations.",
+            "configurePreset": "reactive-test",
+            "targets": ["all_euler"]
+        },
+        {
+            "name": "ci",
+            "displayName": "Build all Cantera-enabled CPU tests",
+            "configurePreset": "ci",
+            "targets": ["all_unit_tests"]
         }
     ],
     "testPresets": [
         {
             "name": "unit",
+            "displayName": "Run all C++ unit tests",
+            "configurePreset": "release-test",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "exclude": {
+                    "name": "^pytest_"
+                }
+            }
+        },
+        {
+            "name": "dnds",
+            "displayName": "Run DNDS core tests only",
             "configurePreset": "release-test",
             "output": {
                 "outputOnFailure": true
             },
             "filter": {
                 "include": {
-                    "name": "dnds_"
+                    "name": "^dnds_"
+                }
+            }
+        },
+        {
+            "name": "reactive",
+            "displayName": "Run all C++ tests with Cantera enabled",
+            "configurePreset": "reactive-test",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "exclude": {
+                    "name": "^pytest_"
+                }
+            }
+        },
+        {
+            "name": "reactive-focused",
+            "displayName": "Run focused Cantera/reactive-flow tests",
+            "configurePreset": "reactive-test",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "include": {
+                    "name": "^euler_(source_chemical|uv|physics_properties|chem_ode|evaluator_reactive)"
+                }
+            }
+        },
+        {
+            "name": "python",
+            "displayName": "Run Python tests registered with CTest",
+            "configurePreset": "release-test",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "include": {
+                    "name": "^pytest_"
                 }
             }
         },
         {
             "name": "all",
+            "displayName": "Run all registered C++ and Python tests",
             "configurePreset": "release-test",
             "output": {
                 "outputOnFailure": true
+            }
+        },
+        {
+            "name": "cuda",
+            "displayName": "Run CUDA-build C++ tests",
+            "configurePreset": "cuda",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "exclude": {
+                    "name": "^pytest_"
+                }
+            }
+        },
+        {
+            "name": "ci",
+            "displayName": "Run all Cantera-enabled CPU C++ tests",
+            "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "exclude": {
+                    "name": "^pytest_"
+                }
             }
         }
     ]

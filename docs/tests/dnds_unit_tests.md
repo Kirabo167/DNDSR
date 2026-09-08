@@ -5,7 +5,7 @@
 @section dnds_tests_overview Overview
 
 The DNDSR project uses the [doctest](https://github.com/doctest/doctest)
-(v2.4.11) framework for C++ unit testing.  Test sources live under
+(v2.4.12) framework for C++ unit testing. Test sources live under
 `test/cpp/DNDS/` and are built only when `DNDS_BUILD_TESTS=ON`.
 
 Every MPI-aware test is registered with CTest at four process counts
@@ -16,7 +16,7 @@ verified automatically.
 
 ```sh
 # Configure with tests
-cmake -B build -DDNDS_BUILD_TESTS=ON
+CC=mpicc CXX=mpicxx cmake --preset release-test
 
 # Build all test executables at once
 cmake --build build -t dnds_unit_tests -j8
@@ -36,13 +36,13 @@ mpirun -np 4 ./build/test/cpp/dnds_test_array_transformer
 | CMake target              | CTest names                              | Source file                        |
 |---------------------------|------------------------------------------|------------------------------------|
 | `dnds_test_array`         | `dnds_array`                             | test_Array.cpp                     |
-| `dnds_test_mpi`           | `dnds_mpi_np{1,2,4}`                     | test_MPI.cpp                       |
-| `dnds_test_array_transformer` | `dnds_array_transformer_np{1,2,4}`   | test_ArrayTransformer.cpp          |
-| `dnds_test_array_derived` | `dnds_array_derived_np{1,2,4}`           | test_ArrayDerived.cpp              |
-| `dnds_test_array_dof`     | `dnds_array_dof_np{1,2,4}`               | test_ArrayDOF.cpp                  |
-| `dnds_test_index_mapping` | `dnds_index_mapping_np{1,2,4}`           | test_IndexMapping.cpp              |
-| `dnds_test_serializer`    | `dnds_serializer_np{1,2,4}`              | test_Serializer.cpp                |
-| `dnds_test_permutation_transfer` | `dnds_permutation_transfer_np{1,2,4}` | test_PermutationTransfer.cpp   |
+| `dnds_test_mpi`           | `dnds_mpi_np{1,2,4,8}`                     | test_MPI.cpp                       |
+| `dnds_test_array_transformer` | `dnds_array_transformer_np{1,2,4,8}`   | test_ArrayTransformer.cpp          |
+| `dnds_test_array_derived` | `dnds_array_derived_np{1,2,4,8}`           | test_ArrayDerived.cpp              |
+| `dnds_test_array_dof`     | `dnds_array_dof_np{1,2,4,8}`               | test_ArrayDOF.cpp                  |
+| `dnds_test_index_mapping` | `dnds_index_mapping_np{1,2,4,8}`           | test_IndexMapping.cpp              |
+| `dnds_test_serializer`    | `dnds_serializer_np{1,2,4,8}`              | test_Serializer.cpp                |
+| `dnds_test_permutation_transfer` | `dnds_permutation_transfer_np{1,2,4,8}` | test_PermutationTransfer.cpp   |
 
 @subsection test_note Note on POSIX `index()` Ambiguity
 

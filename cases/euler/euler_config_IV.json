@@ -49,7 +49,7 @@
         "meshRotZ": 0.0,
         "meshDirectBisect": 3,
         "meshElevation": 0,
-        "meshReorderCells": true,
+        "meshReorderCells": 1,
         "meshFile": "../data/mesh/IV10_20.cgns",
         "outPltName": "../data/outUnsteady/IV_MG/out_B0",
         "outPltMode": 0,

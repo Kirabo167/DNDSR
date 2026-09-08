@@ -4,6 +4,7 @@ running
 build*
 !docs/building.md
 !docs/presentations/*/build.sh
+/CMakeUserPresets.json
 *.exe
 *.so
 # external

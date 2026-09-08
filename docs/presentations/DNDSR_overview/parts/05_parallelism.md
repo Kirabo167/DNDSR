@@ -235,7 +235,7 @@ fv.to_host();
 </div>
 </div>
 
-Build: `cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · Thrust fixes via `CMAKE_CUDA_ARCHITECTURE=native`.
+Build: `cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · target architecture via `CMAKE_CUDA_ARCHITECTURES=native`.
 
 ---
 <!-- _footer: "src/EulerP/EulerP_Evaluator.hpp · EulerP_Evaluator_impl.{hpp,cpp,cu}" -->
@@ -321,7 +321,7 @@ public:
 
 ### Pitfalls avoided
 
-- **Thrust + CMake:** `CMAKE_CUDA_ARCHITECTURE=native` fixes a class of compile errors in Thrust's internal machinery.
+- **Thrust + CMake:** `CMAKE_CUDA_ARCHITECTURES=native` selects the local GPU target and avoids architecture-mismatch errors in Thrust.
 - **Accidental `to_device`:** a bug in the face-buffer creation path was copying host buffers to device needlessly; fixed in v0.2.0.
 - **`py::classh` holders:** ensure safe Python↔C++ ownership when CUDA pointers survive across Python GC boundaries.
 

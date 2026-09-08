@@ -153,7 +153,7 @@
         "rsMeanValueEig": 1,
         "noGRPOnWall": false,
         "noRsOnWall": false,
-        "ransForce2nd": true,
+        "ransForce2nd": 1,
         "constMassForce": [
             0.0,
             0.0,

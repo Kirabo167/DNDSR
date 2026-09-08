@@ -6,12 +6,19 @@ rendered with [Marp](https://marp.app/); the CMake docs pipeline builds
 the HTML and PDF outputs and stages them into this site under
 `/presentations/`.
 
-## DNDSR Overview
+## DNDSR Overview (v0.2.0 historical snapshot)
 
-A technical introduction for software and CS engineers, covering
+A historical technical introduction for software and CS engineers, covering
 architecture, the Geom pipeline, numerics, parallelism, I/O and
 interop, solvers, engineering quality, results, and roadmap.  Available
 in English and Chinese (中文).
+
+The deck predates the v0.3.1 reactive-flow integration and the fork's ACM,
+ACMVariable, and NCFV modules; its version-specific target/test statistics
+must not be treated as the current support matrix. See the
+[v0.3.1 feature and migration guide](../guides/v0.3.1_new_features_zh.md) and
+the [current project structure](../guides/project_structure.md) for the active
+codebase.
 
 ```{raw} html
 <ul>

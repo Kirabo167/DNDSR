@@ -8,7 +8,7 @@
 # Cache layers:
 #   1. pip packages        — keyed by docs/sphinx/requirements.txt hash
 #   2. npm global packages — keyed by cache version (marp + mermaid)
-#   3. Header-only libs    — keyed by tarball URL (changes ~never)
+#   3. Header-only libs    — pinned + checksum-verified; keyed by installer
 #   4. cfd_externals build — keyed by submodule commit SHA
 #
 # Build dependencies (beyond C++ toolchain):
@@ -37,9 +37,6 @@ permissions:
 concurrency:
   group: "pages"
   cancel-in-progress: true
-
-env:
-  HEADERONLYS_URL: https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
 
 jobs:
   build:
@@ -179,13 +176,11 @@ jobs:
             external/nlohmann
             external/pybind11
             external/pybind11_json
-          key: headeronlys-v1
+          key: headeronlys-${{ runner.os }}-${{ hashFiles('scripts/install_headeronly_deps.sh') }}
 
       - name: Download and extract header-only externals
         if: steps.cache-headeronlys.outputs.cache-hit != 'true'
-        run: |
-          curl -L -o external/external_headeronlys.tar.gz "$HEADERONLYS_URL"
-          cd external && tar -xzf external_headeronlys.tar.gz
+        run: bash scripts/install_headeronly_deps.sh
 
       # ------------------------------------------------------------------
       # 6. cfd_externals (zlib, hdf5, cgns, parmetis)

@@ -64,16 +64,25 @@ dnds_add_lib(${LIBNAME}_shared "${CPPS}" "${LINKS}" "${DNDS_PCH_TARGETS_FAST}"
 #     COMPONENT libs
 # )
 
+# CLI installs keep the historical lib/ layout. Python packages use _lib/ so
+# the extension RPATH and python/DNDSR/_loader.py resolve the same location.
+if(NOT SKBUILD_PROJECT_NAME)
+    install(TARGETS ${LIBNAME}_shared
+        LIBRARY DESTINATION "DNDSR/lib" COMPONENT py
+        ARCHIVE DESTINATION "DNDSR/lib" COMPONENT py
+        RUNTIME DESTINATION "DNDSR/lib" COMPONENT py
+    )
+endif()
 install(TARGETS ${LIBNAME}_shared
-    LIBRARY DESTINATION "DNDSR/lib"
-    ARCHIVE DESTINATION "DNDSR/lib"
-    COMPONENT py
+    LIBRARY DESTINATION "DNDSR/_lib" COMPONENT py
+    ARCHIVE DESTINATION "DNDSR/_lib" COMPONENT py
+    RUNTIME DESTINATION "DNDSR/_lib" COMPONENT py
 )
 
 # Also install into the python package tree for editable installs
 install(TARGETS ${LIBNAME}_shared
-    LIBRARY DESTINATION "${PROJECT_SOURCE_DIR}/python/DNDSR/_lib"
-    COMPONENT py
+    LIBRARY DESTINATION "${PROJECT_SOURCE_DIR}/python/DNDSR/_lib" COMPONENT py
+    RUNTIME DESTINATION "${PROJECT_SOURCE_DIR}/python/DNDSR/_lib" COMPONENT py
 )
 
 
@@ -107,6 +116,15 @@ dnds_add_py_module(${LIBNAME}_pybind11 "${CPPS_BIND}" "${LIBNAME}_shared;${LINKS
 
 install(
   TARGETS ${LIBNAME}_pybind11
+  DESTINATION "DNDSR/DNDS/_ext"
+  RUNTIME_DEPENDENCY_SET DNDS_LIB_DEPENDENCY_XXX
+  COMPONENT py
+)
+
+# Also install into the source package tree for editable/in-place imports and
+# for stub generation during the install step.
+install(
+  TARGETS ${LIBNAME}_pybind11
   DESTINATION "${PROJECT_SOURCE_DIR}/python/DNDSR/DNDS/_ext"
   RUNTIME_DEPENDENCY_SET DNDS_LIB_DEPENDENCY_XXX
   COMPONENT py
@@ -123,5 +141,3 @@ install(
 #     DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/_internal
 #     # POST_EXCLUDE_REGEXES ${DNDS_EXTERNAL_LIBS_DIRS_REGEX}
 #     )
-
-

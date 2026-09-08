@@ -182,9 +182,7 @@ git clone --recursive https://<repo/DNDSR>.git && cd DNDSR
 cd external/cfd_externals && CC=mpicc CXX=mpicxx python cfd_externals_build.py && cd ../..
 
 # 3. Fetch header-only libraries (Eigen, Boost, CGAL, fmt, pybind11, nanoflann, ...)
-curl -L -o external/external_headeronlys.tar.gz \
-  https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
-cd external && tar -xzf external_headeronlys.tar.gz && cd ..
+bash scripts/install_headeronly_deps.sh
 
 # 4. Configure with a preset
 cmake --preset release-test        # Release + DNDS_BUILD_TESTS=ON
@@ -193,7 +191,7 @@ cmake --preset release-test        # Release + DNDS_BUILD_TESTS=ON
 cmake --build build -t euler -j32
 
 # 6. Run
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
-可用预设：`release-test`、`debug`、`cuda`、`ci`。Python 路径：`pip install -e .` 底层使用 `scikit-build-core`。
+可用预设：`release-test`、`reactive-test`、`debug`、`cuda`、`ci`。Python 路径：`pip install -e . --no-build-isolation` 底层使用 `scikit-build-core`。

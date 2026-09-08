@@ -445,9 +445,7 @@ git clone --recursive https://github.com/CFDLAB-THU/DNDSR.git && cd DNDSR
 cd external/cfd_externals && CC=mpicc CXX=mpicxx python cfd_externals_build.py && cd ../..
 
 # 3. Fetch header-only libraries (Eigen, Boost, CGAL, fmt, pybind11, nanoflann, ...)
-curl -L -o external/external_headeronlys.tar.gz \
-  https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
-cd external && tar -xzf external_headeronlys.tar.gz && cd ..
+bash scripts/install_headeronly_deps.sh
 
 # 4. Configure with a preset
 cmake --preset release-test        # Release + DNDS_BUILD_TESTS=ON
@@ -456,10 +454,10 @@ cmake --preset release-test        # Release + DNDS_BUILD_TESTS=ON
 cmake --build build -t euler -j32
 
 # 6. Run
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
-Presets available: `release-test`, `debug`, `cuda`, `ci`. Python path: `pip install -e .` uses `scikit-build-core` under the hood.
+Presets available: `release-test`, `reactive-test`, `debug`, `cuda`, `ci`. Python path: `pip install -e . --no-build-isolation` uses `scikit-build-core` under the hood.
 
 ---
 <!-- _class: chapter -->
@@ -1591,7 +1589,7 @@ enum RiemannSolverType {
 | `Roe_M6` | H-correction only |
 | `Roe_M7` | Harten–Yee only, no H-correction |
 | `Roe_M8` | H-correction + Harten–Yee |
-| `Roe_M9` | Reserved (eigScheme 9, currently asserts false) |
+| `Roe_M9` | Rotated/H-corrected Roe dissipation (eigScheme 9) |
 | `HLLC`   | Harten–Lax–van Leer–Contact |
 | `HLLEP`  | HLLE with pressure fix |
 | `HLLEP_V1` | HLLEP variant 1 |
@@ -2108,7 +2106,7 @@ fv.to_host();
 </div>
 </div>
 
-Build: `cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · Thrust fixes via `CMAKE_CUDA_ARCHITECTURE=native`.
+Build: `cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · target architecture via `CMAKE_CUDA_ARCHITECTURES=native`.
 
 ---
 <!-- _footer: "src/EulerP/EulerP_Evaluator.hpp · EulerP_Evaluator_impl.{hpp,cpp,cu}" -->
@@ -2194,7 +2192,7 @@ public:
 
 ### Pitfalls avoided
 
-- **Thrust + CMake:** `CMAKE_CUDA_ARCHITECTURE=native` fixes a class of compile errors in Thrust's internal machinery.
+- **Thrust + CMake:** `CMAKE_CUDA_ARCHITECTURES=native` selects the local GPU target and avoids architecture-mismatch errors in Thrust.
 - **Accidental `to_device`:** a bug in the face-buffer creation path was copying host buffers to device needlessly; fixed in v0.2.0.
 - **`py::classh` holders:** ensure safe Python↔C++ ownership when CUDA pointers survive across Python GC boundaries.
 
@@ -3009,9 +3007,9 @@ The lambdas above are where `EulerEvaluator`, `GMRES_LeftPreconditioned`, and `L
 
 ```bash
 # Build + run everything
-cmake -B build -DDNDS_BUILD_TESTS=ON
+CC=mpicc CXX=mpicxx cmake --preset release-test
 cmake --build build -t all_unit_tests -j8
-ctest --test-dir build --output-on-failure
+ctest --preset unit
 ```
 
 ---
@@ -3053,7 +3051,7 @@ ctest --test-dir build --output-on-failure
 
 ```cpp
 TEST_CASE("ArrayTransformer: round-trip ghost pull" *
-          doctest::description("np=1,2,4") *
+          doctest::description("np=1,2,4,8") *
           doctest::timeout(120.0)) {
     MPIInfo mpi; mpi.setWorld();
     auto father = make_ssp<ParArray<real, 5>>();
@@ -3156,7 +3154,7 @@ So the first run of a new test is a finite/non-negative sanity check, and the de
 <!-- _footer: "docs/tests/overview.md:104-124" -->
 <!-- _class: tight -->
 
-## Python tests — pytest + pytest-mpi
+## Python tests — pytest + pytest-timeout
 
 <div class="cols">
 <div>
@@ -3237,7 +3235,7 @@ PYTHONPATH=<root>/python pytest test/ -v
       "cacheVariables": { "DNDS_USE_CUDA": "ON",
                           "CMAKE_CUDA_ARCHITECTURES": "native" } },
     { "name": "ci",     "inherits": "release-test",
-      "cacheVariables": { "DNDS_TEST_NP_LIST":     "1;2;4",
+      "cacheVariables": { "DNDS_TEST_NP_LIST":     "1;2;4;8",
                           "DNDS_TEST_OMP_THREADS": "2" } }
   ]
 }
@@ -3274,7 +3272,7 @@ install.components = ["py"]     # only install the py component
 ```bash
 CC=mpicc CXX=mpicxx \
     CMAKE_BUILD_PARALLEL_LEVEL=32 \
-    pip install -e .
+    pip install -e . --no-build-isolation
 ```
 
 - Builds all `*_pybind11` targets.
@@ -3977,7 +3975,8 @@ struct GhostRequirement {
 ### Tests
 
 - **`docs/tests/overview.md`** — golden values, determinism, suite totals.
-- Per-module test pages under `docs/tests/{dnds,geom,cfv,euler,solver}_unit_tests.md`.
+- Detailed pages for DNDS, Geom, CFV, Euler, and Solver; the overview covers
+  ACM, ACMVariable, NCFV, and EulerP.
 
 </div>
 </div>
@@ -3994,7 +3993,7 @@ struct GhostRequirement {
 ```bash
 cmake --preset release-test
 cmake --build build -t euler -j32
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
 <br>

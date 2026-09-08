@@ -121,6 +121,28 @@ _MODULE_LIBS: dict[str, Sequence[str]] = {
                "libcfv_shared.so", "libeulerP_shared.so"],
 }
 
+_FORBIDDEN_BUNDLED_RUNTIME_GLOBS: Sequence[str] = (
+    "libmpi.so*",
+    "libmpi_cxx.so*",
+    "libstdc++.so*",
+)
+
+
+def _reject_stale_system_runtimes(libext_dir: Path) -> None:
+    """Fail safely if an old editable install still bundles host runtimes."""
+    stale = sorted(
+        path.name
+        for pattern in _FORBIDDEN_BUNDLED_RUNTIME_GLOBS
+        for path in libext_dir.glob(pattern)
+    )
+    if stale:
+        names = ", ".join(stale)
+        raise RuntimeError(
+            "DNDSR found stale bundled MPI/C++ runtime libraries in "
+            f"{libext_dir}: {names}. Reconfigure or reinstall DNDSR to remove "
+            "these legacy artifacts before importing native modules."
+        )
+
 
 def preload(module: str) -> None:
     """Preload shared libraries required by *module* (e.g. ``"dnds"``)."""
@@ -131,6 +153,7 @@ def preload(module: str) -> None:
         return
 
     lib_dir, libext_dir = _find_lib_dirs()
+    _reject_stale_system_runtimes(libext_dir)
 
     # External deps only need loading once (for the first module).
     if not _loaded:
@@ -145,9 +168,11 @@ def preload(module: str) -> None:
                 raise OSError(
                     f"{e}\n\n"
                     "This typically means Python loaded an older libstdc++ "
-                    "(e.g. from conda/anaconda) before DNDSR's bundled version.\n"
-                    "Fix: set LD_LIBRARY_PATH before running Python:\n"
-                    f"  export LD_LIBRARY_PATH={libext_dir}:{lib_dir}:$LD_LIBRARY_PATH"
+                    "(for example from conda/anaconda) before the system copy "
+                    "used to build DNDSR. Use a matching system Python/compiler, "
+                    "put that compiler's runtime directory on LD_LIBRARY_PATH "
+                    "before starting Python, or set DNDSR_USE_DEEPBIND=1 as a "
+                    "last-resort compatibility workaround."
                 ) from e
             raise
 

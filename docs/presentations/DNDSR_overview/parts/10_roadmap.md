@@ -129,7 +129,8 @@ struct GhostRequirement {
 ### Tests
 
 - **`docs/tests/overview.md`** — golden values, determinism, suite totals.
-- Per-module test pages under `docs/tests/{dnds,geom,cfv,euler,solver}_unit_tests.md`.
+- Detailed pages for DNDS, Geom, CFV, Euler, and Solver; the overview covers
+  ACM, ACMVariable, NCFV, and EulerP.
 
 </div>
 </div>
@@ -146,7 +147,7 @@ struct GhostRequirement {
 ```bash
 cmake --preset release-test
 cmake --build build -t euler -j32
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
 <br>

@@ -3,40 +3,56 @@
 @tableofcontents
 
 DNDSR uses [doctest](https://github.com/doctest/doctest) for C++ unit
-tests and [pytest](https://docs.pytest.org/) (with
-[pytest-mpi](https://pypi.org/project/pytest-mpi/) and
-[pytest-timeout](https://pypi.org/project/pytest-timeout/)) for Python tests.
+tests and [pytest](https://docs.pytest.org/) with
+[pytest-timeout](https://pypi.org/project/pytest-timeout/) for Python tests.
+MPI Python runs invoke `mpirun` explicitly rather than relying on a pytest MPI
+plugin.
 MPI-aware C++ tests are registered with CTest at multiple process counts
 to verify parallel correctness.
 
 ## Module Test Pages
 
-| Module | Page | C++ tests | Python tests | Test cases |
-|---|---|---|---|---|---|
-| **DNDS** (core) | @ref dnds_unit_tests | 8 executables | 1 file (9 tests) | 249 |
-| **Geom** | @ref geom_unit_tests | 9 executables | 1 file (2 tests) | 193 |
-| **CFV** | @ref cfv_unit_tests | 4 executables | 5 files (43 tests) | 67 |
-| **Euler** | @ref euler_unit_tests | 4 executables | 2 files (4 tests) | 62 |
-| **Solver** | @ref solver_unit_tests | 4 executables | — | 29 |
-| | | **29 executables** | **58 tests** | **600** |
+| Module | Aggregate target | C++ executables | Additional coverage |
+|---|---|---:|---|
+| **DNDS** | `dnds_unit_tests` | 8 | Python core tests |
+| **Geom** | `geom_unit_tests` | 10 | Python mesh tests and multi-zone CGNS |
+| **CFV** | `cfv_unit_tests` | 3 + 1 CUDA-only | Python FV/reconstruction tests |
+| **Euler** | `euler_unit_tests` | 4 baseline + 5 Cantera | Reactive evaluator, chemistry, thermo, RANS |
+| **ACM** | `acm_unit_tests` | 5 | MPI and periodic self-face regression |
+| **ACMVariable** | `acm_variable_unit_tests` | 2 | Core and MPI algebra |
+| **Solver** | `solver_unit_tests` | 4 | ODE, linear, direct, and scalar solvers |
+| **NCFV** | `ncfv_unit_tests` | 3 | Geometry, MPI, and I/O |
+| **EulerP** | — | — | Python host/CUDA evaluator tests |
+
+Doctest case/assertion counts and MPI-expanded CTest entries change as coverage
+is added. Use `scripts/ctest_summary.py` and `ctest -N` for the configured
+build instead of relying on a hard-coded total in this document.
 
 ## Quick Start
 
 ```sh
-# 1. Configure with tests enabled
-cmake -B build -DDNDS_BUILD_TESTS=ON
+# 1. Configure the baseline CPU matrix (Cantera/CUDA off)
+CC=mpicc CXX=mpicxx cmake --preset release-test
 
 # 2. Build all test executables
-cmake --build build -t all_unit_tests -j8
+cmake --build --preset tests -j8
 
 # 3. Run the full C++ test suite
-ctest --test-dir build --output-on-failure
+# (fetch the pinned cfd_meshes fixtures from the v0.3.1 guide first)
+ctest --preset unit
 
 # 4. Run Python tests (requires pybind11 shared libraries)
-cmake --build build -t dnds_pybind11 geom_pybind11 cfv_pybind11 eulerP_pybind11 -j32
+cmake --build --preset python -j32
 cmake --install build --component py
-source venv/bin/activate
-PYTHONPATH=python pytest test/ -v
+PYTHONPATH="$PWD/python" venv/bin/python -m pytest test/ -v
+
+# 5. Validate every C++ module with Cantera enabled
+CC=mpicc CXX=mpicxx cmake --preset reactive-test
+cmake --build --preset reactive -j8
+ctest --preset reactive
+
+# Optional: rerun only the eight chemistry/reactive checks
+ctest --preset reactive-focused
 ```
 
 ## Aggregate CMake Targets
@@ -47,24 +63,28 @@ PYTHONPATH=python pytest test/ -v
 | `geom_unit_tests` | All Geom test executables |
 | `cfv_unit_tests` | All CFV test executables |
 | `euler_unit_tests` | All Euler test executables |
+| `acm_unit_tests` | Constant-density ACM tests |
+| `acm_variable_unit_tests` | Variable-density ACM tests |
 | `solver_unit_tests` | All Solver test executables |
+| `ncfv_unit_tests` | All NCFV test executables |
 | `all_unit_tests` | All of the above |
 
 All test executables are `EXCLUDE_FROM_ALL` and must be built explicitly.
 
 ## MPI Test Registration
 
-MPI-aware tests are registered at multiple process counts.  The CTest
-name encodes the count:
+MPI-aware tests are registered at multiple process counts, and the CTest name
+encodes the count. All MPI registration helpers use `DNDS_TEST_NP_LIST`, whose
+default is np = 1, 2, 4, and 8. The NCFV I/O test is intentionally registered
+only at np = 1 and 2. Configure a smaller matrix when needed:
 
-| Module | Process counts | Timeout |
-|---|---|---|---|
-| DNDS | np = 1, 2, 4, 8 | 120-240 s |
-| Geom | np = 1, 2, 4, 8 | 120-240 s |
-| CFV | np = 1, 2, 4, 8 | 120-180 s |
-| Euler | np = 1, 2, 4, 8 | 600 s |
+```sh
+DNDS_TEST_NP_LIST="1;2;4" cmake --preset release-test
+```
 
-Serial tests have a single CTest entry with a 60-120 s timeout.
+`DNDS_TEST_TIMEOUT` defaults to 1800 seconds and scales upward for larger MPI
+jobs and evaluator pipelines. `DNDS_TEST_OMP_THREADS` defaults to 2. Both may
+be set in the environment at configure time.
 
 ## Naming Conventions
 

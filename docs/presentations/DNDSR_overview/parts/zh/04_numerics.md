@@ -201,7 +201,7 @@ enum RiemannSolverType {
 | `Roe_M6` | 仅 H-修正 |
 | `Roe_M7` | 仅 Harten–Yee，无 H-修正 |
 | `Roe_M8` | H-修正 + Harten–Yee |
-| `Roe_M9` | 保留（eigScheme 9，当前 assert false） |
+| `Roe_M9` | 旋转/H-修正 Roe 耗散（eigScheme 9） |
 | `HLLC`   | Harten–Lax–van Leer–Contact |
 | `HLLEP`  | HLLE，带压力修正 |
 | `HLLEP_V1` | HLLEP 变体 1 |

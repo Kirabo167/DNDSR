@@ -72,7 +72,7 @@
     "dataIOControl": {
         "uniqueStamps": false,
         "meshRotZ": 0.0,
-        "meshReorderCells": true,
+        "meshReorderCells": 1,
         "meshFile": "../data/mesh/CylinderB1.cgns",
         "outPltName": "../data/outCylinderB1/CylinderB1_T0Test/test",
         "outPltMode": 0,

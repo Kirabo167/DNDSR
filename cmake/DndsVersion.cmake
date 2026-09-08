@@ -2,7 +2,8 @@
 # Centralized version management for DNDSR.
 #
 # Reads the base version from the VERSION file, then uses git describe
-# to determine if the current commit is a tagged release or a dev build.
+# to determine whether the current commit is a tagged release, a post-release
+# fork commit, or a development build toward a newer VERSION.
 #
 # Variables set (CACHE INTERNAL):
 #   DNDS_VERSION_MAJOR      e.g. 0
@@ -14,7 +15,8 @@
 #   DNDS_VERSION_DISTANCE   commits since last tag  e.g. "235"
 #   DNDS_VERSION_FULL       display string:
 #                             release:  "0.0.3"
-#                             dev:      "0.0.3.dev235+be407e3"
+#                             post:     "0.0.3.post7+gbe407e3"
+#                             dev:      "0.0.4.dev235+gbe407e3"
 #   DNDS_VERSION_PEP440     PEP 440 string (same as FULL, used by Python)
 
 # -------------------------------------------------------------------
@@ -43,10 +45,23 @@ list(GET _version_parts 2 DNDS_VERSION_PATCH)
 set(DNDS_VERSION_IS_RELEASE TRUE)
 set(DNDS_VERSION_COMMIT "unknown")
 set(DNDS_VERSION_DISTANCE "0")
+set(DNDS_VERSION_TAG "")
+set(DNDS_VERSION_PACKAGED "")
+
+# An unpacked Python sdist has no Git metadata. Preserve the version already
+# written into its core metadata instead of silently falling back to the bare
+# release number.
+if(EXISTS "${PROJECT_SOURCE_DIR}/PKG-INFO")
+    file(STRINGS "${PROJECT_SOURCE_DIR}/PKG-INFO" _pkg_version_line
+        REGEX "^Version: " LIMIT_COUNT 1)
+    if(_pkg_version_line)
+        string(REGEX REPLACE "^Version: +" "" DNDS_VERSION_PACKAGED
+            "${_pkg_version_line}")
+    endif()
+endif()
 
 find_package(Git QUIET)
 if(GIT_FOUND)
-    set(DNDS_VERSION_IS_RELEASE FALSE)
     # Try git describe with the expected tag for this version
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --tags --long --match "v*"
@@ -61,11 +76,14 @@ if(GIT_FOUND)
         string(REGEX MATCH "^v([0-9]+\\.[0-9]+\\.[0-9]+)-([0-9]+)-g([0-9a-f]+)$"
                _match "${_git_describe}")
         if(_match)
+            set(DNDS_VERSION_IS_RELEASE FALSE)
             set(_tag_version "${CMAKE_MATCH_1}")
+            set(DNDS_VERSION_TAG "${_tag_version}")
             set(DNDS_VERSION_DISTANCE "${CMAKE_MATCH_2}")
             set(DNDS_VERSION_COMMIT "${CMAKE_MATCH_3}")
 
-            if(DNDS_VERSION_DISTANCE STREQUAL "0")
+            if(DNDS_VERSION_DISTANCE STREQUAL "0" AND
+               _tag_version STREQUAL DNDS_VERSION_BASE)
                 set(DNDS_VERSION_IS_RELEASE TRUE)
             endif()
         endif()
@@ -76,21 +94,32 @@ if(GIT_FOUND)
         execute_process(
             COMMAND ${GIT_EXECUTABLE} rev-parse --short=7 HEAD
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-            OUTPUT_VARIABLE DNDS_VERSION_COMMIT
+            OUTPUT_VARIABLE _git_commit
             OUTPUT_STRIP_TRAILING_WHITESPACE
             ERROR_QUIET
+            RESULT_VARIABLE _git_commit_ret
         )
+        if(_git_commit_ret EQUAL 0 AND NOT _git_commit STREQUAL "")
+            set(DNDS_VERSION_COMMIT "${_git_commit}")
+            set(DNDS_VERSION_IS_RELEASE FALSE)
+        endif()
     endif()
 endif()
 
 # -------------------------------------------------------------------
 # 3. Compose the full version string
 # -------------------------------------------------------------------
-if(DNDS_VERSION_IS_RELEASE)
+if(DNDS_VERSION_COMMIT STREQUAL "unknown" AND NOT DNDS_VERSION_PACKAGED STREQUAL "")
+    set(DNDS_VERSION_FULL "${DNDS_VERSION_PACKAGED}")
+    set(DNDS_VERSION_IS_RELEASE FALSE)
+elseif(DNDS_VERSION_IS_RELEASE)
     set(DNDS_VERSION_FULL "${DNDS_VERSION_BASE}")
+elseif(DNDS_VERSION_TAG STREQUAL DNDS_VERSION_BASE)
+    # PEP 440 post-release: commits made after the matching release tag.
+    set(DNDS_VERSION_FULL "${DNDS_VERSION_BASE}.post${DNDS_VERSION_DISTANCE}+g${DNDS_VERSION_COMMIT}")
 else()
-    # PEP 440: 0.0.3.dev235+be407e3
-    set(DNDS_VERSION_FULL "${DNDS_VERSION_BASE}.dev${DNDS_VERSION_DISTANCE}+${DNDS_VERSION_COMMIT}")
+    # PEP 440 development release: VERSION was advanced beyond the nearest tag.
+    set(DNDS_VERSION_FULL "${DNDS_VERSION_BASE}.dev${DNDS_VERSION_DISTANCE}+g${DNDS_VERSION_COMMIT}")
 endif()
 
 set(DNDS_VERSION_PEP440 "${DNDS_VERSION_FULL}")
@@ -104,6 +133,7 @@ set(DNDS_VERSION_FULL     "${DNDS_VERSION_FULL}"     CACHE INTERNAL "")
 set(DNDS_VERSION_PEP440   "${DNDS_VERSION_PEP440}"   CACHE INTERNAL "")
 set(DNDS_VERSION_COMMIT   "${DNDS_VERSION_COMMIT}"   CACHE INTERNAL "")
 set(DNDS_VERSION_DISTANCE "${DNDS_VERSION_DISTANCE}" CACHE INTERNAL "")
+set(DNDS_VERSION_TAG      "${DNDS_VERSION_TAG}"      CACHE INTERNAL "")
 set(DNDS_VERSION_IS_RELEASE "${DNDS_VERSION_IS_RELEASE}" CACHE INTERNAL "")
 
 message(STATUS "DNDSR version: ${DNDS_VERSION_FULL}")

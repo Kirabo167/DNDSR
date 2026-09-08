@@ -288,13 +288,61 @@ foreach(LIB ${DNDS_EXTERNAL_LIBS})
     list(APPEND DNDS_EXTERNAL_LIBS_REAL ${LIB_REAL})
 endforeach()
 
-# Install only the bundled libs (not MPI/libstdc++) into dndsr_external/
+# Remove system runtimes copied by pre-v0.3.1 packaging rules. Merely stopping
+# future copies is insufficient for editable installs because an extension
+# RPATH can continue to select stale libmpi/libstdc++ files from the source
+# package. The patterns are deliberately limited to runtimes DNDSR must never
+# bundle.
+set(DNDS_LEGACY_SYSTEM_RUNTIME_DIRS
+    "${PROJECT_SOURCE_DIR}/python/DNDSR/_lib/dndsr_external"
+    "${CMAKE_INSTALL_PREFIX}/DNDSR/_lib/dndsr_external"
+    "${CMAKE_INSTALL_PREFIX}/DNDSR/lib/dndsr_external")
+foreach(_runtime_dir IN LISTS DNDS_LEGACY_SYSTEM_RUNTIME_DIRS)
+    file(GLOB _legacy_system_runtimes LIST_DIRECTORIES FALSE
+        "${_runtime_dir}/libmpi.so*"
+        "${_runtime_dir}/libmpi_cxx.so*"
+        "${_runtime_dir}/libstdc++.so*")
+    if(_legacy_system_runtimes)
+        message(STATUS "Removing stale bundled system runtimes from ${_runtime_dir}")
+        file(REMOVE ${_legacy_system_runtimes})
+    endif()
+endforeach()
+unset(_legacy_system_runtimes)
+unset(_runtime_dir)
+
+function(DNDS_INSTALL_BUNDLED_LIBRARY LIB DESTINATION_DIR)
+    file(INSTALL "${LIB}" DESTINATION "${DESTINATION_DIR}" FOLLOW_SYMLINK_CHAIN)
+
+    # cfd_externals libraries can carry an absolute build-tree RUNPATH. The
+    # package loader preloads their dependencies in order, so copied ELF files
+    # should not retain a host-specific path in editable installs or wheels.
+    if(UNIX AND NOT APPLE)
+        get_filename_component(_bundled_lib_name "${LIB}" NAME)
+        file(GLOB _bundled_lib_copies LIST_DIRECTORIES FALSE
+            "${DESTINATION_DIR}/${_bundled_lib_name}*")
+        foreach(_bundled_lib_copy IN LISTS _bundled_lib_copies)
+            if(NOT IS_SYMLINK "${_bundled_lib_copy}")
+                file(RPATH_REMOVE FILE "${_bundled_lib_copy}")
+            endif()
+        endforeach()
+    endif()
+endfunction()
+
+# Install only the bundled libs (not MPI/libstdc++) into dndsr_external/.
+# The Python extension RPATH and loader use DNDSR/_lib. Keep DNDSR/lib as a
+# compatibility location only for non-scikit CLI installs.
 foreach(LIB ${DNDS_BUNDLED_LIBS})
-    file(INSTALL ${LIB} DESTINATION ${CMAKE_INSTALL_PREFIX}/DNDSR/lib/dndsr_external FOLLOW_SYMLINK_CHAIN)
+    if(NOT SKBUILD_PROJECT_NAME)
+        DNDS_INSTALL_BUNDLED_LIBRARY(
+            "${LIB}" "${CMAKE_INSTALL_PREFIX}/DNDSR/lib/dndsr_external")
+    endif()
+    DNDS_INSTALL_BUNDLED_LIBRARY(
+        "${LIB}" "${CMAKE_INSTALL_PREFIX}/DNDSR/_lib/dndsr_external")
 endforeach()
 # Also copy bundled libs into python package tree for editable installs
 foreach(LIB ${DNDS_BUNDLED_LIBS})
-    file(INSTALL ${LIB} DESTINATION ${PROJECT_SOURCE_DIR}/python/DNDSR/_lib/dndsr_external FOLLOW_SYMLINK_CHAIN)
+    DNDS_INSTALL_BUNDLED_LIBRARY(
+        "${LIB}" "${PROJECT_SOURCE_DIR}/python/DNDSR/_lib/dndsr_external")
 endforeach()
 
 list(REMOVE_DUPLICATES DNDS_EXTERNAL_LIBS_DIRS)
@@ -303,28 +351,31 @@ list(REMOVE_DUPLICATES DNDS_EXTERNAL_LIBS_DIRS_REGEX)
 # -------------------------------------------------------------------
 # Generate LD_LIBRARY_PATH / PATH helper scripts
 # -------------------------------------------------------------------
-if (UNIX)
-    # Join the directories into a single string separated by colon (:)
-    string(REPLACE ";" ":" DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST "${DNDS_EXTERNAL_LIBS_DIRS}")
-    string(APPEND DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST ":${CMAKE_INSTALL_PREFIX}/DNDSR/bin")
-    # Generate the shell script
-    set(SCRIPT_NAME "${CMAKE_INSTALL_PREFIX}/DNDSR/set_library_path.sh")
-    file(WRITE ${SCRIPT_NAME} "#!/bin/bash\n")
-    file(APPEND ${SCRIPT_NAME} "export LD_LIBRARY_PATH=${DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST}:\$LD_LIBRARY_PATH\n")
-    message(STATUS "Generated LIBRARY script: ${SCRIPT_NAME}")
-elseif(WIN32)
-    string(REPLACE ";" ";" DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST "${DNDS_EXTERNAL_LIBS_DIRS}")
-    string(APPEND DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST ";${CMAKE_INSTALL_PREFIX}/DNDSR/bin")
-    # Generate the shell script
-    set(SCRIPT_NAME "${CMAKE_INSTALL_PREFIX}/DNDSR/set_library_path.bat")
-    file(WRITE ${SCRIPT_NAME} "@echo off\n")
-    file(APPEND ${SCRIPT_NAME} "set PATH=%PATH%;${LIBRARY_PATH}\n")
-    message(STATUS "Generated LIBRARY script: ${SCRIPT_NAME}")
-else()
-    message(WARNING "The list of libraries might need be aded to dynamic linking: \n"
-        "${DNDS_EXTERNAL_LIBS_DIRS}"
-    )
-
+# Wheels use RPATH and _loader.py. Do not package a helper containing absolute
+# build-machine paths; generate it only for developer/CLI installs.
+if(NOT SKBUILD_PROJECT_NAME)
+    if(UNIX)
+        # Join the directories into a single string separated by colon (:)
+        string(REPLACE ";" ":" DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST "${DNDS_EXTERNAL_LIBS_DIRS}")
+        string(APPEND DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST ":${CMAKE_INSTALL_PREFIX}/DNDSR/bin")
+        # Generate the shell script
+        set(SCRIPT_NAME "${CMAKE_INSTALL_PREFIX}/DNDSR/set_library_path.sh")
+        file(WRITE ${SCRIPT_NAME} "#!/bin/bash\n")
+        file(APPEND ${SCRIPT_NAME} "export LD_LIBRARY_PATH=${DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST}:\$LD_LIBRARY_PATH\n")
+        message(STATUS "Generated LIBRARY script: ${SCRIPT_NAME}")
+    elseif(WIN32)
+        string(REPLACE ";" ";" DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST "${DNDS_EXTERNAL_LIBS_DIRS}")
+        string(APPEND DNDS_EXTERNAL_LIBS_DIRS_SHELL_LIST ";${CMAKE_INSTALL_PREFIX}/DNDSR/bin")
+        # Generate the shell script
+        set(SCRIPT_NAME "${CMAKE_INSTALL_PREFIX}/DNDSR/set_library_path.bat")
+        file(WRITE ${SCRIPT_NAME} "@echo off\n")
+        file(APPEND ${SCRIPT_NAME} "set PATH=%PATH%;${LIBRARY_PATH}\n")
+        message(STATUS "Generated LIBRARY script: ${SCRIPT_NAME}")
+    else()
+        message(WARNING "The list of libraries might need be added to dynamic linking: \n"
+            "${DNDS_EXTERNAL_LIBS_DIRS}"
+        )
+    endif()
 endif()
 
 message(DEBUG "DNDS_EXTERNAL_LIBS_DIRS_REGEX:  ${DNDS_EXTERNAL_LIBS_DIRS_REGEX}")

@@ -23,7 +23,7 @@ PYTHONPATH=python pytest test/CFV/ -v
 ## Target Summary
 
 | CMake target | CTest names | Source file | Type |
-|---|---|---|---|---|
+|---|---|---|---|
 | `cfv_test_limiters` | `cfv_limiters` | test_Limiters.cpp | Serial |
 | `cfv_test_reconstruction` | `cfv_reconstruction_np{1,2,4,8}` | test_Reconstruction.cpp | MPI |
 | `cfv_test_reconstruction3d` | `cfv_reconstruction3d_np{1,2,4,8}` | test_Reconstruction3D.cpp | MPI |
@@ -40,7 +40,7 @@ PYTHONPATH=python pytest test/CFV/ -v
 @see test_Limiters.cpp
 
 Serial tests for every standalone limiter function in `CFV/Limiters.hpp`.
-36 test cases.  No mesh or MPI required — pure Eigen array
+38 test cases.  No mesh or MPI required — pure Eigen array
 computations.
 
 ### PolynomialSquaredNorm
@@ -102,6 +102,8 @@ Weighted squared norms used internally by polynomial-aware limiters.
 | `FWBAP_L2_Multiway: no NaN` | 5 random stencils produce finite results. |
 | `FWBAP_L2_Multiway_Polynomial2D: all identical pass through` | Polynomial-norm variant preserves identical inputs. |
 | `FWBAP_L2_Multiway_Polynomial2D: no NaN (nRows=2,3,4)` | Robust across P1/P2/P3 row counts. |
+| `FWBAP_L2_Multiway_Polynomial supports 3D P1 P2 and P3 blocks` | The dimension-aware 3D path preserves identical inputs for 3, 6, and 10-row blocks. |
+| `FWBAP_L2_Multiway_Polynomial uses dimension-specific norms` | Confirms the 3D path does not reuse legacy 2D polynomial weights. |
 | `FMEMM_Multiway_Polynomial2D: center unchanged when smallest` | MEMM leaves the minimum-norm candidate untouched. |
 | `FMEMM_Multiway_Polynomial2D: no NaN` | Random inputs produce finite results. |
 | `FWBAP_L2_Multiway_PolynomialOrth: all identical pass through` | Orthogonal variant preserves identical inputs. |

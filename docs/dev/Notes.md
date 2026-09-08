@@ -166,6 +166,7 @@ running OMP needs caution (mpi/srun needs to allocate enough cores to each proce
 For openMPI running on local machine:
 
 ```bash
+cd build
 export OMP_NUM_THREADS=32
 export OMP_SCHEDULE=GUIDED
 export DNDS_DIST_OMP_NUM_THREADS=8

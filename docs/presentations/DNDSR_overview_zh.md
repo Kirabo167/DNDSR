@@ -434,9 +434,7 @@ git clone --recursive https://<repo/DNDSR>.git && cd DNDSR
 cd external/cfd_externals && CC=mpicc CXX=mpicxx python cfd_externals_build.py && cd ../..
 
 # 3. Fetch header-only libraries (Eigen, Boost, CGAL, fmt, pybind11, nanoflann, ...)
-curl -L -o external/external_headeronlys.tar.gz \
-  https://github.com/harryzhou2000/cfd_externals_headeronlys/releases/latest/download/external_headeronlys.tar.gz
-cd external && tar -xzf external_headeronlys.tar.gz && cd ..
+bash scripts/install_headeronly_deps.sh
 
 # 4. Configure with a preset
 cmake --preset release-test        # Release + DNDS_BUILD_TESTS=ON
@@ -445,10 +443,10 @@ cmake --preset release-test        # Release + DNDS_BUILD_TESTS=ON
 cmake --build build -t euler -j32
 
 # 6. Run
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
-可用预设：`release-test`、`debug`、`cuda`、`ci`。Python 路径：`pip install -e .` 底层使用 `scikit-build-core`。
+可用预设：`release-test`、`reactive-test`、`debug`、`cuda`、`ci`。Python 路径：`pip install -e . --no-build-isolation` 底层使用 `scikit-build-core`。
 
 ---
 <!-- _class: chapter -->
@@ -1580,7 +1578,7 @@ enum RiemannSolverType {
 | `Roe_M6` | 仅 H-修正 |
 | `Roe_M7` | 仅 Harten–Yee，无 H-修正 |
 | `Roe_M8` | H-修正 + Harten–Yee |
-| `Roe_M9` | 保留（eigScheme 9，当前 assert false） |
+| `Roe_M9` | 旋转/H-修正 Roe 耗散（eigScheme 9） |
 | `HLLC`   | Harten–Lax–van Leer–Contact |
 | `HLLEP`  | HLLE，带压力修正 |
 | `HLLEP_V1` | HLLEP 变体 1 |
@@ -2097,7 +2095,7 @@ fv.to_host();
 </div>
 </div>
 
-构建：`cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · Thrust修复通过 `CMAKE_CUDA_ARCHITECTURE=native`。
+构建：`cmake --preset cuda` → `-DDNDS_USE_CUDA=ON` · 目标架构通过 `CMAKE_CUDA_ARCHITECTURES=native` 设置。
 
 ---
 <!-- _footer: "src/EulerP/EulerP_Evaluator.hpp · EulerP_Evaluator_impl.{hpp,cpp,cu}" -->
@@ -2183,7 +2181,7 @@ public:
 
 ### 已避免的陷阱
 
-- **Thrust + CMake：** `CMAKE_CUDA_ARCHITECTURE=native` 修复了Thrust内部机制中的一类编译错误。
+- **Thrust + CMake：** `CMAKE_CUDA_ARCHITECTURES=native` 选择本机 GPU 目标，并避免 Thrust 的架构不匹配错误。
 - **意外的 `to_device`：** 面缓冲区创建路径中的一个错误曾不必要地将主机缓冲区复制到设备；在v0.2.0中修复。
 - **`py::classh` 持有者：** 确保CUDA指针在跨Python GC边界存活时Python↔C++所有权安全。
 
@@ -2998,9 +2996,9 @@ void RunImplicitEuler() {
 
 ```bash
 # Build + run everything
-cmake -B build -DDNDS_BUILD_TESTS=ON
+CC=mpicc CXX=mpicxx cmake --preset release-test
 cmake --build build -t all_unit_tests -j8
-ctest --test-dir build --output-on-failure
+ctest --preset unit
 ```
 
 ---
@@ -3042,7 +3040,7 @@ ctest --test-dir build --output-on-failure
 
 ```cpp
 TEST_CASE("ArrayTransformer: round-trip ghost pull" *
-          doctest::description("np=1,2,4") *
+          doctest::description("np=1,2,4,8") *
           doctest::timeout(120.0)) {
     MPIInfo mpi; mpi.setWorld();
     auto father = make_ssp<ParArray<real, 5>>();
@@ -3145,7 +3143,7 @@ else
 <!-- _footer: "docs/tests/overview.md:104-124" -->
 <!-- _class: tight -->
 
-## Python 测试 — pytest + pytest-mpi
+## Python 测试 — pytest + pytest-timeout
 
 <div class="cols">
 <div>
@@ -3226,7 +3224,7 @@ PYTHONPATH=<root>/python pytest test/ -v
       "cacheVariables": { "DNDS_USE_CUDA": "ON",
                           "CMAKE_CUDA_ARCHITECTURES": "native" } },
     { "name": "ci",     "inherits": "release-test",
-      "cacheVariables": { "DNDS_TEST_NP_LIST":     "1;2;4",
+      "cacheVariables": { "DNDS_TEST_NP_LIST":     "1;2;4;8",
                           "DNDS_TEST_OMP_THREADS": "2" } }
   ]
 }
@@ -3263,7 +3261,7 @@ install.components = ["py"]     # only install the py component
 ```bash
 CC=mpicc CXX=mpicxx \
     CMAKE_BUILD_PARALLEL_LEVEL=32 \
-    pip install -e .
+    pip install -e . --no-build-isolation
 ```
 
 - 构建全部 `*_pybind11` 目标。
@@ -3912,7 +3910,8 @@ struct GhostRequirement {
 ### 测试
 
 - **`docs/tests/overview.md`** — 黄金值、确定性、测试套件汇总。
-- 各模块测试页面：`docs/tests/{dnds,geom,cfv,euler,solver}_unit_tests.md`。
+- DNDS、Geom、CFV、Euler 和 Solver 有独立详情页；ACM、ACMVariable、NCFV
+  和 EulerP 的覆盖情况汇总在测试概览中。
 
 </div>
 </div>
@@ -3929,7 +3928,7 @@ struct GhostRequirement {
 ```bash
 cmake --preset release-test
 cmake --build build -t euler -j32
-mpirun -np 4 ./build/app/euler.exe cases/euler_config_IV.json
+(cd build && mpirun -np 4 ./app/euler.exe ../cases/euler/euler_config_IV.json)
 ```
 
 <br>
