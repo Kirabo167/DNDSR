@@ -1,0 +1,1460 @@
+{
+  "common_settings": {
+    "dimension": 3,
+    "algorithm": {
+      "mode": "TraditionalQuadrature",
+      "quadratureOrder": 4,
+      "retainMicroGeometry": false,
+      "checkGeometryClosure": true,
+      "closureTolerance": 2e-10
+    },
+    "reconstruction": {
+      "stencilSizeFactor": 1.7,
+      "maximumStencilRings": 4,
+      "distanceWeightPower": 1.0,
+      "distanceWeightFloor": 0.15,
+      "svdTolerance": 1e-11,
+      "maximumConditionNumber": 1000000000000.0,
+      "enableLimiter": false
+    },
+    "physics": {
+      "gamma": 1.4,
+      "riemannSolver": "Roe_M2",
+      "boundaryMode": "FarField",
+      "initialPrimitive": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "farFieldPrimitive": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "requireBoundaryZoneCoverage": true,
+      "boundaryZones": [
+        {
+          "name": "bc-2",
+          "mode": "Periodic",
+          "primitive": [],
+          "wallVelocity": [],
+          "wallTemperature": 1.0,
+          "staticPressure": 1.0,
+          "strongState": true
+        },
+        {
+          "name": "bc-2-1",
+          "mode": "Periodic",
+          "primitive": [],
+          "wallVelocity": [],
+          "wallTemperature": 1.0,
+          "staticPressure": 1.0,
+          "strongState": true
+        },
+        {
+          "name": "bc-3",
+          "mode": "Periodic",
+          "primitive": [],
+          "wallVelocity": [],
+          "wallTemperature": 1.0,
+          "staticPressure": 1.0,
+          "strongState": true
+        },
+        {
+          "name": "bc-3-1",
+          "mode": "Periodic",
+          "primitive": [],
+          "wallVelocity": [],
+          "wallTemperature": 1.0,
+          "staticPressure": 1.0,
+          "strongState": true
+        },
+        {
+          "name": "bc-4",
+          "mode": "Periodic",
+          "primitive": [],
+          "wallVelocity": [],
+          "wallTemperature": 1.0,
+          "staticPressure": 1.0,
+          "strongState": true
+        },
+        {
+          "name": "bc-4-1",
+          "mode": "Periodic",
+          "primitive": [],
+          "wallVelocity": [],
+          "wallTemperature": 1.0,
+          "staticPressure": 1.0,
+          "strongState": true
+        }
+      ],
+      "viscous": {
+        "enabled": false,
+        "model": "Sutherland",
+        "dynamicViscosity": 1e-05,
+        "gasConstant": 1.0,
+        "prandtlNumber": 0.72,
+        "referenceTemperature": 273.15,
+        "sutherlandConstant": 110.4,
+        "spectralRadiusFactor": 4.0
+      }
+    },
+    "initialField": {
+      "nodeFile": "",
+      "isentropicVortex": true,
+      "vortexStrength": 5.0,
+      "vortexCenter": [
+        5.0,
+        5.0,
+        0.0
+      ],
+      "nodeFileVariables": "Primitive",
+      "nodeFileIndexBase": 0,
+      "requireCompleteNodeFile": true,
+      "boxes": [],
+      "planes": [],
+      "expressions": []
+    },
+    "time": {
+      "iterations": 100000,
+      "timeStep": 0.0001,
+      "useCFLTimeStep": true,
+      "useLocalTimeStep": false,
+      "cfl": 0.5,
+      "minimumTimeStep": 1e-30,
+      "maximumTimeStep": 1e+30,
+      "endTime": 2.0,
+      "reportInterval": 10
+    },
+    "mesh_settings": {
+      "ghostLayers": 2,
+      "reorderCells": 0,
+      "periodicTolerance": 1e-08,
+      "periodicLengths": [
+        10.0,
+        10.0,
+        4.0
+      ],
+      "partitionOptions": {
+        "metisType": "KWAY",
+        "metisUfactor": 20,
+        "metisSeed": 0,
+        "edgeWeightMethod": 0,
+        "metisNcuts": 3
+      }
+    }
+  },
+  "runs": [
+    {
+      "mesh": "iv10",
+      "nominal_resolution": 10,
+      "nodes": 745,
+      "cells": 1024,
+      "periodic_unknowns": 512,
+      "periodic_xy_nodes": 128,
+      "z_layers": 4,
+      "h_3d": 0.9210078746600957,
+      "h_xy": 0.8838834764831844,
+      "h_nominal": 1.0,
+      "steps": 60,
+      "time": 2.0,
+      "average_dt": 0.03333333333333333,
+      "cfl": 0.5,
+      "dt_cap": 1e+30,
+      "mpi_ranks": 2,
+      "volume": 399.9999999999987,
+      "density_initial": {
+        "L1": 0.0012645966326408848,
+        "L2": 0.003854068139266332,
+        "Linf": 0.018939934081923904
+      },
+      "density_final": {
+        "L1": 0.019497743468519742,
+        "L2": 0.04896285040237409,
+        "Linf": 0.33293440186806
+      },
+      "conservation_scaled_drift": {
+        "mass": -3.182341763067005e-15,
+        "momentum_x": -3.905601252943771e-15,
+        "momentum_y": -4.3395569490980066e-15,
+        "momentum_z": -4.494687160980747e-16,
+        "total_energy": -3.7922067067866445e-15
+      },
+      "periodic_state_difference": 1.2212453270876722e-15,
+      "entropy_L1": 0.010654898400557767,
+      "min_density_mean": 0.8821313994040219,
+      "min_pressure_of_mean": 0.9136125250255493,
+      "source_directory": "data/out/NCFV/traditional_t2_cfl05_20260908/iv10",
+      "mesh_arrays_sha256_verified": true,
+      "stored_quadrature_by_kind": {
+        "volume": 516096,
+        "internal-surface": 110592,
+        "boundary-surface": 26112
+      },
+      "stored_gauss_points": 652800,
+      "closure_max": 1.21512e-16,
+      "wall_seconds": null,
+      "min_pressure_point": 0.9122394625730733,
+      "min_density_point": 0.880677055759366,
+      "audit": {
+        "configuration": {
+          "dimension": 3,
+          "mesh": {
+            "meshFile": "../cases/NCFV/iv10_3d_1_dnds.cgns",
+            "ghostLayers": 2,
+            "reorderCells": 0,
+            "periodicTolerance": 1e-08,
+            "periodicLengths": [
+              10.0,
+              10.0,
+              4.0
+            ],
+            "partitionOptions": {
+              "metisType": "KWAY",
+              "metisUfactor": 20,
+              "metisSeed": 0,
+              "edgeWeightMethod": 0,
+              "metisNcuts": 3
+            }
+          },
+          "algorithm": {
+            "mode": "TraditionalQuadrature",
+            "quadratureOrder": 4,
+            "retainMicroGeometry": false,
+            "checkGeometryClosure": true,
+            "closureTolerance": 2e-10
+          },
+          "reconstruction": {
+            "stencilSizeFactor": 1.7,
+            "maximumStencilRings": 4,
+            "distanceWeightPower": 1.0,
+            "distanceWeightFloor": 0.15,
+            "svdTolerance": 1e-11,
+            "maximumConditionNumber": 1000000000000.0,
+            "enableLimiter": false
+          },
+          "physics": {
+            "gamma": 1.4,
+            "riemannSolver": "Roe_M2",
+            "boundaryMode": "FarField",
+            "initialPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "farFieldPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "requireBoundaryZoneCoverage": true,
+            "boundaryZones": [
+              {
+                "name": "bc-2",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-2-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              }
+            ],
+            "viscous": {
+              "enabled": false,
+              "model": "Sutherland",
+              "dynamicViscosity": 1e-05,
+              "gasConstant": 1.0,
+              "prandtlNumber": 0.72,
+              "referenceTemperature": 273.15,
+              "sutherlandConstant": 110.4,
+              "spectralRadiusFactor": 4.0
+            }
+          },
+          "initialField": {
+            "nodeFile": "",
+            "isentropicVortex": true,
+            "vortexStrength": 5.0,
+            "vortexCenter": [
+              5.0,
+              5.0,
+              0.0
+            ],
+            "nodeFileVariables": "Primitive",
+            "nodeFileIndexBase": 0,
+            "requireCompleteNodeFile": true,
+            "boxes": [],
+            "planes": [],
+            "expressions": []
+          },
+          "time": {
+            "iterations": 100000,
+            "timeStep": 0.0001,
+            "useCFLTimeStep": true,
+            "useLocalTimeStep": false,
+            "cfl": 0.5,
+            "minimumTimeStep": 1e-30,
+            "maximumTimeStep": 1e+30,
+            "endTime": 2.0,
+            "reportInterval": 10
+          },
+          "io": {
+            "writeVTK": true,
+            "writeInitial": false,
+            "writeFinal": true,
+            "outputInterval": 0,
+            "outputPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv10/solution",
+            "vtkSeriesName": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv10/series",
+            "vtkFloatEncoding": "binary",
+            "asciiPrecision": 12,
+            "restartInput": "",
+            "restartInterval": 0,
+            "writeFinalRestart": true,
+            "restartPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv10/restart",
+            "restartSerializer": {
+              "type": "H5",
+              "hdfDeflateLevel": 0,
+              "hdfChunkSize": 0,
+              "hdfCollOnData": false,
+              "hdfCollOnMeta": true,
+              "jsonBinaryDeflateLevel": 5,
+              "jsonUseCodecOnUInt8": true
+            },
+            "writeResolvedConfiguration": true
+          }
+        },
+        "mpi_ranks": 2,
+        "normalization": "dual-bounds-half-span (thesis 3-34)",
+        "initial_cfl_step": 0.031019110981028927,
+        "wall_seconds": 7.546696726,
+        "initial": {
+          "time": 0.0,
+          "iteration": 0,
+          "volume": 399.99999999999807,
+          "condition_max": 2.7205317634391113,
+          "gauss_points_stored": 652800,
+          "rho_point": {
+            "L1": 0.0012645966326408702,
+            "L2": 0.003854068139266344,
+            "Linf": 0.01893993408192396
+          },
+          "pressure_point": {
+            "L1": 0.0016310166410493673,
+            "L2": 0.00577845115383339,
+            "Linf": 0.030293253735713732
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 0.0012645966326408848,
+              "L2": 0.003854068139266332,
+              "Linf": 0.018939934081923904
+            },
+            "pressure_point": {
+              "L1": 0.0016310166410493502,
+              "L2": 0.005778451153833374,
+              "Linf": 0.030293253735713677
+            }
+          }
+        },
+        "final": {
+          "time": 2.0,
+          "iteration": 60,
+          "volume": 399.99999999999807,
+          "condition_max": 2.7205317634391113,
+          "gauss_points_stored": 652800,
+          "rho_point": {
+            "L1": 0.019497743468519776,
+            "L2": 0.04896285040237414,
+            "Linf": 0.3329344018680602
+          },
+          "pressure_point": {
+            "L1": 0.02592613337205841,
+            "L2": 0.07306452747116861,
+            "Linf": 0.4816049373171421
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 0.019497743468519742,
+              "L2": 0.04896285040237409,
+              "Linf": 0.33293440186806
+            },
+            "pressure_point": {
+              "L1": 0.025926133372058385,
+              "L2": 0.07306452747116855,
+              "Linf": 0.48160493731714193
+            }
+          }
+        }
+      },
+      "reported_stage3_candidate_min": 0.0282389929235,
+      "reported_stage3_candidate_max": 0.034530832117,
+      "average_physical_step": 0.03333333333333333,
+      "common_cfl": 0.5,
+      "orders": {
+        "rho_point": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "pressure_point": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        }
+      }
+    },
+    {
+      "mesh": "iv20",
+      "nominal_resolution": 20,
+      "nodes": 4752,
+      "cells": 7792,
+      "periodic_unknowns": 3896,
+      "periodic_xy_nodes": 487,
+      "z_layers": 8,
+      "h_3d": 0.4682527619525769,
+      "h_xy": 0.45314325442944375,
+      "h_nominal": 0.5,
+      "steps": 124,
+      "time": 2.0,
+      "average_dt": 0.016129032258064516,
+      "cfl": 0.5,
+      "dt_cap": 1e+30,
+      "mpi_ranks": 4,
+      "volume": 399.9999999999976,
+      "density_initial": {
+        "L1": 0.00011566467473654934,
+        "L2": 0.00039988003080833323,
+        "Linf": 0.002963094024172941
+      },
+      "density_final": {
+        "L1": 0.008579230723306823,
+        "L2": 0.02237815488431772,
+        "Linf": 0.17817353883169063
+      },
+      "conservation_scaled_drift": {
+        "mass": -8.679113908322748e-15,
+        "momentum_x": -7.811202517491055e-15,
+        "momentum_y": -7.521898720545188e-15,
+        "momentum_z": -1.8793785589143525e-16,
+        "total_energy": -6.92489922076555e-15
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.005926901359838414,
+      "min_density_mean": 0.6844523819454666,
+      "min_pressure_of_mean": 0.669597310998525,
+      "source_directory": "data/out/NCFV/traditional_t2_cfl05_20260908/iv20",
+      "mesh_arrays_sha256_verified": true,
+      "stored_quadrature_by_kind": {
+        "volume": 3927168,
+        "internal-surface": 841536,
+        "boundary-surface": 100848
+      },
+      "stored_gauss_points": 4869552,
+      "closure_max": 1.12173e-16,
+      "wall_seconds": null,
+      "min_pressure_point": 0.6652363093755137,
+      "min_density_point": 0.6809522334224619,
+      "audit": {
+        "configuration": {
+          "dimension": 3,
+          "mesh": {
+            "meshFile": "../cases/NCFV/iv20_3d_1_dnds.cgns",
+            "ghostLayers": 2,
+            "reorderCells": 0,
+            "periodicTolerance": 1e-08,
+            "periodicLengths": [
+              10.0,
+              10.0,
+              4.0
+            ],
+            "partitionOptions": {
+              "metisType": "KWAY",
+              "metisUfactor": 20,
+              "metisSeed": 0,
+              "edgeWeightMethod": 0,
+              "metisNcuts": 3
+            }
+          },
+          "algorithm": {
+            "mode": "TraditionalQuadrature",
+            "quadratureOrder": 4,
+            "retainMicroGeometry": false,
+            "checkGeometryClosure": true,
+            "closureTolerance": 2e-10
+          },
+          "reconstruction": {
+            "stencilSizeFactor": 1.7,
+            "maximumStencilRings": 4,
+            "distanceWeightPower": 1.0,
+            "distanceWeightFloor": 0.15,
+            "svdTolerance": 1e-11,
+            "maximumConditionNumber": 1000000000000.0,
+            "enableLimiter": false
+          },
+          "physics": {
+            "gamma": 1.4,
+            "riemannSolver": "Roe_M2",
+            "boundaryMode": "FarField",
+            "initialPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "farFieldPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "requireBoundaryZoneCoverage": true,
+            "boundaryZones": [
+              {
+                "name": "bc-2",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-2-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              }
+            ],
+            "viscous": {
+              "enabled": false,
+              "model": "Sutherland",
+              "dynamicViscosity": 1e-05,
+              "gasConstant": 1.0,
+              "prandtlNumber": 0.72,
+              "referenceTemperature": 273.15,
+              "sutherlandConstant": 110.4,
+              "spectralRadiusFactor": 4.0
+            }
+          },
+          "initialField": {
+            "nodeFile": "",
+            "isentropicVortex": true,
+            "vortexStrength": 5.0,
+            "vortexCenter": [
+              5.0,
+              5.0,
+              0.0
+            ],
+            "nodeFileVariables": "Primitive",
+            "nodeFileIndexBase": 0,
+            "requireCompleteNodeFile": true,
+            "boxes": [],
+            "planes": [],
+            "expressions": []
+          },
+          "time": {
+            "iterations": 100000,
+            "timeStep": 0.0001,
+            "useCFLTimeStep": true,
+            "useLocalTimeStep": false,
+            "cfl": 0.5,
+            "minimumTimeStep": 1e-30,
+            "maximumTimeStep": 1e+30,
+            "endTime": 2.0,
+            "reportInterval": 10
+          },
+          "io": {
+            "writeVTK": true,
+            "writeInitial": false,
+            "writeFinal": true,
+            "outputInterval": 0,
+            "outputPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv20/solution",
+            "vtkSeriesName": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv20/series",
+            "vtkFloatEncoding": "binary",
+            "asciiPrecision": 12,
+            "restartInput": "",
+            "restartInterval": 0,
+            "writeFinalRestart": true,
+            "restartPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv20/restart",
+            "restartSerializer": {
+              "type": "H5",
+              "hdfDeflateLevel": 0,
+              "hdfChunkSize": 0,
+              "hdfCollOnData": false,
+              "hdfCollOnMeta": true,
+              "jsonBinaryDeflateLevel": 5,
+              "jsonUseCodecOnUInt8": true
+            },
+            "writeResolvedConfiguration": true
+          }
+        },
+        "mpi_ranks": 4,
+        "normalization": "dual-bounds-half-span (thesis 3-34)",
+        "initial_cfl_step": 0.015482238541377896,
+        "wall_seconds": 42.407283159,
+        "initial": {
+          "time": 0.0,
+          "iteration": 0,
+          "volume": 399.9999999999981,
+          "condition_max": 2.768053164966607,
+          "gauss_points_stored": 4869552,
+          "rho_point": {
+            "L1": 0.0001156646747365289,
+            "L2": 0.0003998800308083317,
+            "Linf": 0.00296309402417283
+          },
+          "pressure_point": {
+            "L1": 0.00015409312268852777,
+            "L2": 0.0005821668667136558,
+            "Linf": 0.00450675899055486
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 0.00011566467473654934,
+              "L2": 0.00039988003080833323,
+              "Linf": 0.002963094024172941
+            },
+            "pressure_point": {
+              "L1": 0.00015409312268851153,
+              "L2": 0.0005821668667136613,
+              "Linf": 0.004506758990554971
+            }
+          }
+        },
+        "final": {
+          "time": 2.0,
+          "iteration": 124,
+          "volume": 399.9999999999981,
+          "condition_max": 2.768053164966607,
+          "gauss_points_stored": 4869552,
+          "rho_point": {
+            "L1": 0.008579230723306798,
+            "L2": 0.022378154884317724,
+            "Linf": 0.17817353883169051
+          },
+          "pressure_point": {
+            "L1": 0.012554710379461681,
+            "L2": 0.03680373377838485,
+            "Linf": 0.28335569512656533
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 0.008579230723306823,
+              "L2": 0.02237815488431772,
+              "Linf": 0.17817353883169063
+            },
+            "pressure_point": {
+              "L1": 0.012554710379461697,
+              "L2": 0.036803733778384855,
+              "Linf": 0.28335569512656555
+            }
+          }
+        }
+      },
+      "reported_stage3_candidate_min": 0.015481383015,
+      "reported_stage3_candidate_max": 0.016856486206,
+      "average_physical_step": 0.016129032258064516,
+      "common_cfl": 0.5,
+      "orders": {
+        "rho_point": {
+          "L1": 1.2136032707253757,
+          "L2": 1.157461194642861,
+          "Linf": 0.9242041602997288
+        },
+        "pressure_point": {
+          "L1": 1.071985298137278,
+          "L2": 1.0137234070585752,
+          "Linf": 0.7841127227257624
+        }
+      }
+    },
+    {
+      "mesh": "iv40",
+      "nominal_resolution": 40,
+      "nodes": 33694,
+      "cells": 60832,
+      "periodic_unknowns": 30416,
+      "periodic_xy_nodes": 1901,
+      "z_layers": 16,
+      "h_3d": 0.23604019455677977,
+      "h_xy": 0.22935538512984366,
+      "h_nominal": 0.25,
+      "steps": 266,
+      "time": 2.0,
+      "average_dt": 0.007518796992481203,
+      "cfl": 0.5,
+      "dt_cap": 1e+30,
+      "mpi_ranks": 8,
+      "volume": 399.99999999999756,
+      "density_initial": {
+        "L1": 1.0068775124989958e-05,
+        "L2": 3.511262587682703e-05,
+        "Linf": 0.0003588607877547112
+      },
+      "density_final": {
+        "L1": 0.0018772730835305215,
+        "L2": 0.004592901477379109,
+        "Linf": 0.02981798961409221
+      },
+      "conservation_scaled_drift": {
+        "mass": -1.750287971513729e-14,
+        "momentum_x": -1.2150759471665821e-14,
+        "momentum_y": -1.287401896402674e-14,
+        "momentum_z": -1.9681903777576032e-16,
+        "total_energy": -1.7312248052076533e-14
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.0015930261646671608,
+      "min_density_mean": 0.5047085021830795,
+      "min_pressure_of_mean": 0.41414536743570846,
+      "source_directory": "data/out/NCFV/traditional_t2_cfl05_20260908/iv40",
+      "mesh_arrays_sha256_verified": true,
+      "stored_quadrature_by_kind": {
+        "volume": 30659328,
+        "internal-surface": 6569856,
+        "boundary-surface": 396624
+      },
+      "stored_gauss_points": 37625808,
+      "closure_max": 1.37149e-16,
+      "wall_seconds": null,
+      "min_pressure_point": 0.4089909265402306,
+      "min_density_point": 0.5011222016734642,
+      "audit": {
+        "configuration": {
+          "dimension": 3,
+          "mesh": {
+            "meshFile": "../cases/NCFV/iv40_3d_1_dnds.cgns",
+            "ghostLayers": 2,
+            "reorderCells": 0,
+            "periodicTolerance": 1e-08,
+            "periodicLengths": [
+              10.0,
+              10.0,
+              4.0
+            ],
+            "partitionOptions": {
+              "metisType": "KWAY",
+              "metisUfactor": 20,
+              "metisSeed": 0,
+              "edgeWeightMethod": 0,
+              "metisNcuts": 3
+            }
+          },
+          "algorithm": {
+            "mode": "TraditionalQuadrature",
+            "quadratureOrder": 4,
+            "retainMicroGeometry": false,
+            "checkGeometryClosure": true,
+            "closureTolerance": 2e-10
+          },
+          "reconstruction": {
+            "stencilSizeFactor": 1.7,
+            "maximumStencilRings": 4,
+            "distanceWeightPower": 1.0,
+            "distanceWeightFloor": 0.15,
+            "svdTolerance": 1e-11,
+            "maximumConditionNumber": 1000000000000.0,
+            "enableLimiter": false
+          },
+          "physics": {
+            "gamma": 1.4,
+            "riemannSolver": "Roe_M2",
+            "boundaryMode": "FarField",
+            "initialPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "farFieldPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "requireBoundaryZoneCoverage": true,
+            "boundaryZones": [
+              {
+                "name": "bc-2",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-2-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              }
+            ],
+            "viscous": {
+              "enabled": false,
+              "model": "Sutherland",
+              "dynamicViscosity": 1e-05,
+              "gasConstant": 1.0,
+              "prandtlNumber": 0.72,
+              "referenceTemperature": 273.15,
+              "sutherlandConstant": 110.4,
+              "spectralRadiusFactor": 4.0
+            }
+          },
+          "initialField": {
+            "nodeFile": "",
+            "isentropicVortex": true,
+            "vortexStrength": 5.0,
+            "vortexCenter": [
+              5.0,
+              5.0,
+              0.0
+            ],
+            "nodeFileVariables": "Primitive",
+            "nodeFileIndexBase": 0,
+            "requireCompleteNodeFile": true,
+            "boxes": [],
+            "planes": [],
+            "expressions": []
+          },
+          "time": {
+            "iterations": 100000,
+            "timeStep": 0.0001,
+            "useCFLTimeStep": true,
+            "useLocalTimeStep": false,
+            "cfl": 0.5,
+            "minimumTimeStep": 1e-30,
+            "maximumTimeStep": 1e+30,
+            "endTime": 2.0,
+            "reportInterval": 10
+          },
+          "io": {
+            "writeVTK": true,
+            "writeInitial": false,
+            "writeFinal": true,
+            "outputInterval": 0,
+            "outputPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv40/solution",
+            "vtkSeriesName": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv40/series",
+            "vtkFloatEncoding": "binary",
+            "asciiPrecision": 12,
+            "restartInput": "",
+            "restartInterval": 0,
+            "writeFinalRestart": true,
+            "restartPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv40/restart",
+            "restartSerializer": {
+              "type": "H5",
+              "hdfDeflateLevel": 0,
+              "hdfChunkSize": 0,
+              "hdfCollOnData": false,
+              "hdfCollOnMeta": true,
+              "jsonBinaryDeflateLevel": 5,
+              "jsonUseCodecOnUInt8": true
+            },
+            "writeResolvedConfiguration": true
+          }
+        },
+        "mpi_ranks": 8,
+        "normalization": "dual-bounds-half-span (thesis 3-34)",
+        "initial_cfl_step": 0.007168606480750385,
+        "wall_seconds": 526.637895883,
+        "initial": {
+          "time": 0.0,
+          "iteration": 0,
+          "volume": 400.0000000000084,
+          "condition_max": 4.107001888533081,
+          "gauss_points_stored": 37625808,
+          "rho_point": {
+            "L1": 1.006877512496623e-05,
+            "L2": 3.5112625876827556e-05,
+            "Linf": 0.0003588607877548222
+          },
+          "pressure_point": {
+            "L1": 1.3955424874749889e-05,
+            "L2": 5.206638000158291e-05,
+            "Linf": 0.0005597863344453113
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 1.0068775124989958e-05,
+              "L2": 3.511262587682703e-05,
+              "Linf": 0.0003588607877547112
+            },
+            "pressure_point": {
+              "L1": 1.3955424874724978e-05,
+              "L2": 5.206638000158335e-05,
+              "Linf": 0.0005597863344452003
+            }
+          }
+        },
+        "final": {
+          "time": 2.0,
+          "iteration": 266,
+          "volume": 400.0000000000084,
+          "condition_max": 4.107001888533081,
+          "gauss_points_stored": 37625808,
+          "rho_point": {
+            "L1": 0.0018772730835304623,
+            "L2": 0.004592901477379055,
+            "Linf": 0.029817989614092322
+          },
+          "pressure_point": {
+            "L1": 0.002697701800788712,
+            "L2": 0.007590461571976546,
+            "Linf": 0.0507179717995786
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 0.0018772730835305215,
+              "L2": 0.004592901477379109,
+              "Linf": 0.02981798961409221
+            },
+            "pressure_point": {
+              "L1": 0.002697701800788786,
+              "L2": 0.007590461571976638,
+              "Linf": 0.050717971799578376
+            }
+          }
+        }
+      },
+      "reported_stage3_candidate_min": 0.00716633590046,
+      "reported_stage3_candidate_max": 0.0078260541674,
+      "average_physical_step": 0.007518796992481203,
+      "common_cfl": 0.5,
+      "orders": {
+        "rho_point": {
+          "L1": 2.2182633700523122,
+          "L2": 2.311765140624228,
+          "Linf": 2.609679002786162
+        },
+        "pressure_point": {
+          "L1": 2.2447911394450166,
+          "L2": 2.304660968523915,
+          "Linf": 2.5115434400333077
+        }
+      }
+    },
+    {
+      "mesh": "iv80",
+      "nominal_resolution": 80,
+      "nodes": 252780,
+      "cells": 479936,
+      "periodic_unknowns": 239968,
+      "periodic_xy_nodes": 7499,
+      "z_layers": 32,
+      "h_3d": 0.11856838008967682,
+      "h_xy": 0.11547775261140025,
+      "h_nominal": 0.125,
+      "steps": 548,
+      "time": 2.0,
+      "average_dt": 0.0036496350364963502,
+      "cfl": 0.5,
+      "dt_cap": 1e+30,
+      "mpi_ranks": 32,
+      "volume": 399.99999999999784,
+      "density_initial": {
+        "L1": 7.233564032189684e-07,
+        "L2": 3.305864511580052e-06,
+        "Linf": 0.00010490341265612102
+      },
+      "density_final": {
+        "L1": 0.00032704619576189557,
+        "L2": 0.0008304398939109275,
+        "Linf": 0.005172976283035813
+      },
+      "conservation_scaled_drift": {
+        "mass": -2.4301518943332148e-14,
+        "momentum_x": -3.1244810069998196e-14,
+        "momentum_y": -3.110015817152603e-14,
+        "momentum_z": 1.1537983868150562e-17,
+        "total_energy": -3.660303873868195e-14
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.000253301881581923,
+      "min_density_mean": 0.49208887190241385,
+      "min_pressure_of_mean": 0.3724343282343916,
+      "source_directory": "data/out/NCFV/traditional_t2_cfl05_20260908/iv80",
+      "mesh_arrays_sha256_verified": true,
+      "stored_quadrature_by_kind": {
+        "volume": 241887744,
+        "internal-surface": 51833088,
+        "boundary-surface": 1571376
+      },
+      "stored_gauss_points": 295292208,
+      "closure_max": 1.40216e-16,
+      "wall_seconds": null,
+      "min_pressure_point": 0.3713959271926872,
+      "min_density_point": 0.4914187163003031,
+      "audit": {
+        "configuration": {
+          "dimension": 3,
+          "mesh": {
+            "meshFile": "../cases/NCFV/iv80_3d_1_dnds.cgns",
+            "ghostLayers": 2,
+            "reorderCells": 0,
+            "periodicTolerance": 1e-08,
+            "periodicLengths": [
+              10.0,
+              10.0,
+              4.0
+            ],
+            "partitionOptions": {
+              "metisType": "KWAY",
+              "metisUfactor": 20,
+              "metisSeed": 0,
+              "edgeWeightMethod": 0,
+              "metisNcuts": 3
+            }
+          },
+          "algorithm": {
+            "mode": "TraditionalQuadrature",
+            "quadratureOrder": 4,
+            "retainMicroGeometry": false,
+            "checkGeometryClosure": true,
+            "closureTolerance": 2e-10
+          },
+          "reconstruction": {
+            "stencilSizeFactor": 1.7,
+            "maximumStencilRings": 4,
+            "distanceWeightPower": 1.0,
+            "distanceWeightFloor": 0.15,
+            "svdTolerance": 1e-11,
+            "maximumConditionNumber": 1000000000000.0,
+            "enableLimiter": false
+          },
+          "physics": {
+            "gamma": 1.4,
+            "riemannSolver": "Roe_M2",
+            "boundaryMode": "FarField",
+            "initialPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "farFieldPrimitive": [
+              1.0,
+              1.0,
+              1.0,
+              0.0,
+              1.0
+            ],
+            "requireBoundaryZoneCoverage": true,
+            "boundaryZones": [
+              {
+                "name": "bc-2",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-2-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-3-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              },
+              {
+                "name": "bc-4-1",
+                "mode": "Periodic",
+                "primitive": [],
+                "wallVelocity": [],
+                "wallTemperature": 1.0,
+                "staticPressure": 1.0,
+                "strongState": true
+              }
+            ],
+            "viscous": {
+              "enabled": false,
+              "model": "Sutherland",
+              "dynamicViscosity": 1e-05,
+              "gasConstant": 1.0,
+              "prandtlNumber": 0.72,
+              "referenceTemperature": 273.15,
+              "sutherlandConstant": 110.4,
+              "spectralRadiusFactor": 4.0
+            }
+          },
+          "initialField": {
+            "nodeFile": "",
+            "isentropicVortex": true,
+            "vortexStrength": 5.0,
+            "vortexCenter": [
+              5.0,
+              5.0,
+              0.0
+            ],
+            "nodeFileVariables": "Primitive",
+            "nodeFileIndexBase": 0,
+            "requireCompleteNodeFile": true,
+            "boxes": [],
+            "planes": [],
+            "expressions": []
+          },
+          "time": {
+            "iterations": 100000,
+            "timeStep": 0.0001,
+            "useCFLTimeStep": true,
+            "useLocalTimeStep": false,
+            "cfl": 0.5,
+            "minimumTimeStep": 1e-30,
+            "maximumTimeStep": 1e+30,
+            "endTime": 2.0,
+            "reportInterval": 10
+          },
+          "io": {
+            "writeVTK": true,
+            "writeInitial": false,
+            "writeFinal": true,
+            "outputInterval": 0,
+            "outputPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv80/solution",
+            "vtkSeriesName": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv80/series",
+            "vtkFloatEncoding": "binary",
+            "asciiPrecision": 12,
+            "restartInput": "",
+            "restartInterval": 0,
+            "writeFinalRestart": true,
+            "restartPrefix": "../data/out/NCFV/traditional_t2_cfl05_20260908/iv80/restart",
+            "restartSerializer": {
+              "type": "H5",
+              "hdfDeflateLevel": 0,
+              "hdfChunkSize": 0,
+              "hdfCollOnData": false,
+              "hdfCollOnMeta": true,
+              "jsonBinaryDeflateLevel": 5,
+              "jsonUseCodecOnUInt8": true
+            },
+            "writeResolvedConfiguration": true
+          }
+        },
+        "mpi_ranks": 32,
+        "normalization": "dual-bounds-half-span (thesis 3-34)",
+        "initial_cfl_step": 0.0035687073990766528,
+        "wall_seconds": 2307.2274244,
+        "initial": {
+          "time": 0.0,
+          "iteration": 0,
+          "volume": 399.9999999999815,
+          "condition_max": 4.10187999673899,
+          "gauss_points_stored": 295292208,
+          "rho_point": {
+            "L1": 7.233564031956441e-07,
+            "L2": 3.305864511580819e-06,
+            "Linf": 0.00010490341265589898
+          },
+          "pressure_point": {
+            "L1": 1.0147685812950727e-06,
+            "L2": 4.760823935471609e-06,
+            "Linf": 0.0001573932786000931
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 7.233564032189684e-07,
+              "L2": 3.305864511580052e-06,
+              "Linf": 0.00010490341265612102
+            },
+            "pressure_point": {
+              "L1": 1.0147685812694501e-06,
+              "L2": 4.760823935469981e-06,
+              "Linf": 0.00015739327860020413
+            }
+          }
+        },
+        "final": {
+          "time": 2.0,
+          "iteration": 548,
+          "volume": 399.9999999999815,
+          "condition_max": 4.10187999673899,
+          "gauss_points_stored": 295292208,
+          "rho_point": {
+            "L1": 0.00032704619576191335,
+            "L2": 0.0008304398939109487,
+            "Linf": 0.005172976283035924
+          },
+          "pressure_point": {
+            "L1": 0.00041849016698040236,
+            "L2": 0.0011823615746227726,
+            "Linf": 0.00815051128414701
+          },
+          "independent_errors": {
+            "rho_point": {
+              "L1": 0.00032704619576189557,
+              "L2": 0.0008304398939109275,
+              "Linf": 0.005172976283035813
+            },
+            "pressure_point": {
+              "L1": 0.0004184901669803812,
+              "L2": 0.0011823615746227433,
+              "Linf": 0.008150511284147455
+            }
+          }
+        }
+      },
+      "reported_stage3_candidate_min": 0.0035624809298,
+      "reported_stage3_candidate_max": 0.00367877843808,
+      "average_physical_step": 0.0036496350364963502,
+      "common_cfl": 0.5,
+      "orders": {
+        "rho_point": {
+          "L1": 2.5380435055676394,
+          "L2": 2.484068573746833,
+          "Linf": 2.5441285103747178
+        },
+        "pressure_point": {
+          "L1": 2.706563419768772,
+          "L2": 2.700574447273004,
+          "Linf": 2.6552898971007117
+        }
+      }
+    }
+  ],
+  "comparison_with_efficient": [
+    {
+      "mesh": "iv10",
+      "quantity": "rho_point",
+      "traditional_L2": 0.04896285040237414,
+      "efficient_L2": 0.051562180360025384,
+      "ratio": 0.9495884398312523,
+      "traditional_order": null,
+      "efficient_order": null
+    },
+    {
+      "mesh": "iv10",
+      "quantity": "pressure_point",
+      "traditional_L2": 0.07306452747116861,
+      "efficient_L2": 0.07589146540844456,
+      "ratio": 0.9627502523233477,
+      "traditional_order": null,
+      "efficient_order": null
+    },
+    {
+      "mesh": "iv20",
+      "quantity": "rho_point",
+      "traditional_L2": 0.022378154884317724,
+      "efficient_L2": 0.02670036473727229,
+      "ratio": 0.8381216925130244,
+      "traditional_order": 1.157461194642861,
+      "efficient_order": 0.9728748217767202
+    },
+    {
+      "mesh": "iv20",
+      "quantity": "pressure_point",
+      "traditional_L2": 0.03680373377838485,
+      "efficient_L2": 0.043077833497834214,
+      "ratio": 0.8543543347005879,
+      "traditional_order": 1.0137234070585752,
+      "efficient_order": 0.8371454068519238
+    },
+    {
+      "mesh": "iv40",
+      "quantity": "rho_point",
+      "traditional_L2": 0.004592901477379055,
+      "efficient_L2": 0.005777559661324139,
+      "ratio": 0.7949552659965822,
+      "traditional_order": 2.311765140624228,
+      "efficient_order": 2.234572453904667
+    },
+    {
+      "mesh": "iv40",
+      "quantity": "pressure_point",
+      "traditional_L2": 0.007590461571976546,
+      "efficient_L2": 0.009822985057539651,
+      "ratio": 0.7727245361276889,
+      "traditional_order": 2.304660968523915,
+      "efficient_order": 2.1580587901099917
+    },
+    {
+      "mesh": "iv80",
+      "quantity": "rho_point",
+      "traditional_L2": 0.0008304398939109487,
+      "efficient_L2": 0.001081035705502899,
+      "ratio": 0.7681891446172234,
+      "traditional_order": 2.484068573746833,
+      "efficient_order": 2.434323840442242
+    },
+    {
+      "mesh": "iv80",
+      "quantity": "pressure_point",
+      "traditional_L2": 0.0011823615746227726,
+      "efficient_L2": 0.0015524202765031766,
+      "ratio": 0.7616246660253881,
+      "traditional_order": 2.700574447273004,
+      "efficient_order": 2.6795599223923947
+    }
+  ],
+  "source_and_library_sha256": {
+    "src/NCFV/NCFVSpatial.cpp": "dc084b75a54f9658cfef1c689813bb3d24e9281fe37e8c9db3ad798cd680761d",
+    "src/NCFV/NCFVReconstruction.cpp": "5e780e8498009efaae6ba25e40265d095e513d5eeeecab331cfc39ee31ec2238",
+    "src/NCFV/NCFVSolver.cpp": "dce36ee25589001f934f881d01f5b73d0b67f7f3d70333e89ff86b4cb6c77062",
+    "src/NCFV/NCFVDualGeometry.cpp": "baa2d00647a65be4785cc3faf4109ad6068c56eb9a407b9c75801834228cfe23",
+    "src/Euler/Gas.hpp": "3addca92bdd376a4d20ecc676dac77108cd8f115807ee0fc4ceec9a0dd89f9e4",
+    "build/src/NCFV/libncfv.a": "c6a7448d3b503e13f85c3ba628d8f76ba7f6b9e39f5d13b8e0344efd3c29e481",
+    "cases/NCFV/diagnostics/traditional_transient_accuracy_probe.cpp": "44a16a3003e24e148316c260c29a58486cf751cf1faa88479616ecaf3d1ff09f"
+  }
+}

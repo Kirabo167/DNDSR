@@ -1,0 +1,1452 @@
+{
+  "runs": [
+    {
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv10_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": true,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": true,
+          "writeFinal": true,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/convergence/iv10/solution",
+          "vtkSeriesName": "../data/out/NCFV/convergence/iv10/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/convergence/iv10/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "nodes": 745,
+      "mpi_ranks": 1,
+      "volume": 399.9999999999992,
+      "h": 0.921007874660096,
+      "time_steps": 0,
+      "rhs_evaluations": 0,
+      "reference_quadrature_orders": [
+        5,
+        6
+      ],
+      "production_operator_modified": false,
+      "diagnostic_revision": 2,
+      "compact_tie_break": "quantized geometric key, independent of MPI numbering",
+      "volume_weighted_stencil_radius_xy": 2.026320993685821,
+      "volume_weighted_stencil_radius_3d": 2.0274692409678226,
+      "halfbox_z_volume_fraction": 1.0,
+      "cubic_higher_inner_product": -0.008520884744226048,
+      "errors": {
+        "rho_compact15_initial": {
+          "L1": 0.013146349403134201,
+          "L2": 0.04228781878768865,
+          "Linf": 0.2061393174918257
+        },
+        "rho_compact15_reference": {
+          "L1": 0.01370839902784382,
+          "L2": 0.04409532569243137,
+          "Linf": 0.21327724460472858
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 0.03779514506967497,
+          "L2": 0.1263670422957036,
+          "Linf": 0.6135663118161858
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 0.022675428963174562,
+          "L2": 0.06867319095317775,
+          "Linf": 0.323544842996797
+        },
+        "rho_initial": {
+          "L1": 0.0195377065561403,
+          "L2": 0.059402109644736925,
+          "Linf": 0.2856790810990173
+        },
+        "rho_initial_halfbox_z": {
+          "L1": 0.0195377065561403,
+          "L2": 0.059402109644736925,
+          "Linf": 0.2856790810990173
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 0.0004834864903122885,
+          "L2": 0.0011092486815720256,
+          "Linf": 0.004749228033054034
+        },
+        "rho_power4_initial": {
+          "L1": 0.01234422057891784,
+          "L2": 0.03968150741795905,
+          "Linf": 0.1949564797055285
+        },
+        "rho_power4_reference": {
+          "L1": 0.012855675879436557,
+          "L2": 0.04165726988705532,
+          "Linf": 0.20465544103705302
+        },
+        "rho_reference5": {
+          "L1": 0.01984100280390204,
+          "L2": 0.060356168563702274,
+          "Linf": 0.2902116341144195
+        },
+        "rho_reference6": {
+          "L1": 0.019841003146966515,
+          "L2": 0.06035616824984573,
+          "Linf": 0.2902116303104263
+        },
+        "rho_reference_order_change": {
+          "L1": 1.4902088057245315e-09,
+          "L2": 3.196926369203816e-09,
+          "Linf": 1.2666960138673467e-08
+        },
+        "wave1_initial": {
+          "L1": 0.08777672338507153,
+          "L2": 0.09140960339741397,
+          "Linf": 0.1393496267167108
+        },
+        "wave1_reference": {
+          "L1": 0.08839092474092691,
+          "L2": 0.09204389228642398,
+          "Linf": 0.14053637981631567
+        },
+        "wave2_initial": {
+          "L1": 0.5102795640241096,
+          "L2": 0.5356515786569509,
+          "Linf": 0.8061017799599357
+        },
+        "wave2_reference": {
+          "L1": 0.5202675901472068,
+          "L2": 0.5461397981837912,
+          "Linf": 0.8225982794929041
+        }
+      },
+      "checks": {
+        "compact_stencil_max": 15.0,
+        "condition_number": 2.2402267771255557,
+        "independent_full_svd_gradient_difference": 2.9902603800678118e-15,
+        "independent_quadratic_gradient_defect": 3.713054612842435e-14,
+        "independent_quadratic_identity_defect": 3.0405365725183486e-14,
+        "length_scale_invariance_difference": 2.486307967232433e-16
+      },
+      "wall_seconds": 0.570524893,
+      "cubic_higher_cosine": -0.9818918213828524,
+      "higher_to_cubic_norm_ratio": 0.5434422591966654,
+      "independent_node_reduction_verified": true,
+      "source_directory": "/mnt/ssd-SATARAID5/home/mrz/projects/DNDSR/data/out/NCFV/gradient_audit_v2/iv10",
+      "mesh": "iv10",
+      "orders": {}
+    },
+    {
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv20_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": true,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": true,
+          "writeFinal": true,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/convergence/iv20/solution",
+          "vtkSeriesName": "../data/out/NCFV/convergence/iv20/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/convergence/iv20/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "nodes": 4752,
+      "mpi_ranks": 2,
+      "volume": 400.0000000000075,
+      "h": 0.4682527619525807,
+      "time_steps": 0,
+      "rhs_evaluations": 0,
+      "reference_quadrature_orders": [
+        5,
+        6
+      ],
+      "production_operator_modified": false,
+      "diagnostic_revision": 2,
+      "compact_tie_break": "quantized geometric key, independent of MPI numbering",
+      "volume_weighted_stencil_radius_xy": 1.0108903966500826,
+      "volume_weighted_stencil_radius_3d": 1.0112108466436074,
+      "halfbox_z_volume_fraction": 0.0,
+      "cubic_higher_inner_product": -0.00020878868607405164,
+      "errors": {
+        "rho_compact15_initial": {
+          "L1": 0.004404875994807078,
+          "L2": 0.013870484457520748,
+          "Linf": 0.08144128411052731
+        },
+        "rho_compact15_reference": {
+          "L1": 0.004540546583505233,
+          "L2": 0.014334487316661442,
+          "Linf": 0.08409491811469708
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 0.009924973679291703,
+          "L2": 0.031330239533672165,
+          "Linf": 0.18154106914108578
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 0.0024048752755321833,
+          "L2": 0.007238162211503501,
+          "Linf": 0.04585422413915447
+        },
+        "rho_initial": {
+          "L1": 0.008006532236897717,
+          "L2": 0.024474916615161213,
+          "Linf": 0.13382727344125322
+        },
+        "rho_initial_halfbox_z": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": 0.008006532236897717,
+          "L2": 0.024474916615161213,
+          "Linf": 0.13382727344125322
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 0.00013156740992218224,
+          "L2": 0.0003777709757540336,
+          "Linf": 0.0022179193263395023
+        },
+        "rho_power4_initial": {
+          "L1": 0.004573933498659138,
+          "L2": 0.014408533635205181,
+          "Linf": 0.0814816813359321
+        },
+        "rho_power4_reference": {
+          "L1": 0.004706923606469648,
+          "L2": 0.014862971946323232,
+          "Linf": 0.08426710702975103
+        },
+        "rho_reference5": {
+          "L1": 0.00811169300563275,
+          "L2": 0.0248273543028035,
+          "Linf": 0.13578795207306268
+        },
+        "rho_reference6": {
+          "L1": 0.008111693043500868,
+          "L2": 0.024827354456107665,
+          "Linf": 0.1357879530245137
+        },
+        "rho_reference_order_change": {
+          "L1": 7.228544599181463e-11,
+          "L2": 1.9317968585655007e-10,
+          "Linf": 1.130005983746391e-09
+        },
+        "wave1_initial": {
+          "L1": 0.02430593693928915,
+          "L2": 0.02539156301933292,
+          "Linf": 0.04179488448631647
+        },
+        "wave1_reference": {
+          "L1": 0.024354511091298714,
+          "L2": 0.02543910875670675,
+          "Linf": 0.04186640140426424
+        },
+        "wave2_initial": {
+          "L1": 0.18198314469598265,
+          "L2": 0.1897435282192073,
+          "Linf": 0.28305003901433007
+        },
+        "wave2_reference": {
+          "L1": 0.18339509068434307,
+          "L2": 0.19120697694753466,
+          "Linf": 0.28479171505385664
+        }
+      },
+      "checks": {
+        "compact_stencil_max": 15.0,
+        "condition_number": 2.266804401514134,
+        "independent_full_svd_gradient_difference": 7.905765428734385e-15,
+        "independent_quadratic_gradient_defect": 4.374061134117061e-13,
+        "independent_quadratic_identity_defect": 1.790911169363696e-13,
+        "length_scale_invariance_difference": 4.2001876666578407e-16
+      },
+      "wall_seconds": 2.31746055,
+      "cubic_higher_cosine": -0.920693197280906,
+      "higher_to_cubic_norm_ratio": 0.23102798827070212,
+      "independent_node_reduction_verified": true,
+      "source_directory": "/mnt/ssd-SATARAID5/home/mrz/projects/DNDSR/data/out/NCFV/gradient_audit_v2/iv20",
+      "mesh": "iv20",
+      "orders": {
+        "rho_compact15_initial": {
+          "L1": 1.6164022114637082,
+          "L2": 1.6478954252712144,
+          "Linf": 1.3728371857514219
+        },
+        "rho_compact15_reference": {
+          "L1": 1.6334458045577598,
+          "L2": 1.6611253784605566,
+          "Linf": 1.3757595747624274
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 1.9766516828795535,
+          "L2": 2.0616241040660914,
+          "Linf": 1.8002628651173658
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 3.316948115804003,
+          "L2": 3.3261248274172193,
+          "Linf": 2.8883738839444235
+        },
+        "rho_initial": {
+          "L1": 1.3187595317117005,
+          "L2": 1.3107656119998503,
+          "Linf": 1.12101045727389
+        },
+        "rho_initial_halfbox_z": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 1.92399160778165,
+          "L2": 1.59233291262106,
+          "Linf": 1.1255834482028895
+        },
+        "rho_power4_initial": {
+          "L1": 1.4676609393984137,
+          "L2": 1.4975964689985148,
+          "Linf": 1.2896515383016842
+        },
+        "rho_power4_reference": {
+          "L1": 1.4853064027636615,
+          "L2": 1.523522982577982,
+          "Linf": 1.3117342275812247
+        },
+        "rho_reference5": {
+          "L1": 1.3222416480154164,
+          "L2": 1.3131843109088126,
+          "Linf": 1.1227796876158787
+        },
+        "rho_reference6": {
+          "L1": 1.3222416666748176,
+          "L2": 1.3131842940935141,
+          "Linf": 1.1227796578808895
+        },
+        "rho_reference_order_change": {
+          "L1": 4.4733571359593265,
+          "L2": 4.1485422777706304,
+          "Linf": 3.572676689491747
+        },
+        "wave1_initial": {
+          "L1": 1.8982276248590038,
+          "L2": 1.8935826692113649,
+          "Linf": 1.7801666127881621
+        },
+        "wave1_reference": {
+          "L1": 1.9055842915358518,
+          "L2": 1.9010395142155032,
+          "Linf": 1.790175526187177
+        },
+        "wave2_initial": {
+          "L1": 1.524176064832089,
+          "L2": 1.5341780288044828,
+          "Linf": 1.5471510183592003
+        },
+        "wave2_reference": {
+          "L1": 1.5414066616333628,
+          "L2": 1.5514856098421101,
+          "Linf": 1.5680296426896054
+        }
+      }
+    },
+    {
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv40_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": true,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": true,
+          "writeFinal": true,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/iv40_efficient/solution",
+          "vtkSeriesName": "../data/out/NCFV/iv40_efficient/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/iv40_efficient/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "nodes": 33694,
+      "mpi_ranks": 4,
+      "volume": 399.99999999997374,
+      "h": 0.23604019455677508,
+      "time_steps": 0,
+      "rhs_evaluations": 0,
+      "reference_quadrature_orders": [
+        5,
+        6
+      ],
+      "production_operator_modified": false,
+      "diagnostic_revision": 2,
+      "compact_tie_break": "quantized geometric key, independent of MPI numbering",
+      "volume_weighted_stencil_radius_xy": 0.5031261468167633,
+      "volume_weighted_stencil_radius_3d": 0.5032486041409998,
+      "halfbox_z_volume_fraction": 0.0,
+      "cubic_higher_inner_product": -3.704489355075532e-06,
+      "errors": {
+        "rho_compact15_initial": {
+          "L1": 0.001200620995480134,
+          "L2": 0.0037829170152217264,
+          "Linf": 0.020991845299622898
+        },
+        "rho_compact15_reference": {
+          "L1": 0.0012099091223577495,
+          "L2": 0.0038188865984470407,
+          "Linf": 0.021197726823758662
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 0.0024414251615824134,
+          "L2": 0.007754525264039983,
+          "Linf": 0.04372855458066584
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 0.00017621412331297016,
+          "L2": 0.0005405588468074896,
+          "Linf": 0.0036521875140231815
+        },
+        "rho_initial": {
+          "L1": 0.002309167764107868,
+          "L2": 0.007248008229022622,
+          "Linf": 0.040340733367928996
+        },
+        "rho_initial_halfbox_z": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": 0.002309167764107868,
+          "L2": 0.007248008229022622,
+          "Linf": 0.040340733367928996
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 1.3063426557438128e-05,
+          "L2": 3.8860754106248926e-05,
+          "Linf": 0.0002626102952023349
+        },
+        "rho_power4_initial": {
+          "L1": 0.0012697416474411578,
+          "L2": 0.0040087080308643976,
+          "Linf": 0.022587339548777223
+        },
+        "rho_power4_reference": {
+          "L1": 0.001278445029974225,
+          "L2": 0.0040434026759001715,
+          "Linf": 0.022791506511609924
+        },
+        "rho_reference5": {
+          "L1": 0.002318481695767278,
+          "L2": 0.007281200942697434,
+          "Linf": 0.0405000442709015
+        },
+        "rho_reference6": {
+          "L1": 0.002318481696466067,
+          "L2": 0.007281200946776907,
+          "Linf": 0.04050004431164124
+        },
+        "rho_reference_order_change": {
+          "L1": 2.6265529078490155e-12,
+          "L2": 7.822513627664187e-12,
+          "Linf": 5.049627295151343e-11
+        },
+        "wave1_initial": {
+          "L1": 0.0063785840983085025,
+          "L2": 0.006657416949137073,
+          "Linf": 0.011293317430254565
+        },
+        "wave1_reference": {
+          "L1": 0.006381427261557702,
+          "L2": 0.006660560333870939,
+          "Linf": 0.011340503758696998
+        },
+        "wave2_initial": {
+          "L1": 0.050063957759192534,
+          "L2": 0.052281093559838704,
+          "Linf": 0.08557197301554095
+        },
+        "wave2_reference": {
+          "L1": 0.05017499455240873,
+          "L2": 0.052394384551240854,
+          "Linf": 0.08607260245130502
+        }
+      },
+      "checks": {
+        "compact_stencil_max": 15.0,
+        "condition_number": 2.280732056590914,
+        "independent_full_svd_gradient_difference": 3.2490034590801335e-14,
+        "independent_quadratic_gradient_defect": 3.957474536154539e-12,
+        "independent_quadratic_identity_defect": 8.101540235250454e-13,
+        "length_scale_invariance_difference": 7.217045554095201e-16
+      },
+      "wall_seconds": 8.65190142,
+      "cubic_higher_cosine": -0.8837514848809843,
+      "higher_to_cubic_norm_ratio": 0.06970882528608426,
+      "independent_node_reduction_verified": true,
+      "source_directory": "/mnt/ssd-SATARAID5/home/mrz/projects/DNDSR/data/out/NCFV/gradient_audit_v2/iv40",
+      "mesh": "iv40",
+      "orders": {
+        "rho_compact15_initial": {
+          "L1": 1.8976081024371483,
+          "L2": 1.8967242624312652,
+          "Linf": 1.9791768439008084
+        },
+        "rho_compact15_reference": {
+          "L1": 1.9306427811632048,
+          "L2": 1.9309453684394193,
+          "Linf": 2.011737006116572
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 2.047386373603521,
+          "L2": 2.0383863800926902,
+          "Linf": 2.0780552516401967
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 3.815372342337962,
+          "L2": 3.7875852241975996,
+          "Linf": 3.6936034495607557
+        },
+        "rho_initial": {
+          "L1": 1.815123242389595,
+          "L2": 1.776512673659081,
+          "Linf": 1.7506241096752684
+        },
+        "rho_initial_halfbox_z": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": 1.815123242389595,
+          "L2": 1.776512673659081,
+          "Linf": 1.7506241096752684
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 3.371798836627459,
+          "L2": 3.320121043645905,
+          "Linf": 3.1147949269646342
+        },
+        "rho_power4_initial": {
+          "L1": 1.8708739113401993,
+          "L2": 1.867649908212139,
+          "Linf": 1.8729593960331539
+        },
+        "rho_power4_reference": {
+          "L1": 1.902742106978412,
+          "L2": 1.9004011327246746,
+          "Linf": 1.9088933524448652
+        },
+        "rho_reference5": {
+          "L1": 1.8282961433171585,
+          "L2": 1.7907142264407778,
+          "Linf": 1.7661030565309759
+        },
+        "rho_reference6": {
+          "L1": 1.8282961496921932,
+          "L2": 1.7907142346371043,
+          "Linf": 1.7661030652914373
+        },
+        "rho_reference_order_change": {
+          "L1": 4.839300470937921,
+          "L2": 4.681147621787166,
+          "Linf": 4.537300507592576
+        },
+        "wave1_initial": {
+          "L1": 1.9529379801974975,
+          "L2": 1.9542677434354556,
+          "Linf": 1.910293521101299
+        },
+        "wave1_reference": {
+          "L1": 1.955201926809203,
+          "L2": 1.9563096216132883,
+          "Linf": 1.9067025030098341
+        },
+        "wave2_initial": {
+          "L1": 1.884089302644167,
+          "L2": 1.881791184348995,
+          "Linf": 1.7463579209500586
+        },
+        "wave2_reference": {
+          "L1": 1.892137810090049,
+          "L2": 1.8898474141438308,
+          "Linf": 1.746797402026498
+        }
+      }
+    },
+    {
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv80_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": true,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": true,
+          "writeFinal": true,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/convergence/iv80/solution",
+          "vtkSeriesName": "../data/out/NCFV/convergence/iv80/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/convergence/iv80/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "nodes": 252780,
+      "mpi_ranks": 8,
+      "volume": 400.0000000000583,
+      "h": 0.11856838008968279,
+      "time_steps": 0,
+      "rhs_evaluations": 0,
+      "reference_quadrature_orders": [
+        5,
+        6
+      ],
+      "production_operator_modified": false,
+      "diagnostic_revision": 2,
+      "compact_tie_break": "quantized geometric key, independent of MPI numbering",
+      "volume_weighted_stencil_radius_xy": 0.2506452547011207,
+      "volume_weighted_stencil_radius_3d": 0.25067285451084576,
+      "halfbox_z_volume_fraction": 0.0,
+      "cubic_higher_inner_product": -5.723779839624537e-08,
+      "errors": {
+        "rho_compact15_initial": {
+          "L1": 0.00030939747026288494,
+          "L2": 0.0009827338884905257,
+          "Linf": 0.005664903800405986
+        },
+        "rho_compact15_reference": {
+          "L1": 0.0003099704922187695,
+          "L2": 0.0009852100344918675,
+          "Linf": 0.005717853968166737
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 0.000611118460451992,
+          "L2": 0.0019538439501300643,
+          "Linf": 0.011675725802436917
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 1.1719250589609944e-05,
+          "L2": 3.636998570994953e-05,
+          "Linf": 0.0002261034687849352
+        },
+        "rho_initial": {
+          "L1": 0.000603495410198032,
+          "L2": 0.0019221668405480798,
+          "Linf": 0.01144013542541446
+        },
+        "rho_initial_halfbox_z": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": 0.000603495410198032,
+          "L2": 0.0019221668405480798,
+          "Linf": 0.01144013542541446
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 1.179051113509061e-06,
+          "L2": 4.0286923749029335e-06,
+          "Linf": 5.153066469039455e-05
+        },
+        "rho_power4_initial": {
+          "L1": 0.0003300844750756237,
+          "L2": 0.0010543642272952387,
+          "Linf": 0.006125684890407867
+        },
+        "rho_power4_reference": {
+          "L1": 0.0003306197331692846,
+          "L2": 0.0010567818296959607,
+          "Linf": 0.00614991474046034
+        },
+        "rho_reference5": {
+          "L1": 0.0006040973756495408,
+          "L2": 0.0019246696756018097,
+          "Linf": 0.011452133736847888
+        },
+        "rho_reference6": {
+          "L1": 0.0006040973756605506,
+          "L2": 0.0019246696756918837,
+          "Linf": 0.011452133737839196
+        },
+        "rho_reference_order_change": {
+          "L1": 6.155418644589625e-14,
+          "L2": 1.8057220243397874e-13,
+          "Linf": 1.1866519303008215e-12
+        },
+        "wave1_initial": {
+          "L1": 0.0016285465971728433,
+          "L2": 0.0016975470104416935,
+          "Linf": 0.0024446874102818095
+        },
+        "wave1_reference": {
+          "L1": 0.0016286529913789036,
+          "L2": 0.0016976903727089897,
+          "Linf": 0.0024450622229810204
+        },
+        "wave2_initial": {
+          "L1": 0.01296243201978581,
+          "L2": 0.013519226331772417,
+          "Linf": 0.019485715444972147
+        },
+        "wave2_reference": {
+          "L1": 0.012969241814110051,
+          "L2": 0.013526456135006295,
+          "Linf": 0.01945966889834616
+        }
+      },
+      "checks": {
+        "compact_stencil_max": 15.0,
+        "condition_number": 2.2781332078101078,
+        "independent_full_svd_gradient_difference": 9.044436262853325e-14,
+        "independent_quadratic_gradient_defect": 4.0867219287372665e-11,
+        "independent_quadratic_identity_defect": 4.466472348006091e-12,
+        "length_scale_invariance_difference": 7.273709760127008e-16
+      },
+      "wall_seconds": 37.03785961,
+      "cubic_higher_cosine": -0.8054710128860957,
+      "higher_to_cubic_norm_ratio": 0.01861458061045686,
+      "independent_node_reduction_verified": true,
+      "source_directory": "/mnt/ssd-SATARAID5/home/mrz/projects/DNDSR/data/out/NCFV/gradient_audit_v2/iv80",
+      "mesh": "iv80",
+      "orders": {
+        "rho_compact15_initial": {
+          "L1": 1.9694165303964126,
+          "L2": 1.957717220996266,
+          "Linf": 1.902426720116337
+        },
+        "rho_compact15_reference": {
+          "L1": 1.9779218072134581,
+          "L2": 1.9678071255108631,
+          "Linf": 1.9030894036355228
+        },
+        "rho_cubic_taylor_term": {
+          "L1": 2.011651034476522,
+          "L2": 2.0021108688188756,
+          "Linf": 1.9178879006884204
+        },
+        "rho_higher_taylor_remainder": {
+          "L1": 3.936701150230881,
+          "L2": 3.9198425017659497,
+          "Linf": 4.04072520695245
+        },
+        "rho_initial": {
+          "L1": 1.9489907385716683,
+          "L2": 1.9277413908878667,
+          "Linf": 1.8303724597222462
+        },
+        "rho_initial_halfbox_z": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "rho_initial_no_halfbox_z": {
+          "L1": 1.9489907385716683,
+          "L2": 1.9277413908878667,
+          "Linf": 1.8303724597222462
+        },
+        "rho_initialization_gradient_change": {
+          "L1": 3.4931933790803797,
+          "L2": 3.291942807284833,
+          "Linf": 2.3652361579021197
+        },
+        "rho_power4_initial": {
+          "L1": 1.9567118742963274,
+          "L2": 1.9397345742690477,
+          "Linf": 1.895244354282433
+        },
+        "rho_power4_reference": {
+          "L1": 1.964280077540401,
+          "L2": 1.948924327984103,
+          "Linf": 1.9025800891397762
+        },
+        "rho_reference5": {
+          "L1": 1.9533891757096702,
+          "L2": 1.932487661776474,
+          "Linf": 1.8345744382502214
+        },
+        "rho_reference6": {
+          "L1": 1.9533891761209548,
+          "L2": 1.9324876625222482,
+          "Linf": 1.8345744395855021
+        },
+        "rho_reference_order_change": {
+          "L1": null,
+          "L2": null,
+          "Linf": 5.447635260510212
+        },
+        "wave1_initial": {
+          "L1": 1.9829104793608319,
+          "L2": 1.984782783215486,
+          "Linf": 2.2226095078462107
+        },
+        "wave1_reference": {
+          "L1": 1.9834628411196653,
+          "L2": 1.9853457395528777,
+          "Linf": 2.228442725746649
+        },
+        "wave2_initial": {
+          "L1": 1.9625591038375316,
+          "L2": 1.964412297959593,
+          "Linf": 2.1490919343001447
+        },
+        "wave2_reference": {
+          "L1": 1.9650140090660964,
+          "L2": 1.966779689643879,
+          "Linf": 2.159507052858352
+        }
+      }
+    }
+  ],
+  "mpi_check": {
+    "mesh": "iv10",
+    "ranks": [
+      1,
+      2
+    ],
+    "maximum_node_diagnostic_difference": 1.3766765505351941e-14,
+    "baseline_gradient_L2_difference": 2.0816681711721685e-17,
+    "compact_control_gradient_L2_difference": 6.938893903907228e-18
+  }
+}

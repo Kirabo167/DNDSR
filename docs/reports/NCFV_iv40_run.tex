@@ -1,0 +1,205 @@
+\documentclass[UTF8,fontset=none,11pt,a4paper]{ctexart}
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\usepackage[margin=23mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,hyperref,float}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\input{docs/reports/NCFV_iv40/metrics.tex}
+\graphicspath{{docs/reports/NCFV_iv40/}}
+\title{DNDSR NCFV：三维等熵涡计算记录\\\large 用户 iv40 三棱柱网格，推进至 $t=2$}
+\author{独立 NCFV 模块实现与验证}
+\date{2026年9月7日}
+\begin{document}
+\maketitle
+
+本报告记录一次实际 MPI 计算及其可复核结果。求解器为 DNDSR 内独立的
+NCFV 模块，高效全微分积分模式，四个 MPI 进程，三阶 SSPRK 物理时间推进。
+最终时间为 \RunTime，共 \RunSteps{} 步，对应完整涡输运周期的 20\%。
+密度恢复点值相对解析涡的体积加权 $L_2$ 误差为 \texttt{\RunLtwo}。
+这是单网格运行结果，不能据此宣称完整非线性离散已达到三阶收敛。
+
+\section{输入依据与配置解释}
+输入为用户提供的 \texttt{iv40\_3d\_1.cgns} 和
+\texttt{config\_tableHOCFV\_IVEff.json}。论文依据为《马润之硕士学位论文》
+式 (3-71)、(3-72) 及第 5.2.2 节三维精度验证。该节将二维等熵涡沿 $z$
+方向拉伸，三组对边均使用周期边界，推进至 $t=2$。
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+项目 & 本次实际采用值\\\midrule
+计算域 & $[0,10]\times[0,10]\times[0,4]$\\
+原始网格 & 60,832 个 O1 三棱柱，33,694 个节点\\
+周期识别后的对偶自由度 & 30,416\\
+周期配对 & bc-2/bc-2-1；bc-3/bc-3-1；bc-4/bc-4-1\\
+周期平移长度 & $(10,10,4)$\\
+背景场 $(\rho,u,v,w,p)$ & $(1,1,1,0,1)$\\
+气体与涡参数 & $\gamma=1.4,\ \beta=5,\ (x_0,y_0)=(5,5)$\\
+空间模式 & EfficientDifferential，Roe\_M2，关闭限制器\\
+黏性/湍流 & 关闭；验证无黏 Euler 方程\\
+时间推进 & SSPRK3，全局 CFL=0.5，$\Delta t\le0.01$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+原配置中的网格路径写为 iv20，本次明确使用用户实际上传的 iv40。
+原文件同时含有有量纲初始速度 68、压力 101325、Ma=0.85 及无量纲背景
+$(1,1,1,0,1)$；本次依照论文采用后者，因此背景 Mach 数由
+$\sqrt{u_\infty^2+v_\infty^2}/\sqrt{\gamma p_\infty/\rho_\infty}
+=\sqrt{2/1.4}$ 确定，不再次施加 Ma=0.85。
+原时间参数包含多种求解器的设置，未将其中 $\Delta t=0.1$ 直接用于显式
+SSPRK3；本次以稳定的全局 CFL 步长推进，并严格截短最后一步达到 $t=2$。
+
+原 CGNS 为旧式 ADF 文件，边界使用 ElementRange。兼容副本仅转换为
+PointRange/FaceCenter 和 HDF5 编码，不改变坐标、体/面单元连接、元素范围
+或边界名称。转换脚本生成各坐标和连接数组 SHA-256 清单；已回读新文件
+确认所有这些数组的校验值一致。
+
+\section{解析等熵涡及其初始均值}
+对每个时刻 $t$，令 $X,Y$ 为相对平移涡心的最近周期像坐标：
+\[
+X=\operatorname{wrap}_{10}(x-5-t),\quad
+Y=\operatorname{wrap}_{10}(y-5-t),\quad r^2=X^2+Y^2,
+\]
+其中 wrap 将坐标移入 $[-5,5)$。定义
+\[
+a=\frac{\beta}{2\pi}e^{(1-r^2)/2},\qquad
+u=1-aY,\quad v=1+aX,\quad w=0,
+\]
+\[
+T=1-\frac{\gamma-1}{2\gamma}a^2,\quad
+\rho=T^{1/(\gamma-1)},\quad p=\rho^\gamma,\quad
+\rho E=\frac{p}{\gamma-1}+\frac12\rho(u^2+v^2).
+\]
+本算例中心从 $(5,5)$ 移至 $(7,7)$，沿两方向速度均为 1，故重复周期为
+$10/1=10$。解析剖面与周期延拓采用同一 wrap 约定。Gaussian 涡尾在周期
+接缝处极小但并非严格紧支撑，本测试沿用论文及常见周期涡的延拓约定。
+
+节点自由度存储的是对偶体平均守恒量。高效模式不能直接赋予解析点值，
+而使用解析一阶导数和初始化保存的体积分权重：
+\[
+\overline{\boldsymbol U}_i(0)=\boldsymbol U(\boldsymbol x_i,0)
++\sum_m\boldsymbol G_m(0)^T\boldsymbol\ell_{im}^{V}/V_i.
+\]
+例如 $a_X=-aX$，$a_Y=-aY$，
+$T_d=-(\gamma-1)a a_d/\gamma$，
+$\rho_d=\rho T_d/[(\gamma-1)T]$，
+$p_d=\gamma p\rho_d/\rho$。速度导数由上述乘积直接求导；动量及能量导数
+分别为 $\rho_d\boldsymbol u+\rho\boldsymbol u_d$ 和
+$p_d/(\gamma-1)+\frac12\rho_d|\boldsymbol u|^2+
+\rho\boldsymbol u\cdot\boldsymbol u_d$。
+这些导数已通过中心差分独立核验。传统模式则对解析守恒量作微四面体
+体数值积分。高效积分对二次多项式精确，对该非多项式解析场是高阶近似。
+
+\section{对偶几何与周期控制体合并}
+构造点严格采用原始顶点坐标算术平均：
+\[
+\boldsymbol x_e=(\boldsymbol x_i+\boldsymbol x_j)/2,\qquad
+\boldsymbol x_f=N_f^{-1}\sum_{a\in f}\boldsymbol x_a,\qquad
+\boldsymbol x_c=N_c^{-1}\sum_{a\in c}\boldsymbol x_a.
+\]
+对每条 $(c,f,e,i)$ 拓扑链生成
+$\operatorname{conv}(\boldsymbol x_i,\boldsymbol x_e,\boldsymbol x_f,\boldsymbol x_c)$
+微四面体，对应内界面为
+$\operatorname{conv}(\boldsymbol x_e,\boldsymbol x_f,\boldsymbol x_c)$。
+边界节点的对偶体被计算域截断；其各个周期像的份额合起来才是完整控制体。
+面/体平均点不替换为面积或体积质心。
+
+记周期等价类为 $[i]$，其中各原始节点份额为 $V_k$，则
+\[
+V_{[i]}=\sum_{k\in[i]}V_k,\qquad
+\overline{\boldsymbol U}_{[i]}=
+\frac{\sum_{k\in[i]}V_k\overline{\boldsymbol U}_k}{V_{[i]}},\qquad
+\frac{d\overline{\boldsymbol U}_{[i]}}{dt}=
+\frac{\sum_{k\in[i]}V_k\boldsymbol R_k}{V_{[i]}}.
+\]
+每个份额在本身的欧氏坐标系内计算几何量，周期切面不施加远场通量。
+积分残差相加后，得到完整周期控制体的残差。边 owner 只计算一次其拥有
+的原始边通量，两端使用相反符号，故所有份额上的总积分残差抵消。
+
+重构需要完整控制体矩。先将每个份额的原始矩变成相对原节点的中心矩，
+再按等价类相加。将邻居控制体中心矩平移到当前节点坐标系时，使用
+最近周期像位移 $\boldsymbol d$：
+\[
+\boldsymbol M_1'=\boldsymbol M_1+V\boldsymbol d,\quad
+\boldsymbol M_2'=\boldsymbol M_2+
+\boldsymbol d\boldsymbol M_1^T+\boldsymbol M_1\boldsymbol d^T+
+V\boldsymbol d\boldsymbol d^T.
+\]
+在周期边图上扩展模板并构建完整二次最小二乘问题。高效模式仅存一阶
+导数对应的伪逆行；由均值恢复点值时也按完整周期控制体体积加权合并。
+这避免把接缝节点的一半体积误作完整体积或使用跨越整个计算域的距离。
+
+初始化闭合误差最大值为约 $1.53\times10^{-16}$，重构至多使用两环邻域，
+最大条件数约 2.281。高效模式没有创建或保存体、内部面、边界面的 Gauss
+点；本次还关闭了诊断微几何缓存。
+
+\section{MPI 与时间推进}
+原始网格读入、分区、halo 和节点/边数组复用 DNDSR 基础设施。周期目录
+第一版采用全局复制及 Allgatherv，边通量计算仍按原始边 owner 分布执行。
+该实现适合本次约三万个周期自由度的验证；复制目录的每 rank 内存为
+$O(N)$，还不能声称具有大规模弱扩展能力。后续可将状态通信替换为稀疏
+周期邻居 pull，并将等价类份额 reduction 分配给唯一 owner。
+
+非定常计算每步使用全域最小 CFL 步长，所有 SSPRK3 子步保持同一
+$\Delta t$。局部 CFL 是稳态伪时间选项，本次关闭，以避免改变物理传播速度。
+最后一步取 $\min(\Delta t,2-t_n)$。
+重启写入分区无关的 \texttt{node2nodeOrig} 编号和状态，H5 回读按这些编号
+重分配；当前分区的连续全局编号不能作为跨进程数重启的物理身份。
+
+\section{实际结果与误差口径}
+下表的密度误差比较的是从对偶均值恢复的\textbf{节点点值}与解析点值，
+不是将对偶均值与解析点值混为一谈。权重为原始份额体积，同一周期类
+各份额的权重合计为完整控制体积。
+\[
+L_1=\frac{\sum_kV_k|\rho_k^{pt}-\rho_k^{ex}|}{\sum_kV_k},\quad
+L_2=\sqrt{\frac{\sum_kV_k(\rho_k^{pt}-\rho_k^{ex})^2}{\sum_kV_k}},\quad
+L_\infty=\max_k|\rho_k^{pt}-\rho_k^{ex}|.
+\]
+\begin{center}
+\begin{tabular}{ll}\toprule
+指标 & 数值\\\midrule
+最终时间 / 步数 & \RunTime{} / \RunSteps\\
+初始恢复密度 $L_2$ & \texttt{\RunInitialLtwo}\\
+最终密度 $L_1$ & \texttt{\RunLone}\\
+最终密度 $L_2$ & \texttt{\RunLtwo}\\
+最终密度 $L_\infty$ & \texttt{\RunLinf}\\
+恢复密度最小 / 最大值 & \texttt{\RunDensityMin} / \texttt{\RunDensityMax}\\
+质量相对漂移 & \texttt{\RunMassDrift}\\
+总能量相对漂移 & \texttt{\RunEnergyDrift}\\
+周期对应节点守恒量最大差值 & \texttt{\RunPeriodicMismatch}\\
+体积加权 $|p/\rho^\gamma-1|$ & \texttt{\RunEntropy}\\\bottomrule
+\end{tabular}
+\end{center}
+所有密度误差都由独立 Python 后处理脚本从逐 rank CSV 重新归约，并与
+求解器诊断文件比较。总守恒量取 $\sum V_k\overline{\boldsymbol U}_k$。
+守恒误差很小不等同于空间离散误差很小，两者分别列出。
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth]{density_comparison.pdf}
+\caption{$z=2$ 截面上的数值恢复密度、解析平移涡及误差。}
+\end{figure}
+\begin{figure}[H]\centering
+\includegraphics[width=0.86\textwidth]{density_profile.pdf}
+\caption{通过最终涡心的密度剖面；数值线由节点点值作线性插值得到。}
+\end{figure}
+
+\section{复现与适用范围}
+从仓库根目录构建 \texttt{NCFV} 后进入 build，执行：
+\begin{verbatim}
+mpirun --oversubscribe -np 4 ./app/NCFV.exe \
+  ../cases/NCFV/NCFV_iv40.json
+\end{verbatim}
+配置、兼容网格及转换脚本位于 \texttt{cases/NCFV/}；结果位于
+\texttt{data/out/NCFV/iv40\_efficient/}。ParaView 可打开 series 或最终
+PVTU 文件；H5 是保存于最终步的重启状态。
+\texttt{analyze\_iv40.py} 重建图、误差与守恒统计。
+改为 \texttt{TraditionalQuadrature} 即使用同模块内普通数值积分路径，
+比较两模式时应使用各自独立输出前缀以保留结果。
+
+本次实际推进验证无黏周期等熵涡。已有自动测试还覆盖二维/三维几何积分、
+黏性自由流、局部 CFL、无滑移壁、非均匀 CSV 初场、VTK/H5 回读，以及
+1/2/4/8 rank 周期自由流与输运守恒。单网格涡结果不构成三阶网格收敛检验，
+黏性高阶精度也需另行制造解/边界层网格加密。旋转周期、O2 曲边、周期
+限制器、湍流模型及隐式推进不在本实现范围。
+\end{document}

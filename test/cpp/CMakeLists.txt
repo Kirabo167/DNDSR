@@ -536,3 +536,67 @@ set(SOLVER_TEST_TARGETS
 foreach(T ${SOLVER_TEST_TARGETS})
     add_dependencies(solver_unit_tests ${T})
 endforeach()
+
+# ===================================================================
+# Standalone NCFV tests
+# ===================================================================
+
+function(ncfv_add_unit_test TEST_NAME SRC_FILE LIBS)
+    set(TARGET_NAME "ncfv_test_${TEST_NAME}")
+    add_executable(${TARGET_NAME} ${SRC_FILE})
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${DNDS_EXTERNAL_INCLUDE_DOCTEST}
+        ${DNDS_EXTERNAL_INCLUDES}
+        ${DNDS_INCLUDES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBS} ${DNDS_EXTERNAL_LIBS})
+    if(DNDS_USE_CCACHE)
+        set_property(TARGET ${TARGET_NAME} PROPERTY CXX_COMPILER_LAUNCHER ${DNDS_CCACHE_EXEC})
+    endif()
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        EXCLUDE_FROM_ALL ON)
+    add_test(NAME ncfv_${TEST_NAME} COMMAND ${TARGET_NAME})
+    set_tests_properties(ncfv_${TEST_NAME} PROPERTIES
+        TIMEOUT 120
+        ENVIRONMENT "OMP_NUM_THREADS=${DNDS_TEST_OMP_THREADS}")
+endfunction()
+
+function(ncfv_add_mpi_test TEST_NAME SRC_FILE LIBS)
+    set(TARGET_NAME "ncfv_test_${TEST_NAME}")
+    add_executable(${TARGET_NAME} ${SRC_FILE})
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${DNDS_EXTERNAL_INCLUDE_DOCTEST}
+        ${DNDS_EXTERNAL_INCLUDES}
+        ${DNDS_INCLUDES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBS} ${DNDS_EXTERNAL_LIBS})
+    if(DNDS_USE_CCACHE)
+        set_property(TARGET ${TARGET_NAME} PROPERTY CXX_COMPILER_LAUNCHER ${DNDS_CCACHE_EXEC})
+    endif()
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        EXCLUDE_FROM_ALL ON)
+    set(_NCFV_NP_LIST ${ARGN})
+    if(NOT _NCFV_NP_LIST)
+        set(_NCFV_NP_LIST ${DNDS_TEST_NP_LIST})
+    endif()
+    foreach(NP ${_NCFV_NP_LIST})
+        _dnds_np_timeout(${NP} _TIMEOUT)
+        add_test(NAME ncfv_${TEST_NAME}_np${NP}
+            COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${NP}
+                    ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${TARGET_NAME}> ${MPIEXEC_POSTFLAGS})
+        set_tests_properties(ncfv_${TEST_NAME}_np${NP} PROPERTIES
+            TIMEOUT ${_TIMEOUT}
+            PROCESSORS ${NP}
+            ENVIRONMENT "OMP_NUM_THREADS=${DNDS_TEST_OMP_THREADS}")
+    endforeach()
+endfunction()
+
+add_custom_target(ncfv_unit_tests)
+add_dependencies(all_unit_tests ncfv_unit_tests)
+ncfv_add_unit_test(geometry "NCFV/test_NCFVGeometry.cpp" "ncfv;cfv;geom;dnds")
+ncfv_add_mpi_test(parallel "NCFV/test_NCFVParallel.cpp" "ncfv;cfv;geom;dnds")
+ncfv_add_mpi_test(io "NCFV/test_NCFVIO.cpp" "ncfv;cfv;geom;dnds" 1 2)
+add_dependencies(ncfv_unit_tests
+    ncfv_test_geometry
+    ncfv_test_parallel
+    ncfv_test_io)

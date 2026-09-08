@@ -8,11 +8,79 @@
  */
 #include "ACMVariable/ACMSolver.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 
 using namespace DNDS;
 using namespace DNDS::ACMVariable;
+
+/**
+ * @brief Verify that two variable-density LU-SGS sweeps equal one sweep plus a residual correction.
+ * @tparam model Variable-density ACM dimensional specialization.
+ * @param solver Initialized solver supplying the distributed implicit operator.
+ */
+template <ACMModel model>
+static void VerifyLUSGSResidualCorrection(ACMSolver<model> &solver)
+{
+    using TSolver = ACMSolver<model>;
+    using TDof = typename TSolver::TDof;
+    const auto &vfv = solver.GetReconstruction();
+    const auto &evaluator = solver.GetEvaluator();
+    auto &state = solver.GetState();
+    DNDS_check_throw_info(vfv != nullptr && evaluator != nullptr,
+                          "Variable ACM LU-SGS verification requires an initialized solver");
+
+    TDof rhs;
+    TDof oneSweep;
+    TDof twoSweeps;
+    TDof firstResidual;
+    TDof operatorProduct;
+    TDof correction;
+    TDof expected;
+    TDof difference;
+    for (TDof *field : {&rhs, &oneSweep, &twoSweeps, &firstResidual,
+                        &operatorProduct, &correction, &expected, &difference})
+        vfv->BuildUDof(*field, 5);
+
+    for (DNDS::index iCell = 0; iCell < solver.GetMesh()->NumCell(); iCell++)
+    {
+        const auto barycenter = vfv->GetCellBary(iCell);
+        rhs[iCell] << 0.8 + 0.1 * barycenter(0),
+            -0.3 + 0.1 * barycenter(1),
+            0.2 + 0.05 * barycenter(0),
+            -0.1,
+            0.4 - 0.1 * barycenter(1);
+    }
+
+    const ScalarField pseudoTimeStep(
+        static_cast<std::size_t>(solver.GetMesh()->NumCell()), 0.01);
+    MatrixField diagonal;
+    typename TSolver::TEvaluator::FaceJacobianField faceJacobians;
+    evaluator->AssembleImplicitLinearization(
+        state, pseudoTimeStep, diagonal, faceJacobians, 0);
+
+    evaluator->SolveLUSGS(rhs, diagonal, faceJacobians, oneSweep, 1);
+    evaluator->ApplyImplicitLinearization(
+        oneSweep, diagonal, faceJacobians, operatorProduct);
+    firstResidual = rhs;
+    firstResidual.addTo(operatorProduct, -1);
+    evaluator->SolveLUSGS(
+        firstResidual, diagonal, faceJacobians, correction, 1);
+    expected = oneSweep;
+    expected.addTo(correction, 1);
+
+    evaluator->SolveLUSGS(rhs, diagonal, faceJacobians, twoSweeps, 2);
+    difference = twoSweeps;
+    difference.addTo(expected, -1);
+    const real expectedNorm = expected.norm2();
+    DNDS_check_throw_info(
+        difference.norm2() < 1e-11 * std::max(real(1), expectedNorm),
+        "Variable ACM LU-SGS second sweep is not a b-A*x residual correction");
+    DNDS_check_throw_info(
+        correction.norm2() > 1e-12 * std::max(real(1), oneSweep.norm2()),
+        "Variable ACM LU-SGS residual-correction test is degenerate");
+}
 
 /**
  * @brief Execute one dimensional specialization of the MPI spatial pipeline.
@@ -52,6 +120,7 @@ static real RunStationaryContact(const MPIInfo &mpi, const std::string &meshFile
         localMaximum = std::max(localMaximum, rhs[cell].cwiseAbs().maxCoeff());
     real globalMaximum = 0;
     MPI_Allreduce(&localMaximum, &globalMaximum, 1, DNDS_MPI_REAL, MPI_MAX, mpi.comm);
+    VerifyLUSGSResidualCorrection(solver);
     return globalMaximum;
 }
 

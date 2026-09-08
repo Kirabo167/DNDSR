@@ -41,11 +41,15 @@ namespace DNDS::ACM
         _vfv->BuildUGrad(_uGrad, nVarsFixed);
         _vfv->BuildUDof(_limiter, 1);
         _vfv->BuildScalar(_smoothIndicator);
+        _vfv->BuildUDof(_lusgsOperatorProduct, nVarsFixed);
+        _vfv->BuildUDof(_lusgsCorrection, nVarsFixed);
         _uRec.setConstant(0.0);
         _uRecWork.setConstant(0.0);
         _uRecLimited.setConstant(0.0);
         _uGrad.setConstant(0.0);
         _limiter.setConstant(1.0);
+        _lusgsOperatorProduct.setConstant(0.0);
+        _lusgsCorrection.setConstant(0.0);
     }
 
     template <int gDim>
@@ -981,36 +985,59 @@ namespace DNDS::ACM
         const MatrixField &diagonal,
         const FaceJacobianField &faceJacobians,
         TDof &result,
-        int nSweeps) const
+        int nSweeps)
     {
         DNDS_check_throw_info(nSweeps > 0, "ACM LU-SGS requires at least one sweep");
+        DNDS_check_throw_info(
+            rhs.father.get() != result.father.get(),
+            "ACM LU-SGS right-hand side and result must not alias");
         result.setConstant(0.0);
+        _lusgsCorrection.setConstant(0.0);
         const index nOwned = _mesh->NumCell();
 
         for (int sweep = 0; sweep < nSweeps; sweep++)
         {
-            result.trans.startPersistentPull();
-            result.trans.waitPersistentPull();
+            if (sweep == 0)
+            {
+#if defined(DNDS_DIST_MT_USE_OMP)
+#    pragma omp parallel for schedule(runtime)
+#endif
+                for (index iCell = 0; iCell < nOwned; iCell++)
+                    _lusgsCorrection[iCell] = rhs[iCell];
+            }
+            else
+            {
+                ApplyImplicitLinearization(
+                    result,
+                    diagonal,
+                    faceJacobians,
+                    _lusgsOperatorProduct);
+#if defined(DNDS_DIST_MT_USE_OMP)
+#    pragma omp parallel for schedule(runtime)
+#endif
+                for (index iCell = 0; iCell < nOwned; iCell++)
+                    _lusgsCorrection[iCell] =
+                        rhs[iCell] - _lusgsOperatorProduct[iCell];
+            }
+
             for (index iCell = 0; iCell < nOwned; iCell++)
             {
-                State value = rhs[iCell];
+                State value = _lusgsCorrection[iCell];
                 const real inverseVolume = 1.0 / _vfv->GetCellVol(iCell);
                 for (const index iFace : _mesh->cell2face[iCell])
                 {
                     const auto faceToCell = _mesh->face2cell[iFace];
                     const index otherCell = _mesh->CellFaceOther(iCell, iFace);
-                    if (otherCell == UnInitIndex)
-                        continue;
-                    const bool offRank = otherCell >= nOwned;
-                    if (!offRank && otherCell >= iCell)
+                    if (otherCell == UnInitIndex || otherCell >= nOwned || otherCell >= iCell)
                         continue;
                     const auto &faceBlock = faceJacobians[static_cast<std::size_t>(iFace)];
                     const Matrix4 coupling = faceToCell[0] == iCell
                                                  ? inverseVolume * faceBlock.right
                                                  : -inverseVolume * faceBlock.left;
-                    value -= coupling * result[otherCell];
+                    value -= coupling * _lusgsCorrection[otherCell];
                 }
-                result[iCell] = diagonal[static_cast<std::size_t>(iCell)].partialPivLu().solve(value);
+                _lusgsCorrection[iCell] =
+                    diagonal[static_cast<std::size_t>(iCell)].partialPivLu().solve(value);
             }
 
             for (index iScan = nOwned; iScan > 0; iScan--)
@@ -1028,12 +1055,18 @@ namespace DNDS::ACM
                     const Matrix4 coupling = faceToCell[0] == iCell
                                                  ? inverseVolume * faceBlock.right
                                                  : -inverseVolume * faceBlock.left;
-                    correction -= coupling * result[otherCell];
+                    correction -= coupling * _lusgsCorrection[otherCell];
                 }
-                result[iCell] += diagonal[static_cast<std::size_t>(iCell)]
-                                     .partialPivLu()
-                                     .solve(correction);
+                _lusgsCorrection[iCell] += diagonal[static_cast<std::size_t>(iCell)]
+                                               .partialPivLu()
+                                               .solve(correction);
             }
+
+#if defined(DNDS_DIST_MT_USE_OMP)
+#    pragma omp parallel for schedule(runtime)
+#endif
+            for (index iCell = 0; iCell < nOwned; iCell++)
+                result[iCell] += _lusgsCorrection[iCell];
         }
         result.trans.startPersistentPull();
         result.trans.waitPersistentPull();

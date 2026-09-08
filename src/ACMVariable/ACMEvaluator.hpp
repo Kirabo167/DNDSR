@@ -192,15 +192,17 @@ namespace DNDS::ACMVariable
          * @param diagonal Cell diagonal blocks.
          * @param faceJacobians Integrated off-diagonal face blocks.
          * @param result Output correction; reset to zero on entry.
-         * @param nSweeps Number of forward/backward sweep pairs.
-         * @details Off-rank neighbours are lagged between sweeps through the existing MPI ghost pull.
+         * @param nSweeps Number of fixed SGS residual-correction applications.
+         * @details The first sweep starts from zero. Every later sweep applies a residual
+         * correction `x += P_SGS^{-1}(rhs-A*x)`. The operator residual synchronizes off-rank
+         * values, while each triangular correction solve is local to one MPI partition.
          */
         void SolveLUSGS(
             const TDof &rhs,
             const MatrixField &diagonal,
             const FaceJacobianField &faceJacobians,
             TDof &result,
-            int nSweeps) const;
+            int nSweeps);
 
         /**
          * @brief Return the distributed mesh used by this evaluator.
@@ -239,6 +241,8 @@ namespace DNDS::ACMVariable
         TGrad _uGrad;                                   ///< Direct Green-Gauss gradients.
         TScalar _limiter;                               ///< One limiter factor per cell.
         TScalarPair _smoothIndicator;                   ///< CFV troubled-cell indicator.
+        TDof _lusgsOperatorProduct;                     ///< Work array for `A*x` between LU-SGS sweeps.
+        TDof _lusgsCorrection;                          ///< Work array for one LU-SGS residual correction.
         TurbulencePrepareFunction _prepareTurbulence;   ///< Optional segregated preparation hook.
         TurbulentViscosityFunction _turbulentViscosity; ///< Optional frozen face `mu_t` accessor.
 

@@ -13,6 +13,8 @@
 #include "ACM/ACMConfig.hpp"
 #include "ACM/ACMTime.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -180,6 +182,118 @@ TEST_CASE("ACM implicit backward Euler converges with a nonlinear Gamma mass mat
     CHECK((states[0] - expected).norm() < 1e-11);
     CHECK(report.converged);
     CHECK(report.finalDefectNorm <= timeSettings.implicitTolerance);
+}
+
+/// @test Compare the exact pseudo-time product Jacobian with a centered finite difference.
+TEST_CASE("ACM pseudo-time product Jacobian includes the nonlinear Gamma derivative")
+{
+    Settings settings;
+    settings.alpha = 0.37;
+    settings.beta2 = 2.4;
+    State previous;
+    previous << 0.6, -0.2, 0.4, 0.3;
+    State state;
+    state << 0.9, 0.1, -0.5, 1.1;
+    constexpr real pseudoTimeStep = 0.17;
+
+    const auto pseudoTimeProduct = [&](const State &value) -> State
+    {
+        return GammaLocal(value, settings.beta2, settings.alpha) *
+               (value - previous) / pseudoTimeStep;
+    };
+    Matrix4 finiteDifference;
+    for (int variable = 0; variable < 4; variable++)
+    {
+        const real epsilon = 1e-7 * std::max(real(1), std::abs(state(variable)));
+        State plus = state;
+        State minus = state;
+        plus(variable) += epsilon;
+        minus(variable) -= epsilon;
+        finiteDifference.col(variable) =
+            (pseudoTimeProduct(plus) - pseudoTimeProduct(minus)) / (2 * epsilon);
+    }
+
+    const Matrix4 analytic =
+        PseudoTimeProductJacobian(state, previous, pseudoTimeStep, settings);
+    CHECK((analytic - finiteDifference).norm() <
+          2e-8 * std::max(real(1), analytic.norm()));
+
+    Matrix4 expectedExtra = Matrix4::Zero();
+    const real extraDiagonal =
+        (settings.alpha + 1) * (state(3) - previous(3)) /
+        (settings.beta2 * pseudoTimeStep);
+    expectedExtra.diagonal().head<3>().setConstant(extraDiagonal);
+    const Matrix4 extra = analytic -
+                          GammaLocal(state, settings.beta2, settings.alpha) /
+                              pseudoTimeStep;
+    CHECK((extra - expectedExtra).norm() < 1e-13);
+
+    State equalPressure = state;
+    equalPressure(3) = previous(3);
+    CHECK((PseudoTimeProductJacobian(
+               equalPressure, previous, pseudoTimeStep, settings) -
+           GammaLocal(equalPressure, settings.beta2, settings.alpha) /
+               pseudoTimeStep)
+              .norm() < 1e-13);
+    CHECK_THROWS(PseudoTimeProductJacobian(state, previous, 0, settings));
+}
+
+/// @test Ensure every nonlinear backward-Euler iteration uses the product-rule Jacobian.
+TEST_CASE("ACM implicit backward Euler wires the exact Gamma product Jacobian")
+{
+    Settings settings;
+    settings.alpha = 0.37;
+    settings.beta2 = 2.4;
+    TimeMarchSettings timeSettings;
+    timeSettings.integrator = TimeIntegratorType::ImplicitEulerBlockJacobi;
+    timeSettings.maxImplicitIterations = 2;
+    timeSettings.implicitTolerance = 0;
+    timeSettings.implicitRelaxation = 1;
+    constexpr real pseudoTimeStep = 0.15;
+    const ScalarField pseudoTimeSteps(1, pseudoTimeStep);
+
+    StateField states(1);
+    states[0] << 0.6, -0.2, 0.4, 0.3;
+    const State initial = states[0];
+    State constantResidual;
+    constantResidual << 0.25, -0.15, 0.1, 0.8;
+    const ResidualEvaluator residualEvaluator =
+        [constantResidual](const StateField &input, StateField &residual)
+    {
+        residual.assign(input.size(), constantResidual);
+    };
+    const DiagonalJacobianEvaluator zeroJacobian =
+        [](const StateField &input, MatrixField &jacobian)
+    {
+        jacobian.assign(input.size(), Matrix4::Zero());
+    };
+
+    State reference = initial;
+    for (int iteration = 0; iteration < 2; iteration++)
+    {
+        const State defect = constantResidual -
+                             GammaLocal(reference, settings.beta2, settings.alpha) *
+                                 (reference - initial) / pseudoTimeStep;
+        Matrix4 exactJacobian =
+            GammaLocal(reference, settings.beta2, settings.alpha) /
+            pseudoTimeStep;
+        const real extraDiagonal =
+            (settings.alpha + 1) * (reference(3) - initial(3)) /
+            (settings.beta2 * pseudoTimeStep);
+        exactJacobian.diagonal().head<3>().array() += extraDiagonal;
+        reference += exactJacobian.partialPivLu().solve(defect);
+    }
+
+    const TimeStepReport report = AdvanceImplicitEulerBlockJacobi(
+        states,
+        pseudoTimeSteps,
+        settings,
+        timeSettings,
+        residualEvaluator,
+        zeroJacobian);
+
+    CHECK(report.iterations == 2);
+    CHECK((states[0] - reference).norm() < 1e-12);
 }
 
 /// @test Ensure invalid local time steps are rejected before a state can be modified.

@@ -111,6 +111,8 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/src/ACM)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/ACMVariable)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/Euler)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/EulerP)
+# NCFV: independent third-order Node Center Finite Volume Method module.
+add_subdirectory(${CMAKE_SOURCE_DIR}/src/NCFV)
 
 # ===================================================================
 #       TESTS, APPS, DOCS, TOOLING

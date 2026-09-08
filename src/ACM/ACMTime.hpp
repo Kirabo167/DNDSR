@@ -125,7 +125,7 @@ namespace DNDS::ACM
         int maxImplicitIterations = 20;                                     ///< Inner defect-correction iterations per implicit/physical step.
         real implicitTolerance = 1e-10;                                     ///< Global RMS steady or physical defect tolerance.
         real implicitRelaxation = 1.0;                                      ///< Damping applied to every implicit correction.
-        int lusgsSweeps = 2;                                                ///< Forward/backward sweep pairs per solve.
+        int lusgsSweeps = 2;                                                ///< Fixed SGS residual-correction applications per solve.
         int gmresSubspace = 10;                                             ///< Arnoldi vectors per GMRES restart.
         int gmresRestarts = 3;                                              ///< Maximum generic-GMRES restart count.
         real gmresRelativeTolerance = 1e-6;                                 ///< Relative preconditioned linear residual target.
@@ -152,7 +152,7 @@ namespace DNDS::ACM
             DNDS_FIELD(implicitTolerance, "Implicit global RMS steady or physical defect tolerance",
                        DNDS::Config::range(0.0));
             DNDS_FIELD(implicitRelaxation, "Implicit correction relaxation", DNDS::Config::range(0.0, 1.0));
-            DNDS_FIELD(lusgsSweeps, "ACM LU-SGS forward/backward sweep pairs", DNDS::Config::range(1));
+            DNDS_FIELD(lusgsSweeps, "ACM fixed LU-SGS residual-correction applications", DNDS::Config::range(1));
             DNDS_FIELD(gmresSubspace, "ACM GMRES Krylov subspace size", DNDS::Config::range(2));
             DNDS_FIELD(gmresRestarts, "ACM GMRES restart count", DNDS::Config::range(0));
             DNDS_FIELD(gmresRelativeTolerance, "ACM GMRES relative residual tolerance", DNDS::Config::range(0.0));

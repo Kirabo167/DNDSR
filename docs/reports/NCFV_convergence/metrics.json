@@ -1,0 +1,252 @@
+{
+  "algorithm": "EfficientDifferential",
+  "time": 2.0,
+  "period": 10.0,
+  "error_definition": "partial-dual-volume weighted recovered nodal density minus analytic nodal density",
+  "order_spacing": "h=(400/N_periodic)^(1/3)",
+  "runs": [
+    {
+      "mesh": "iv10",
+      "nominal_resolution": 10,
+      "nodes": 745,
+      "cells": 1024,
+      "periodic_unknowns": 512,
+      "periodic_xy_nodes": 128,
+      "z_layers": 4,
+      "h_3d": 0.9210078746600967,
+      "h_xy": 0.8838834764831844,
+      "h_nominal": 1.0,
+      "steps": 200,
+      "time": 2.0,
+      "average_dt": 0.01,
+      "cfl": 0.5,
+      "dt_cap": 0.01,
+      "mpi_ranks": 2,
+      "volume": 400.0,
+      "density_initial": {
+        "L1": 0.0012711828173328898,
+        "L2": 0.0036381145397964827,
+        "Linf": 0.01709103741200385
+      },
+      "density_final": {
+        "L1": 0.020806830638340622,
+        "L2": 0.05156235469702039,
+        "Linf": 0.34965108064503314
+      },
+      "conservation_scaled_drift": {
+        "mass": -1.2875081451169365e-14,
+        "momentum_x": -1.2296686620981246e-14,
+        "momentum_y": -1.258579219094953e-14,
+        "momentum_z": -6.945034892774822e-17,
+        "total_energy": -1.269756029794716e-14
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.011028450927185815,
+      "min_density_mean": 0.8980209916754758,
+      "min_pressure_of_mean": 0.9295420532845141,
+      "source_directory": "data/out/NCFV/convergence/iv10",
+      "mesh_arrays_sha256_verified": true,
+      "stored_gauss_points": 0,
+      "closure_max": 1.21512e-16,
+      "wall_seconds": 9.66,
+      "order_3d": {},
+      "order_nominal": {}
+    },
+    {
+      "mesh": "iv20",
+      "nominal_resolution": 20,
+      "nodes": 4752,
+      "cells": 7792,
+      "periodic_unknowns": 3896,
+      "periodic_xy_nodes": 487,
+      "z_layers": 8,
+      "h_3d": 0.46825276195257787,
+      "h_xy": 0.45314325442944375,
+      "h_nominal": 0.5,
+      "steps": 200,
+      "time": 2.0,
+      "average_dt": 0.01,
+      "cfl": 0.5,
+      "dt_cap": 0.01,
+      "mpi_ranks": 4,
+      "volume": 400.0,
+      "density_initial": {
+        "L1": 0.00014106990174615847,
+        "L2": 0.00045845325612271163,
+        "Linf": 0.003693730127707018
+      },
+      "density_final": {
+        "L1": 0.010260144009404783,
+        "L2": 0.02670030964264244,
+        "Linf": 0.21483543881617984
+      },
+      "conservation_scaled_drift": {
+        "mass": -1.4175876771021108e-14,
+        "momentum_x": -1.4609832046419064e-14,
+        "momentum_y": -1.200609977863013e-14,
+        "momentum_z": 7.238489726546336e-16,
+        "total_energy": -1.3190272854756583e-14
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.0067031295710097685,
+      "min_density_mean": 0.7198443223945388,
+      "min_pressure_of_mean": 0.7163789495418696,
+      "source_directory": "data/out/NCFV/convergence/iv20",
+      "mesh_arrays_sha256_verified": true,
+      "stored_gauss_points": 0,
+      "closure_max": 1.12173e-16,
+      "wall_seconds": 23.55,
+      "order_3d": {
+        "L1": 1.0451676240936991,
+        "L2": 0.9728828703483904,
+        "Linf": 0.7200176818281331
+      },
+      "order_nominal": {
+        "L1": 1.0200062455011647,
+        "L2": 0.9494616758311434,
+        "Linf": 0.7026839670553412
+      }
+    },
+    {
+      "mesh": "iv40",
+      "nominal_resolution": 40,
+      "nodes": 33694,
+      "cells": 60832,
+      "periodic_unknowns": 30416,
+      "periodic_xy_nodes": 1901,
+      "z_layers": 16,
+      "h_3d": 0.23604019455678024,
+      "h_xy": 0.22935538512984366,
+      "h_nominal": 0.25,
+      "steps": 266,
+      "time": 2.0,
+      "average_dt": 0.007518796992481203,
+      "cfl": 0.5,
+      "dt_cap": 0.01,
+      "mpi_ranks": 4,
+      "volume": 400.0,
+      "density_initial": {
+        "L1": 1.3601994585312228e-05,
+        "L2": 4.477074134662309e-05,
+        "Linf": 0.0003529334588775468
+      },
+      "density_final": {
+        "L1": 0.002363309745968007,
+        "L2": 0.0057775596613241454,
+        "Linf": 0.036871876468498876
+      },
+      "conservation_scaled_drift": {
+        "mass": -5.496772213511562e-15,
+        "momentum_x": -1.5333101302287327e-14,
+        "momentum_y": -1.764753182853352e-14,
+        "momentum_z": -6.920402457626951e-17,
+        "total_energy": -2.1763969649498313e-14
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.00202035074974182,
+      "min_density_mean": 0.5157178790726225,
+      "min_pressure_of_mean": 0.43386835614772096,
+      "source_directory": "data/out/NCFV/iv40_efficient",
+      "mesh_arrays_sha256_verified": true,
+      "stored_gauss_points": 0,
+      "closure_max": 1.53076e-16,
+      "wall_seconds": null,
+      "order_3d": {
+        "L1": 2.143344027084593,
+        "L2": 2.2345694416057778,
+        "Linf": 2.5728575896449715
+      },
+      "order_nominal": {
+        "L1": 2.118170347581603,
+        "L2": 2.2083243151868173,
+        "Linf": 2.5426392525277812
+      }
+    },
+    {
+      "mesh": "iv80",
+      "nominal_resolution": 80,
+      "nodes": 252780,
+      "cells": 479936,
+      "periodic_unknowns": 239968,
+      "periodic_xy_nodes": 7499,
+      "z_layers": 32,
+      "h_3d": 0.11856838008967703,
+      "h_xy": 0.11547775261140025,
+      "h_nominal": 0.125,
+      "steps": 548,
+      "time": 2.0,
+      "average_dt": 0.0036496350364963502,
+      "cfl": 0.5,
+      "dt_cap": 0.01,
+      "mpi_ranks": 16,
+      "volume": 400.0,
+      "density_initial": {
+        "L1": 9.947566759837045e-07,
+        "L2": 3.8419139281285586e-06,
+        "Linf": 0.0001012343046703501
+      },
+      "density_final": {
+        "L1": 0.00042673203684226045,
+        "L2": 0.0010810357055028466,
+        "Linf": 0.006793452863924521
+      },
+      "conservation_scaled_drift": {
+        "mass": -2.1119177217944445e-14,
+        "momentum_x": -4.455278485259713e-14,
+        "momentum_y": -4.5854651890174e-14,
+        "momentum_z": -1.0627291618700356e-17,
+        "total_energy": -4.006548843566222e-14
+      },
+      "periodic_state_difference": 2.6645352591003757e-15,
+      "entropy_L1": 0.0003309650880521106,
+      "min_density_mean": 0.49125450446659397,
+      "min_pressure_of_mean": 0.37292425903483495,
+      "source_directory": "data/out/NCFV/convergence/iv80",
+      "mesh_arrays_sha256_verified": true,
+      "stored_gauss_points": 0,
+      "closure_max": 1.40216e-16,
+      "wall_seconds": 778.74,
+      "order_3d": {
+        "L1": 2.486029906948419,
+        "L2": 2.434323840442243,
+        "Linf": 2.4567315014755486
+      },
+      "order_nominal": {
+        "L1": 2.4694063979558867,
+        "L2": 2.41804607799891,
+        "Linf": 2.4403039041675396
+      }
+    }
+  ],
+  "time_step_checks": [
+    {
+      "mesh": "iv20",
+      "baseline_L2": 0.02670030964264244,
+      "half_dt_L2": 0.02670029275096376,
+      "solution_difference": {
+        "L1": 1.662602936621537e-08,
+        "L2": 3.1594617789416965e-08,
+        "Linf": 2.1501737612616978e-07
+      },
+      "difference_over_baseline_L2": 1.1833052954171714e-06,
+      "half_dt_steps": 400,
+      "cfl": 0.25,
+      "dt_cap": 0.005
+    },
+    {
+      "mesh": "iv40",
+      "baseline_L2": 0.0057775596613241454,
+      "half_dt_L2": 0.005777539597440297,
+      "solution_difference": {
+        "L1": 1.8349565898975303e-08,
+        "L2": 3.814104748768797e-08,
+        "Linf": 2.5035364781267333e-07
+      },
+      "difference_over_baseline_L2": 6.601584358013624e-06,
+      "half_dt_steps": 531,
+      "cfl": 0.25,
+      "dt_cap": 0.005
+    }
+  ],
+  "note": "Observed order is measured, not imposed; original thesis error values are not acceptance thresholds."
+}

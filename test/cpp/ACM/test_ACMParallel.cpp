@@ -10,8 +10,11 @@
 #include "doctest.h"
 
 #include "ACM/ACMParallel.hpp"
+#include "ACM/ACMSolver.hpp"
 #include "ACM/ACMTime.hpp"
 
+#include <algorithm>
+#include <filesystem>
 #include <vector>
 
 /**
@@ -108,4 +111,94 @@ TEST_CASE("ACM explicit and implicit time stepping preserve a distributed steady
     CHECK(implicitReport.iterations == 1);
     for (std::size_t i = 0; i < states.size(); i++)
         CHECK((states[i] - reference[i]).norm() < 1e-14);
+}
+
+/// @test Verify every additional LU-SGS sweep is a true `b-A*x` residual correction.
+TEST_CASE("ACM LU-SGS multiple sweeps apply residual correction")
+{
+    MPIInfo mpi;
+    mpi.setWorld();
+    const std::filesystem::path root = std::filesystem::path(__FILE__).parent_path()
+                                               .parent_path().parent_path().parent_path();
+
+    KernelConfiguration configuration;
+    configuration.meshSettings.meshFile =
+        (root / "data/mesh/ACMVariable_verify2D.cgns").string();
+    configuration.initialState = {0.4, -0.2, 0.1, 0.3};
+    configuration.boundaryValue = configuration.initialState;
+    configuration.acmSettings.farFieldValue = configuration.initialState;
+    configuration.acmSettings.beta2 = 2.0;
+    configuration.acmSettings.entropyFixRatio = 0;
+    configuration.reconstructionSettings.type = ReconstructionType::FirstOrder;
+    configuration.reconstructionSettings.enableLimiter = false;
+    configuration.Validate();
+
+    ACMSolver<ACMModel::ConstantDensity2D> solver(mpi, configuration);
+    solver.ReadMeshAndInitialize();
+    const auto &vfv = solver.GetReconstruction();
+    const auto &evaluator = solver.GetEvaluator();
+    auto &state = solver.GetState();
+    REQUIRE(vfv != nullptr);
+    REQUIRE(evaluator != nullptr);
+
+    using TDof = ACMSolver<ACMModel::ConstantDensity2D>::TDof;
+    TDof rhs;
+    TDof oneSweep;
+    TDof twoSweeps;
+    TDof firstResidual;
+    TDof secondResidual;
+    TDof operatorProduct;
+    TDof correction;
+    TDof expected;
+    TDof difference;
+    for (TDof *field : {&rhs, &oneSweep, &twoSweeps, &firstResidual,
+                        &secondResidual, &operatorProduct, &correction,
+                        &expected, &difference})
+        vfv->BuildUDof(*field, 4);
+
+    for (DNDS::index iCell = 0; iCell < solver.GetMesh()->NumCell(); iCell++)
+    {
+        const auto barycenter = vfv->GetCellBary(iCell);
+        rhs[iCell] << 1.0 + 0.2 * barycenter(0),
+            -0.3 + 0.1 * barycenter(1),
+            0.2 + 0.05 * barycenter(0),
+            0.5 - 0.1 * barycenter(1);
+    }
+
+    const ScalarField pseudoTimeStep(
+        static_cast<std::size_t>(solver.GetMesh()->NumCell()), 0.01);
+    MatrixField diagonal;
+    ACMEvaluator<2>::FaceJacobianField faceJacobians;
+    evaluator->AssembleImplicitLinearization(
+        state, pseudoTimeStep, diagonal, faceJacobians, 0);
+
+    evaluator->SolveLUSGS(rhs, diagonal, faceJacobians, oneSweep, 1);
+    evaluator->ApplyImplicitLinearization(
+        oneSweep, diagonal, faceJacobians, operatorProduct);
+    firstResidual = rhs;
+    firstResidual.addTo(operatorProduct, -1);
+
+    evaluator->SolveLUSGS(
+        firstResidual, diagonal, faceJacobians, correction, 1);
+    expected = oneSweep;
+    expected.addTo(correction, 1);
+
+    evaluator->SolveLUSGS(rhs, diagonal, faceJacobians, twoSweeps, 2);
+    difference = twoSweeps;
+    difference.addTo(expected, -1);
+
+    evaluator->ApplyImplicitLinearization(
+        twoSweeps, diagonal, faceJacobians, operatorProduct);
+    secondResidual = rhs;
+    secondResidual.addTo(operatorProduct, -1);
+
+    const real rhsNorm = rhs.norm2();
+    const real firstResidualNorm = firstResidual.norm2();
+    const real secondResidualNorm = secondResidual.norm2();
+    const real correctionNorm = correction.norm2();
+    const real expectedNorm = expected.norm2();
+    CHECK(difference.norm2() < 1e-11 * std::max(real(1), expectedNorm));
+    CHECK(correctionNorm > 1e-10 * std::max(real(1), oneSweep.norm2()));
+    CHECK(firstResidualNorm < rhsNorm);
+    CHECK(secondResidualNorm < firstResidualNorm);
 }

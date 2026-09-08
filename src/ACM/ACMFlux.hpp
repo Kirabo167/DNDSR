@@ -72,6 +72,20 @@ namespace DNDS::ACM
     Matrix4 GammaInvLocal(const State &meanLocalState, real beta2, real alpha);
 
     /**
+     * @brief Differentiate `Gamma(U) * (U-Uold) / dTau` exactly.
+     * @param state Current constant-density primitive state.
+     * @param previous Frozen state at the beginning of the pseudo-time step.
+     * @param pseudoTimeStep Positive pseudo-time interval.
+     * @param settings Fixed artificial-compressibility parameters.
+     * @return Four-by-four product-rule Jacobian in the supplied coordinate frame.
+     */
+    Matrix4 PseudoTimeProductJacobian(
+        const State &state,
+        const State &previous,
+        real pseudoTimeStep,
+        const Settings &settings);
+
+    /**
      * @brief Apply the local preconditioning matrix to a state increment or eigenvector.
      * @param meanLocalState Mean state defining Gamma.
      * @param increment Vector to which Gamma is applied.

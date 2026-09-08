@@ -1,0 +1,47 @@
+{
+  "steps": 266,
+  "time": 2.0,
+  "period": 10.0,
+  "period_fraction": 0.2,
+  "nodes": 33694,
+  "periodic_unknowns": 30416,
+  "volume": 400.0,
+  "density_point_L1": 0.002363309745968,
+  "density_point_L2": 0.005777559661324155,
+  "density_point_Linf": 0.036871876468498876,
+  "initial_density_point_L2": 4.477074134662568e-05,
+  "density_mean_min": 0.5157178790726225,
+  "density_mean_max": 1.000568576544692,
+  "density_point_min": 0.5127005432628967,
+  "density_point_max": 1.0005728636607385,
+  "conserved_initial": {
+    "mass": 392.9669691243721,
+    "momentum_x": 392.9669725945661,
+    "momentum_y": 392.9669694549493,
+    "momentum_z": 0.0,
+    "total_energy": 1379.037263967076
+  },
+  "conserved_final": {
+    "mass": 392.96696912436994,
+    "momentum_x": 392.96697259456005,
+    "momentum_y": 392.9669694549424,
+    "momentum_z": -6.920402457626951e-17,
+    "total_energy": 1379.0372639670459
+  },
+  "conservation_absolute_drift": {
+    "mass": -2.1600499167107046e-12,
+    "momentum_x": -6.0254023992456496e-12,
+    "momentum_y": -6.934897101018578e-12,
+    "momentum_z": -6.920402457626951e-17,
+    "total_energy": -3.001332515850663e-11
+  },
+  "conservation_scaled_drift": {
+    "mass": 5.496772213511562e-15,
+    "momentum_x": 1.5333101302287327e-14,
+    "momentum_y": 1.764753182853352e-14,
+    "momentum_z": 6.920402457626951e-17,
+    "total_energy": 2.1763969649498313e-14
+  },
+  "periodic_state_max_difference": 2.6645352591003757e-15,
+  "entropy_L1": 0.00202035074974182
+}

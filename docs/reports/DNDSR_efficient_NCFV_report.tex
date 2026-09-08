@@ -1,0 +1,1548 @@
+\documentclass[UTF8,a4paper,11pt,openany]{ctexrep}
+
+\usepackage[margin=2.35cm,headheight=15pt]{geometry}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage{booktabs,longtable,tabularx,array,multirow,threeparttable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{listings}
+\usepackage{microtype}
+
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Noto Sans Mono}
+
+\definecolor{DNDSBlue}{HTML}{174A7E}
+\definecolor{DNDSLight}{HTML}{EEF5FB}
+\definecolor{DNDSGreen}{HTML}{26734D}
+\definecolor{DNDSOrange}{HTML}{A85616}
+\definecolor{DNDSGray}{HTML}{5B6573}
+\definecolor{DNDSRed}{HTML}{A12828}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DNDSBlue,
+  citecolor=DNDSGreen,
+  urlcolor=DNDSBlue,
+  pdftitle={DNDSR 高效三阶格点型有限体积算法：数学推导、MPI 设计与路线可行性报告},
+  pdfauthor={OpenAI Codex（基于马润之硕士学位论文与 DNDSR 源码分析）},
+  pdfsubject={高效三阶格点型有限体积方法、MPI 并行设计、DNDSR 集成可行性}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small DNDSR 高效三阶格点型有限体积算法报告}
+\fancyhead[R]{\small \leftmark}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\setlength{\emergencystretch}{2em}
+\setlist{nosep,leftmargin=2em}
+\renewcommand{\arraystretch}{1.25}
+\numberwithin{equation}{chapter}
+
+\newcommand{\dd}{\,\mathrm d}
+\newcommand{\Order}{\mathcal O}
+\newcommand{\avg}[1]{\left\langle #1\right\rangle}
+\newcommand{\Ubar}{\overline{\bm U}}
+\newcommand{\RHS}{\mathcal R}
+\newcommand{\Flux}{\bm{\mathcal F}}
+\newcommand{\grad}{\nabla}
+\newcommand{\transpose}{\mathsf T}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pathcode}[1]{\nolinkurl{#1}}
+
+\newtcolorbox{conclusionbox}[1][]{
+  enhanced,breakable,colback=DNDSLight,colframe=DNDSBlue,
+  boxrule=0.8pt,arc=1mm,left=2mm,right=2mm,top=1.5mm,bottom=1.5mm,
+  title=#1,fonttitle=\bfseries
+}
+\newtcolorbox{riskbox}[1][]{
+  enhanced,breakable,colback=orange!5,colframe=DNDSOrange,
+  boxrule=0.8pt,arc=1mm,left=2mm,right=2mm,top=1.5mm,bottom=1.5mm,
+  title=#1,fonttitle=\bfseries
+}
+\newtcolorbox{sourcebox}[1][]{
+  enhanced,breakable,colback=gray!5,colframe=DNDSGray,
+  boxrule=0.6pt,arc=1mm,left=2mm,right=2mm,top=1.5mm,bottom=1.5mm,
+  title=#1,fonttitle=\bfseries
+}
+
+\lstdefinestyle{dnds}{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  rulecolor=\color{gray!45},
+  backgroundcolor=\color{gray!3},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false
+}
+
+\title{\bfseries\Huge DNDSR 高效三阶格点型有限体积算法\\[0.4em]
+\Large 数学推导、MPI 并行设计与两条开发路线可行性报告}
+\author{基于《高效三阶格点型有限体积方法研究》与 DNDSR 源码快照}
+\date{2026 年 9 月 4 日\quad 报告版本 1.1}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\vfill
+\begin{sourcebox}[材料与边界]
+本报告把所附硕士学位论文作为\textbf{技术资料}而不是操作指令。数学主线来自马润之《高效三阶格点型有限体积方法研究》（清华大学，2026）；工程判断来自对 DNDSR 当前源码的静态检查。源码基准提交为 \code{cfed6a3}。报告没有改动求解器源码，也没有把论文中的性能统计直接当作 DNDSR 的实测性能。
+\end{sourcebox}
+\clearpage
+
+\pagenumbering{Roman}
+\tableofcontents
+\clearpage
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+
+\chapter*{执行摘要}
+\addcontentsline{toc}{chapter}{执行摘要}
+
+\begin{conclusionbox}[结论先行]
+\textbf{推荐路线 1，但实现方式应是“在 DNDSR 内新增并列的 NCFV 空间离散后端”，而不是把论文算法硬塞进现有格心型重构、面通量和限制器的三个回调。} 原因是论文方法改变了未知量位置、控制体、内部界面实体和残差遍历方向：未知量位于原始网格节点，对偶控制体界面对应原始网格边；现有 Euler 主路径则是格心未知量和原始网格面循环。
+
+DNDSR 已具备节点自由度、节点 MPI 映射、分布式全局边插值、周期拓扑、Roe/HLLC 等气体动力学内核、时间推进、I/O 和测试基础，因而没有必要重新建设一套完整格点型程序。建议先用一个\textbf{高效格心型原型}验证“只存一阶梯度＋二次精确积分＋单面一次 Roe”这一数值内核，再建设真正的节点型后端。独立新程序只适合作为很小的标量/Euler 研究原型，不适合作为长期生产路线。
+\end{conclusionbox}
+
+论文方法的核心可压缩为四步：
+
+\begin{enumerate}
+  \item 用二次 $k$-exact 加权最小二乘问题求节点一阶梯度，但仅保存伪逆矩阵中对应一次项的前三行，因此运行期不显式形成 Hessian；
+  \item 用单纯形二次精确矩和全微分关系
+  $\bm H_i\bm d=\grad u(\bm x_i+\bm d)-\grad u_i+\Order(h^2)$，把体积分、面平均和通量积分中的 Hessian 收缩全部改写成节点梯度的线性组合；
+  \item 把 Roe 通量分为中心物理通量与耗散项：前者按三角微面精确积分，后者在一条原始网格边所对应的整张对偶宏面上冻结一次 Roe 矩阵，从而每张宏面只解一次黎曼问题；
+  \item 初始化时把复杂几何求和压缩为节点梯度权重和边通量梯度权重，时间推进时只做规则的稀疏加权与边通量计算。
+\end{enumerate}
+
+需要特别保留的限定条件如下。
+
+\begin{itemize}
+  \item 论文在四面体平均拓扑假设下给出存储量 $1269\to764$（下降约 $39.8\%$）、乘法次数 $37935\to3681$（高效法约为传统法的 $9.7\%$）。这是\textbf{算术与静态存储模型}，不包含限制器、粘性项、MPI、缓存、向量化和负载不均衡，不能等同于十倍端到端加速。
+  \item 无粘光滑问题的三阶目标有论文算例支持；论文自己指出，仅凭二阶精度的一阶导数构造的粘性通量积分\textbf{最高为二阶}。因此“整个 Navier--Stokes 求解三阶”不能未经额外方法与 MMS 收敛试验就宣称成立。
+  \item 论文的边界线性积分不降低全局阶数是条件性论断，取决于稳定性、边界闭合、误差范数和网格族；必须单独做边界制造解收敛试验。
+  \item 约 600 万网格、16 节点/512 核的 CRM 计算证明“能运行”，不提供强扩展、弱扩展或通信占比，不能证明 MPI 可扩展性。
+\end{itemize}
+
+本报告建议的 MPI 主方案是\textbf{唯一边主进程计算＋边通量拉取}：每条原始边只有一个 owner 计算积分通量，边界上的其他进程拉取同一个通量向量，再由各自拥有的节点按关联矩阵符号累加。它复用 DNDSR 现有 pull 通信语义，避免“残差 push 必须做求和规约”的新通信原语，同时使跨分区边两端使用完全相同的一份数值通量。
+
+\chapter{问题定义、结论口径与符号}
+
+\section{本报告回答的问题}
+
+目标不是复述论文，而是回答三个可实施问题：
+
+\begin{enumerate}
+  \item 论文中“仅用一阶梯度实现三阶无粘空间离散”的数学链条如何从单纯形矩、最小二乘、点值恢复一直推导到 Roe 宏面通量；
+  \item 在 DNDSR 的分布式非结构网格上，节点、边、重构模板、周期映射和残差如何拥有、通信与并行执行；
+  \item “集成 DNDSR”与“另写节点型求解器”两条路线各自缺什么、风险在哪里、如何设置阶段门槛。
+\end{enumerate}
+
+\section{三种陈述的区分}
+
+全文采用下列口径：
+
+\begin{description}
+  \item[论文结论] 附件中明确给出的推导、算法或算例结论；
+  \item[补全推导] 从论文思想出发，为消除公式转换歧义、保证量纲或便于实现而重新写出的等价数学表达；
+  \item[工程建议] 结合 DNDSR 当前架构作出的实现选择，不声称是论文原实现。
+\end{description}
+
+\section{基本符号}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.20\textwidth}p{0.70\textwidth}}
+\toprule
+符号 & 含义\\
+\midrule
+\endfirsthead
+\toprule
+符号 & 含义\\
+\midrule
+\endhead
+$\Omega_i,V_i$ & 原始节点 $i$ 对应的对偶控制体及体积\\
+$\Ubar_i$ & $\Omega_i$ 上守恒变量的体平均，是时间推进未知量\\
+$\bm U_i$ & 原始节点 $\bm x_i$ 处恢复出的点值，不等于 $\Ubar_i$\\
+$e=(i,j),\Gamma_e$ & 原始网格边及其对应的对偶控制体宏界面\\
+$T,S$ & 对偶体中的微四面体、宏界面中的微三角形\\
+$\bm a_k=S_k\bm n_k$ & 第 $k$ 个微三角形的有向面积向量\\
+$\bm G_i=\grad\bm U_i$ & 节点守恒变量梯度；本文按 $d\times n_v$ 存储\\
+$\Flux(\bm U)$ & 物理通量张量，列方向对应空间坐标方向\\
+$\widehat{\bm\Phi}_e$ & 已对宏界面积分后的数值通量向量，不再乘面积\\
+$\mathcal S_i$ & 节点 $i$ 的最小二乘重构模板\\
+$h_i$ & 节点 $i$ 的局部尺度或各向异性尺度矩阵\\
+\bottomrule
+\end{longtable}
+
+\chapter{算法总览与对偶几何}
+
+\section{控制方程与节点对偶控制体}
+
+可压缩 Navier--Stokes 方程写成
+\begin{equation}
+  \frac{\partial \bm U}{\partial t}
+  +\grad\cdot\left(\Flux^{I}(\bm U)-\Flux^{V}(\bm U,\grad\bm U)\right)=\bm 0.
+\end{equation}
+在节点 $i$ 的对偶体上积分，得到半离散形式
+\begin{equation}
+  \frac{\dd\Ubar_i}{\dd t}
+  =-\frac{1}{V_i}\left[
+    \sum_{e\in\mathcal E(i)} B_{ie}
+    \left(\widehat{\bm\Phi}^{I}_e-\widehat{\bm\Phi}^{V}_e\right)
+    +\widehat{\bm\Phi}^{\partial}_i
+  \right],
+  \label{eq:semidiscrete}
+\end{equation}
+其中 $B_{ie}\in\{-1,+1\}$ 是节点--边有向关联矩阵。内部宏界面与原始网格边一一对应，而边界对偶面位于原始边界面内。
+
+本文的高效重构、宏面通量、限制器和时间步尺度都建立在同一套对偶剖分上。为避免混合网格实现中的歧义，下面先给出构造点的严格定义，再给出二维、三维的完整生成过程。
+
+\section{三类构造点的严格定义}
+
+令 $\mathcal V(e)$、$\mathcal V(f)$ 和 $\mathcal V(c)$ 分别表示原始边、原始面和原始单元的\textbf{拓扑角点集合}，$N_f=|\mathcal V(f)|$、$N_c=|\mathcal V(c)|$。对 O1 原始网格，三类构造点严格定义为
+\begin{align}
+  \bm x_e&=\frac{\bm x_i+\bm x_j}{2},
+  &&e=(i,j),\label{eq:edge-average-point}\\
+  \bm x_f&=\frac{1}{N_f}\sum_{v\in\mathcal V(f)}\bm x_v,
+  &&f\in\mathcal F,\label{eq:face-average-point}\\
+  \bm x_c&=\frac{1}{N_c}\sum_{v\in\mathcal V(c)}\bm x_v,
+  &&c\in\mathcal C.\label{eq:cell-average-point}
+\end{align}
+也就是说，$\bm x_e$ 是边端点的平均，$\bm x_f$ 是\textbf{原始面全部角点的算术平均}，$\bm x_c$ 是\textbf{原始网格体全部角点的算术平均}。下文为简洁仍偶尔写“边中点、面平均点、体平均点”，但不再把后两者含混地称作一般意义的几何质心。
+
+\begin{conclusionbox}[必须冻结的几何口径]
+$\bm x_f$ 不是通过面积积分得到的面质心，$\bm x_c$ 也不是通过体积积分得到的体质心；它们就是 \cref{eq:face-average-point,eq:cell-average-point} 的顶点等权平均。三角形、四面体上二者恰好分别等于面积质心、体积质心；一般四边形、六面体、棱柱、金字塔或任意多面体上通常不相等。这不是对“真实质心”的近似替代，而是本文对偶网格的\textbf{定义本身}。几何预处理、积分权重和 MPI 各 rank 必须使用完全相同的定义。
+\end{conclusionbox}
+
+等权平均具有仿射协变性：对任意仿射映射 $\bm y=\bm A\bm x+\bm b$，先求平均再映射与先映射各角点再求平均相同。这使四面体、六面体、棱柱和金字塔可以共用一套拓扑算法。第一版只把 O1 角点放入集合 $\mathcal V$；O2 边中节点或面内节点不得悄然混入平均，否则同一网格在不同单元类型或不同 rank 上会产生不同的对偶几何。
+
+\section{二维：由“节点--边中点--单元顶点平均点”生成对偶多边形}
+
+考虑一个原始多边形单元 $c$，其单元构造点仍按 \cref{eq:cell-average-point} 取全部原始角点的算术平均。对原始边 $e=(i,j)\subset\partial c$，在 $c$ 内生成两个微三角形
+\begin{equation}
+  T^{2D}_{c,e,i}=\operatorname{conv}\{\bm x_i,\bm x_e,\bm x_c\},
+  \qquad
+  T^{2D}_{c,e,j}=\operatorname{conv}\{\bm x_j,\bm x_e,\bm x_c\}.
+  \label{eq:dual-2d-microtriangle}
+\end{equation}
+第一个微三角形完整归属节点 $i$ 的对偶控制体，第二个完整归属节点 $j$。因此节点 $i$ 的二维对偶体为
+\begin{equation}
+  \Omega_i^{2D}
+  =\bigcup_{c\ni i}\ \bigcup_{\substack{e\subset\partial c\\i\in\mathcal V(e)}}
+   T^{2D}_{c,e,i},
+  \label{eq:dual-2d-cell}
+\end{equation}
+并且每个原始多边形都由其所有“角点--边中点--单元平均点”微三角形无缝剖分。单个微三角形面积为
+\begin{equation}
+  A^{2D}_{c,e,i}
+  =\frac12\left|
+    \det\big(\bm x_e-\bm x_i,\bm x_c-\bm x_i\big)
+  \right|,
+  \qquad
+  A_i=\sum_{c,e}A^{2D}_{c,e,i}.
+\end{equation}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.15,
+  primal/.style={very thick,draw=DNDSBlue},
+  dual/.style={thick,draw=DNDSOrange},
+  helper/.style={thin,draw=DNDSGray!70},
+  pnode/.style={circle,fill=DNDSBlue,inner sep=1.7pt},
+  cnode/.style={circle,fill=DNDSOrange,inner sep=1.7pt}]
+\coordinate (A) at (0,0);
+\coordinate (B) at (4,0);
+\coordinate (C) at (3.4,2.8);
+\coordinate (D) at (0.2,2.4);
+\coordinate (MAB) at (2,0);
+\coordinate (MBC) at (3.7,1.4);
+\coordinate (MCD) at (1.8,2.6);
+\coordinate (MDA) at (0.1,1.2);
+\coordinate (O) at (1.9,1.3);
+\fill[DNDSLight] (A)--(MAB)--(O)--(MDA)--cycle;
+\draw[primal] (A)--(B)--(C)--(D)--cycle;
+\draw[helper] (A)--(O) (B)--(O) (C)--(O) (D)--(O);
+\draw[dual] (MAB)--(O)--(MBC) (MCD)--(O)--(MDA);
+\foreach \p in {A,B,C,D}{\node[pnode] at (\p) {};}
+\foreach \p in {MAB,MBC,MCD,MDA,O}{\node[cnode] at (\p) {};}
+\node[below left] at (A) {$\bm x_i$};
+\node[below] at (MAB) {$\bm x_e$};
+\node[above right] at (O) {$\bm x_c=\frac14\sum_{v\in\mathcal V(c)}\bm x_v$};
+\node[align=left,text=DNDSBlue] at (6.1,2.05) {深色边：原始网格边};
+\node[align=left,text=DNDSOrange] at (6.1,1.35) {橙色边：内部对偶界面};
+\node[align=left] at (6.1,0.55) {浅蓝区域：节点 $i$\\在单元 $c$ 内的对偶份额};
+\end{tikzpicture}
+\caption{二维单元中的对偶剖分。四边形内部点是四个原始角点的算术平均，不是面积质心。}
+\label{fig:dual2d-construction}
+\end{figure}
+
+对固定原始边 $e=(i,j)$，节点 $i$ 与 $j$ 的内部对偶界面不是原始边本身，而是各相邻原始单元中线段 $[\bm x_e,\bm x_c]$ 的并：
+\begin{equation}
+  \Gamma_e^{2D}=\bigcup_{c\supset e}[\bm x_e,\bm x_c].
+  \label{eq:dual-2d-interface}
+\end{equation}
+内部边通常有两个相邻单元，故 $\Gamma_e^{2D}$ 由两段线段组成；边界边只有一个相邻单元。若 $e$ 位于物理边界，则原始边被 $\bm x_e$ 分成 $[\bm x_i,\bm x_e]$ 与 $[\bm x_e,\bm x_j]$，分别关闭节点 $i$ 与 $j$ 的边界对偶体。
+
+\section{三维：由“节点--边中点--面顶点平均点--体顶点平均点”生成微四面体}
+
+三维中，对每条拓扑链
+\begin{equation}
+  i\in e,\qquad e\subset\partial f,\qquad f\subset\partial c,
+  \label{eq:topology-chain}
+\end{equation}
+生成一个微四面体
+\begin{equation}
+  T_{c,f,e,i}
+  =\operatorname{conv}\{\bm x_i,\bm x_e,\bm x_f,\bm x_c\}.
+  \label{eq:dual-microtet}
+\end{equation}
+四个顶点的顺序固定为：原始节点、原始边中点、原始面角点算术平均、原始单元角点算术平均。$T_{c,f,e,i}$ 整体归属节点 $i$，所以
+\begin{equation}
+  \boxed{
+  \Omega_i=
+  \bigcup_{c\ni i}
+  \ \bigcup_{\substack{f\subset\partial c\\f\ni i}}
+  \ \bigcup_{\substack{e\subset\partial f\\e\ni i}}
+  T_{c,f,e,i}.}
+  \label{eq:dual-cell-union}
+\end{equation}
+这一定义给出了可直接编码的四重索引 $(c,f,e,i)$：先枚举单元，再枚举单元面，再枚举面边，最后枚举边的两个端点。对于满足星形/凸性条件的 O1 多面体，这些微四面体内部互不重叠，合集恰好覆盖原始单元；跨单元继续拼接后，$\Omega_i$ 成为围绕节点 $i$ 的闭合多面体。
+
+一个原始单元产生的微四面体数量为
+\begin{equation}
+  N_T(c)=2\sum_{f\subset\partial c}N_e(f),
+\end{equation}
+其中因子 2 来自每条面边的两个端点。常见 O1 单元的数量如下。
+
+\begin{table}[htbp]
+\centering
+\caption{每个原始单元生成的微四面体数量}
+\label{tab:microtet-count}
+\begin{tabular}{lccc}
+\toprule
+原始单元 & 面构成 & $\sum_fN_e(f)$ & $N_T(c)$\\
+\midrule
+四面体 & $4\times$ 三角面 & 12 & 24\\
+六面体 & $6\times$ 四边形面 & 24 & 48\\
+三棱柱 & $2\times$ 三角面 $+3\times$ 四边形面 & 18 & 36\\
+金字塔 & $1\times$ 四边形面 $+4\times$ 三角面 & 16 & 32\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+以顶点为 $0,1,2,3$ 的四面体为例，
+\begin{equation}
+  \bm x_c=\frac{\bm x_0+\bm x_1+\bm x_2+\bm x_3}{4},\qquad
+  \bm x_{f_{012}}=\frac{\bm x_0+\bm x_1+\bm x_2}{3},\qquad
+  \bm x_{e_{01}}=\frac{\bm x_0+\bm x_1}{2}.
+\end{equation}
+链 $(c,f_{012},e_{01},0)$ 对应
+$\operatorname{conv}\{\bm x_0,\bm x_{e_{01}},\bm x_{f_{012}},\bm x_c\}$。
+同一原始四面体内，边 $e_{01}$ 属于面 $f_{012}$ 与 $f_{013}$，因而该单元会向 $e_{01}$ 的对偶宏界面贡献两个微三角形。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.12,
+  primal/.style={very thick,draw=DNDSBlue},
+  hidden/.style={thick,draw=DNDSBlue,dashed},
+  micro/.style={thick,draw=DNDSGreen},
+  iface/.style={very thick,draw=DNDSOrange,fill=DNDSOrange!24},
+  pnode/.style={circle,fill=DNDSBlue,inner sep=1.8pt},
+  cnode/.style={circle,fill=DNDSGreen,inner sep=1.8pt}]
+\coordinate (A) at (0,0);
+\coordinate (B) at (5,0);
+\coordinate (C) at (1.3,3.4);
+\coordinate (D) at (4.3,3.0);
+\coordinate (E) at (2.5,0);
+\coordinate (F) at (2.1,1.13);
+\coordinate (G) at (2.65,1.60);
+\fill[DNDSGreen!10] (A)--(E)--(F)--cycle;
+\fill[DNDSGreen!13] (A)--(F)--(G)--cycle;
+\fill[DNDSGreen!8] (A)--(G)--(E)--cycle;
+\draw[primal] (A)--(B)--(C)--cycle;
+\draw[primal] (B)--(D)--(C);
+\draw[hidden] (A)--(D);
+\draw[micro] (A)--(E)--(F)--(G)--(A) (E)--(G);
+\draw[iface] (E)--(F)--(G)--cycle;
+\foreach \p in {A,B,C,D}{\node[pnode] at (\p) {};}
+\foreach \p in {E,F,G}{\node[cnode] at (\p) {};}
+\node[below left] at (A) {$\bm x_i=\bm x_0$};
+\node[below right] at (B) {$\bm x_j=\bm x_1$};
+\node[above left] at (C) {$\bm x_2$};
+\node[above right] at (D) {$\bm x_3$};
+\node[below] at (E) {$\bm x_e$};
+\node[left=1mm of F] {$\bm x_f$};
+\node[right=1mm of G] {$\bm x_c$};
+\node[align=left,text=DNDSGreen] at (6.8,2.65)
+  {$T_{c,f,e,i}=\operatorname{conv}\{\bm x_i,\bm x_e,\bm x_f,\bm x_c\}$};
+\node[align=left,text=DNDSOrange] at (6.8,1.65)
+  {$S_{e,c,f}=\operatorname{conv}\{\bm x_e,\bm x_f,\bm x_c\}$};
+\node[align=left] at (6.8,0.58)
+  {$\bm x_e$：边端点平均\\
+   $\bm x_f$：面 $f_{012}$ 三角点平均\\
+   $\bm x_c$：单元 $c_{0123}$ 四角点平均};
+\end{tikzpicture}
+\caption{三维对偶剖分中的一条拓扑链。绿色部分表示归属节点 $i$ 的一个微四面体；橙色三角形是它与节点 $j$ 一侧微四面体的公共面，并归入原始边 $e=(i,j)$ 的宏界面。图为拓扑关系的二维投影。}
+\label{fig:dual3d-chain}
+\end{figure}
+
+\section{原始边与内部对偶宏界面的一一对应}
+
+固定规范有向原始边 $e=(i,j)$，定义其关联链集合
+\begin{equation}
+  \mathcal I(e)=\{(c,f):e\subset\partial f,\ f\subset\partial c\}.
+\end{equation}
+每个 $(c,f)\in\mathcal I(e)$ 生成微三角形
+\begin{equation}
+  S_{e,c,f}=\operatorname{conv}\{\bm x_e,\bm x_f,\bm x_c\}.
+  \label{eq:dual-microface}
+\end{equation}
+它正是微四面体 $T_{c,f,e,i}$ 与 $T_{c,f,e,j}$ 的公共面。节点 $i$、$j$ 两个对偶体之间的完整宏界面为
+\begin{equation}
+  \boxed{\Gamma_e=\bigcup_{(c,f)\in\mathcal I(e)}S_{e,c,f}.}
+  \label{eq:dual-macroface}
+\end{equation}
+在流形三维网格中，一个含边 $e$ 的原始单元恰有两个面含 $e$，所以每个边邻接单元贡献两个微三角形。围绕内部边的多个原始单元把这些三角形首尾连接成一张宏面。它们一般不共面，因此不能先把顶点拟合到一个平面后再积分；必须保留每个 $S_{e,c,f}$ 的面积向量，中心通量逐微面求和，Roe 耗散才在整张 $\Gamma_e$ 上冻结一次。
+
+这一拓扑事实也决定了 MPI 工作实体：\textbf{未知量拥有者是原始节点，界面通量拥有者应是原始边。} 若把宏面拆回原始单元或原始面并由多个 rank 独立计算，会引入重复 Roe 计算、方向不一致和舍入级非守恒。
+
+\section{物理边界上的对偶面闭合}
+
+设 $f_b$ 是原始边界面。对 $f_b$ 的边 $e$ 及端点 $i\in\mathcal V(e)$，生成边界微三角形
+\begin{equation}
+  S^{\partial}_{i,f_b,e}
+  =\operatorname{conv}\{\bm x_i,\bm x_e,\bm x_{f_b}\}.
+  \label{eq:dual-boundary-triangle}
+\end{equation}
+节点 $i$ 在物理边界上的对偶面片为所有相邻 $S^{\partial}_{i,f_b,e}$ 的并。对一个有 $m$ 个角点的边界面，面平均点与 $m$ 个边中点形成中心多边形分割；每个原始角点获得与其两条相邻边对应的两个边界微三角形。每个微三角形继承原始边界面 $f_b$ 的边界分区、周期标识和物理边界条件，不能只按节点标签推断边界类型；这样在壁面--远场或不同壁温区域的交线上仍能保持可判定性。
+
+\section{体积、面积向量与规范方向}
+
+对 \cref{eq:dual-microtet}，其体积为
+\begin{equation}
+  V_{c,f,e,i}=\frac16\left|
+    \det\left[
+      \bm x_e-\bm x_i,
+      \bm x_f-\bm x_i,
+      \bm x_c-\bm x_i
+    \right]
+  \right|,
+  \qquad
+  V_i=\sum_{T_{c,f,e,i}\subset\Omega_i}V_{c,f,e,i}.
+  \label{eq:dual-volume}
+\end{equation}
+程序应同时保留按单元--面规范次序计算的有符号行列式用于诊断；若绝对值掩盖了倒置、退化或构造点落在不合适位置的问题，后续所有矩与通量权重都会失效。
+
+令边的规范方向由较小全局节点号指向较大全局节点号，即 $g_i<g_j$ 时 $\bm d_e=\bm x_j-\bm x_i$。微三角形 \cref{eq:dual-microface} 的原始面积向量取
+\begin{equation}
+  \bm a^{\mathrm{raw}}_{e,c,f}
+  =\frac12(\bm x_f-\bm x_e)\times(\bm x_c-\bm x_e).
+\end{equation}
+再以
+\begin{equation}
+  \bm a_{e,c,f}
+  =\operatorname{sign}\!\left(
+     \bm a^{\mathrm{raw}}_{e,c,f}\cdot\bm d_e
+   \right)\bm a^{\mathrm{raw}}_{e,c,f}
+  \label{eq:orient-microface}
+\end{equation}
+统一为从 $i$ 对偶体指向 $j$ 对偶体。若点积接近零，应判为几何退化而不是任意选符号。宏面几何量为
+\begin{equation}
+  \bm A_e=\sum_{(c,f)\in\mathcal I(e)}\bm a_{e,c,f},
+  \qquad
+  S_e=\sum_{(c,f)\in\mathcal I(e)}\|\bm a_{e,c,f}\|,
+  \qquad
+  \bm n_e=\frac{\bm A_e}{\|\bm A_e\|}.
+  \label{eq:dual-macro-geometry}
+\end{equation}
+$S_e$ 是翘曲宏面的微面积和，$\|\bm A_e\|$ 是投影合面积，两者必须分别存储。二维时把每段 $[\bm x_e,\bm x_c]$ 的切向量旋转 $90^\circ$，再用其与 $\bm d_e$ 的点积选择符号，即得到对应的“长度向量”。
+
+边界微三角形的面积向量可由
+\begin{equation}
+  \bm a^{\partial}_{i,f_b,e}
+  =\frac12(\bm x_e-\bm x_i)\times(\bm x_{f_b}-\bm x_i)
+\end{equation}
+计算，并翻转到与原始边界面外法向同向。这样每个节点对偶体必须满足离散几何闭合
+\begin{equation}
+  \sum_{e\in\mathcal E(i)}B_{ie}\bm A_e
+  +\sum_{S^\partial\subset\partial\Omega_i}\bm a^\partial_S
+  =\bm0
+  \label{eq:dual-vector-closure}
+\end{equation}
+至舍入误差。该式是自由流保持的必要几何条件，也是跨 rank 几何是否一致的最强单元测试之一。
+
+\section{同一对偶构造如何驱动全部高效算法}
+
+所谓“算法全部基于对偶控制体生成过程”，不只是先求一个 $V_i$。同一组微四面体和微三角形应作为唯一几何真源，派生表 \ref{tab:dual-dependency} 中所有量。
+
+\begin{table}[htbp]
+\centering
+\caption{对偶剖分与高效算法各环节的依赖关系}
+\label{tab:dual-dependency}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.21\textwidth}X X}
+\toprule
+算法环节 & 来自对偶剖分的量 & 数值作用\\
+\midrule
+守恒未知量与残差 & $V_i=\sum_TV_T$ & 定义 $\Ubar_i$，并作为半离散残差与 CFL 的体积尺度\\
+零均值最小二乘 & $\sum_T\int_T\bm m\dd V$ & 精确生成各对偶体的一、二阶单项式均值\\
+节点点值恢复 & 每个 $T=(i,e,f,c)$ 的体矩及顶点平均插值 & 把 $V_i\Ubar_i$ 反演为三阶节点点值，只保留节点梯度权重\\
+宏面均值与限制器 & $\Gamma_e$ 上全部 $S=(e,f,c)$ 的面积矩 & 左右状态在同一真实翘曲宏面上求平均并限制\\
+中心物理通量 & 每个微面有向面积向量 $\bm a_S$ 与二次矩 & 对非共面宏面逐微面精确积分\\
+Roe 耗散 & $S_e,\bm A_e,\bm n_e$ & 每条原始边只做一次 Roe 线性化\\
+粘性与 CFL & $V_i,V_j,S_e$ & 构造 $\ell_e=\min(V_i,V_j)/S_e$ 及谱半径尺度\\
+边界通量 & $S^\partial=(i,e,f_b)$ 与外法向 & 在原始边界分区内关闭每个节点对偶体\\
+MPI 分工 & $\Omega_i\leftrightarrow i$、$\Gamma_e\leftrightarrow e$ & 节点 owner 存状态，边 owner 唯一计算并共享通量\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+在梯度插值层面，三类构造点的等权平均直接给出
+\begin{equation}
+  \bm g_e=\frac12(\bm g_i+\bm g_j),\qquad
+  \bm g_f=\frac1{N_f}\sum_{v\in\mathcal V(f)}\bm g_v,
+  \qquad
+  \bm g_c=\frac1{N_c}\sum_{v\in\mathcal V(c)}\bm g_v.
+  \label{eq:construction-gradient-interpolation}
+\end{equation}
+因此几何点和梯度虚拟点使用同一组重心系数。设 $q_0=i,q_1=e,q_2=f,q_3=c$，定义
+\begin{equation}
+  \bm x_{q_r}=\sum_m C_{r,m}\bm x_m,\qquad
+  \bm g_{q_r}=\sum_m C_{r,m}\bm g_m,
+\end{equation}
+则 $C_{0,m}=\delta_{im}$；边行只在两个端点取 $1/2$；面行只在 $\mathcal V(f)$ 取 $1/N_f$；体行只在 $\mathcal V(c)$ 取 $1/N_c$。初始化阶段把这些稀疏 $C_{r,m}$ 代入单纯形精确矩，就能逐微四面体、逐微三角形累加成点值恢复、宏面均值和通量梯度权重。运行期不再访问“面平均点/体平均点状态”，因为这些位置从来没有独立自由度。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm and 8mm,
+  box/.style={draw=DNDSBlue,rounded corners,fill=DNDSLight,align=center,minimum height=10mm,text width=29mm},
+  arrow/.style={-{Latex[length=2.2mm]},thick,draw=DNDSBlue}
+]
+\node[box] (mean) {对偶体均值\\$\Ubar_i$};
+\node[box,right=of mean] (grad) {二次 LS\\只输出 $\bm G_i$};
+\node[box,right=of grad] (point) {体矩反演\\恢复 $\bm U_i$};
+\node[box,right=of point] (limit) {宏面均值\\限制与正性};
+\node[box,below=10mm of limit] (flux) {宏面一次 Roe\\精确中心积分};
+\node[box,left=of flux] (res) {按边关联累加\\节点残差};
+\node[box,left=of res] (time) {SSPRK3/隐式\\更新 $\Ubar$};
+\draw[arrow] (mean)--(grad);
+\draw[arrow] (grad)--(point);
+\draw[arrow] (point)--(limit);
+\draw[arrow] (limit)--(flux);
+\draw[arrow] (flux)--(res);
+\draw[arrow] (res)--(time);
+\draw[arrow] (time.west) -| ++(-5mm,0) |- (mean.south);
+\end{tikzpicture}
+\caption{论文算法的运行期数据流。几何矩、伪逆行块和积分权重在初始化阶段预计算。}
+\label{fig:pipeline}
+\end{figure}
+
+\section{几何构造的实现约束}
+
+对每个原始单元，应按 $(c,f,e,i)$ 拓扑链枚举 \cref{eq:dual-microtet}，并把固定 $e$ 的 \cref{eq:dual-microface} 归并为一张宏面。实现时必须满足：
+
+\begin{itemize}
+  \item 边用两端节点的全局编号定义规范方向，例如 $g_i<g_j$ 时 $i\to j$；同一全局边在所有 rank 上必须得到相同的端点次序；
+  \item 面点和单元点只使用去重后的 O1 拓扑角点按 \cref{eq:face-average-point,eq:cell-average-point} 等权平均，不调用现有“面积质心/体积质心”工具函数代替；
+  \item 每个原始单元内所有微四面体体积之和应等于该单元在同一分片线性几何下的体积，且全局满足 $\sum_iV_i=|\Omega|$；
+  \item 每个内部宏面从两侧观察应满足 $\bm A_{i\to j}=-\bm A_{j\to i}$；对每个节点，\cref{eq:dual-vector-closure} 应接近机器误差；
+  \item 检查 $(c,f,e,i)$ 链无遗漏、无重复，且每个内部微三角形恰好连接边的两个端点对偶体；
+  \item 微四面体采用有符号体积检查规范方向，但存储积分体积使用正值；负值、接近零值或 \cref{eq:orient-microface} 点积接近零均触发网格错误；
+  \item 对周期网格，实体去重使用节点全局编号与周期位信息，几何坐标必须在同一周期参考框架下计算；
+  \item 第一版仅支持 O1 直边/分片平面原始单元。翘曲四边形面按 $\bm x_f$ 与各原始边形成的三角片解释；后续所有面积与体积都必须使用这同一分片解释；
+  \item 算术平均点对凹面或凹多面体不保证位于实体内部。第一版应拒绝倒置、退化、明显非星形单元；若要支持一般凹多面体，必须另行定义可证明无重叠的剖分；
+  \item O2 曲边网格若仍使用简单边中点、面角点平均与体角点平均，得到的只是 O1 线性骨架，对偶边界与真实曲面不一致，可能破坏设计阶数和壁面几何守恒。
+\end{itemize}
+
+\chapter{数学计算过程的完整推导}
+
+\section{单纯形的零至二阶精确矩}
+
+令 $K\subset\mathbb R^d$ 是一个 $d$ 维单纯形，共有 $n=d+1$ 个顶点 $\bm r_a$。用重心坐标 $\lambda_a$ 表示
+\begin{equation}
+  \bm x=\sum_{a=0}^{n-1}\lambda_a\bm r_a,
+  \qquad \lambda_a\ge 0,
+  \qquad \sum_a\lambda_a=1.
+\end{equation}
+标准单纯形上的 Dirichlet 积分给出
+\begin{equation}
+  \int_K\lambda_a\dd K=\frac{|K|}{n},\qquad
+  \int_K\lambda_a\lambda_b\dd K
+  =\frac{|K|}{n(n+1)}(1+\delta_{ab}).
+\end{equation}
+于是
+\begin{align}
+  \int_K 1\dd K &= |K|,\\
+  \int_K\bm x\dd K &= \frac{|K|}{n}\sum_a\bm r_a,\label{eq:firstmoment}\\
+  \int_K\bm x\bm x^{\transpose}\dd K
+  &=\frac{|K|}{n(n+1)}\left[
+    \left(\sum_a\bm r_a\right)\left(\sum_b\bm r_b\right)^{\transpose}
+    +\sum_a\bm r_a\bm r_a^{\transpose}
+  \right].\label{eq:secondmoment}
+\end{align}
+这三式对任意不高于二次的多项式都是精确的。令展开点为 $\bm x_i$，$\bm d_a=\bm r_a-\bm x_i$，只需把 \cref{eq:firstmoment,eq:secondmoment} 中的 $\bm r_a$ 换成 $\bm d_a$，即可得到偏移矩。
+
+\section{全微分替代 Hessian}
+
+标量光滑函数在节点 $i$ 附近展开为
+\begin{equation}
+  u(\bm x_i+\bm d)=u_i+\bm d\cdot\bm g_i
+  +\frac12\bm d^{\transpose}\bm H_i\bm d+\Order(h^3),
+  \label{eq:taylor2}
+\end{equation}
+其中 $\bm g_i=\grad u(\bm x_i)$，$\bm H_i=\grad\grad u(\bm x_i)$。梯度自身的一阶展开为
+\begin{equation}
+  \grad u(\bm x_i+\bm d)-\bm g_i
+  =\bm H_i\bm d+\Order(h^2).
+  \label{eq:totaldiff}
+\end{equation}
+若节点梯度近似误差为 $\Order(h^2)$，则用梯度差替代 $\bm H_i\bm d$ 后，代入二阶矩所造成的体积分误差仍是三阶空间离散允许的高阶项。对于真正的二次多项式，\cref{eq:totaldiff} 没有余项，因此以下求积式二次代数精确。
+
+\subsection{微四面体体积分}
+
+对四面体 $T$，令 $V_T=|T|$，顶点 $a=0,1,2,3$，并定义
+\begin{equation}
+  \bm D_T=\sum_{a=0}^{3}\bm d_a,
+  \qquad
+  \Delta\bm g_a=\bm g(\bm r_a)-\bm g_i.
+\end{equation}
+由 $n=4$ 的一、二阶矩代入 \cref{eq:taylor2}：
+\begin{align}
+  \int_T u\dd V
+  &=V_Tu_i+\frac{V_T}{4}\bm D_T\cdot\bm g_i
+  +\frac{V_T}{40}\left[
+       \bm D_T\cdot\sum_{a=0}^{3}\Delta\bm g_a
+       +\sum_{a=0}^{3}\bm d_a\cdot\Delta\bm g_a
+    \right]
+  +\Order(V_Th^3).
+  \label{eq:tetquad}
+\end{align}
+在对偶剖分中 $\bm r_0=\bm x_i$，故 $\bm d_0=\bm 0$、$\Delta\bm g_0=\bm0$，程序可从 $a=1$ 开始求和。
+
+\subsection{微三角形面积分}
+
+对三角形 $S$，令面积为 $A_S$、顶点 $a=1,2,3$，同样定义 $\bm D_S=\sum_a\bm d_a$，则 $n=3$ 给出
+\begin{align}
+  \int_Su\dd S
+  &=A_Su_i+\frac{A_S}{3}\bm D_S\cdot\bm g_i
+  +\frac{A_S}{24}\left[
+       \bm D_S\cdot\sum_{a=1}^{3}\Delta\bm g_a
+       +\sum_{a=1}^{3}\bm d_a\cdot\Delta\bm g_a
+    \right]
+  +\Order(A_Sh^3).
+  \label{eq:triquad}
+\end{align}
+以上公式对向量守恒量和物理通量逐分量成立。它们是整套方法的核心：运行期只需要点值与一阶梯度。
+
+\section{二次零均值最小二乘，但只输出一次项}
+
+\subsection{归一化二次基}
+
+在三维中取局部无量纲坐标
+\begin{equation}
+  \bm\xi=\bm H_i^{-1}(\bm x-\bm x_i),
+\end{equation}
+其中 $\bm H_i$ 可取 $h_i\bm I$，更稳健的实现可取基于局部包围盒或协方差的对角尺度。二次单项式向量为
+\begin{equation}
+ \bm m(\bm\xi)=
+ [\xi,\eta,\zeta,\xi^2,\eta^2,\zeta^2,\xi\eta,\eta\zeta,\zeta\xi]^{\transpose}.
+\end{equation}
+针对目标对偶体 $\Omega_i$ 定义零均值基
+\begin{equation}
+  \bm\phi_i(\bm x)=\bm m(\bm\xi)-\avg{\bm m}_{\Omega_i}.
+\end{equation}
+重构多项式写为
+\begin{equation}
+  p_i(\bm x)=\bar u_i+\bm a_i^{\transpose}\bm\phi_i(\bm x),
+  \qquad \avg{p_i}_{\Omega_i}=\bar u_i.
+  \label{eq:zeromeanpoly}
+\end{equation}
+零均值基使控制体均值守恒自动成立。
+
+\subsection{模板方程与稳定求解}
+
+把 \cref{eq:zeromeanpoly} 延拓到模板控制体 $\Omega_j$ 并取平均：
+\begin{equation}
+  \sum_{\ell=1}^{9}A_{j\ell}a_{i\ell}=b_j,
+  \qquad
+  A_{j\ell}=\avg{m_\ell}_{\Omega_j}-\avg{m_\ell}_{\Omega_i},
+  \qquad b_j=\bar u_j-\bar u_i.
+  \label{eq:lsrows}
+\end{equation}
+加权最小二乘为
+\begin{equation}
+  \bm a_i=\arg\min_{\bm a}\left\|\bm W_i^{1/2}(\bm A_i\bm a-\bm b_i)\right\|_2,
+  \qquad
+  \bm P_i=(\bm W_i^{1/2}\bm A_i)^{\dagger}\bm W_i^{1/2}.
+\end{equation}
+初始化只保存 $\bm P_i$ 对应线性基的前三行 $\bm P_i^{(1)}\in\mathbb R^{3\times|\mathcal S_i|}$。运行期
+\begin{equation}
+  \bm a_i^{(1)}=\bm P_i^{(1)}\bm b_i,
+  \qquad
+  \bm g_i=\bm H_i^{-\transpose}\bm a_i^{(1)}.
+  \label{eq:gradientonly}
+\end{equation}
+虽然不保存二次系数，$\bm a_i^{(1)}$ 仍然是\textbf{完整二次拟合问题的线性系数}，因此在光滑、形状正则且矩阵满秩的网格族上具有二阶梯度精度。
+
+\begin{riskbox}[数值线性代数要求]
+论文以正规方程形式解释最小二乘，但生产实现不应显式计算 $(A^{\transpose}WA)^{-1}$。建议预处理阶段采用带列主元 QR 或 SVD，记录数值秩、最小奇异值和条件估计；秩不足时先扩展模板，再退化到线性重构。三维二次基至少需要 9 个独立约束，论文建议实际选 14--18 个节点；边界、扁薄单元和高度各向异性区域必须用条件数而不是固定邻居数决定是否扩展。
+\end{riskbox}
+
+模板优先取原始边相邻节点；不足时按节点图继续扩一环。权重可采用距离衰减，但幂次、尺度和截断值应成为配置项。为了避免 MPI 运行期动态请求，模板及其所需全局节点集合必须在初始化阶段冻结。
+
+\section{从对偶体均值恢复三阶节点点值}
+
+将 \cref{eq:tetquad} 对组成 $\Omega_i$ 的全部微四面体求和：
+\begin{equation}
+ V_i\bar u_i=V_iu_i+\mathcal L_i(\{\bm g_m\})+\Order(V_ih^3),
+\end{equation}
+其中微四面体其他顶点的梯度采用线性插值：
+\begin{align}
+  \bm g_{\text{edge}}&=\tfrac12(\bm g_i+\bm g_j),\\
+  \bm g_{\text{face}}&=\frac1{N_f}\sum_{r\in\operatorname{vert}(f)}\bm g_r,\\
+ \bm g_{\text{cell}}&=\frac1{N_c}\sum_{r\in\operatorname{vert}(c)}\bm g_r.
+  \label{eq:gradinterp}
+\end{align}
+这里的 $N_f,N_c$ 与 \cref{eq:face-average-point,eq:cell-average-point} 完全相同：几何坐标怎样由原始角点平均，虚拟构造点上的梯度就怎样由同一批节点梯度平均。不存在面点或体点上的独立未知量。
+
+由于 \cref{eq:tetquad,eq:gradinterp} 对梯度是线性的，可以把所有几何系数归并为节点权重向量 $\bm\omega^{U}_{im}$：
+\begin{equation}
+  u_i=\bar u_i-\sum_{m\in\mathcal M_i}
+  \bm\omega^{U}_{im}\cdot\bm g_m+\Order(h^3).
+  \label{eq:pointrecover}
+\end{equation}
+$\bm\omega^{U}_{im}$ 已包含 $1/V_i$，量纲为长度。集合 $\mathcal M_i$ 是所有与节点 $i$ 相邻原始单元的顶点并集。对固定网格，权重只计算一次。
+
+\subsection{从单个微四面体到节点权重的显式展开}
+
+为说明这些权重如何严格由对偶构造生成，令微四面体的四个构造点为
+$q_0=i,q_1=e,q_2=f,q_3=c$，并写成
+\begin{equation}
+  \bm g_{q_r}=\sum_mC_{r,m}\bm g_m,
+  \qquad
+  \Delta\bm g_r
+  =\sum_m(C_{r,m}-\delta_{im})\bm g_m.
+  \label{eq:virtual-gradient-coeff}
+\end{equation}
+$C_{r,m}$ 正是前述端点、面角点和体角点的等权系数。令
+$\bm d_r=\bm x_{q_r}-\bm x_i$、$\bm D_T=\sum_{r=0}^3\bm d_r$，把
+\cref{eq:virtual-gradient-coeff} 逐项代入 \cref{eq:tetquad}，得到
+\begin{equation}
+  \int_Tu\dd V
+  =V_Tu_i+\sum_m\bm\ell^T_{i,m}\cdot\bm g_m,
+  \label{eq:tet-node-weight-form}
+\end{equation}
+其中
+\begin{equation}
+  \boxed{
+  \bm\ell^T_{i,m}
+  =\frac{V_T}{4}\bm D_T\delta_{im}
+  +\frac{V_T}{40}\left[
+    \bm D_T\sum_{r=0}^{3}(C_{r,m}-\delta_{im})
+    +\sum_{r=0}^{3}\bm d_r(C_{r,m}-\delta_{im})
+  \right].}
+  \label{eq:tet-explicit-node-weight}
+\end{equation}
+因此不需要符号推导器：每枚举一个 $(c,f,e,i)$，就用其
+$V_T,\bm d_r,C_{r,m}$ 向稀疏映射累加 $\bm\ell^T_{i,m}$。最终
+\begin{equation}
+  \boxed{
+  \bm\omega^U_{i,m}
+  =\frac1{V_i}\sum_{T\subset\Omega_i}\bm\ell^T_{i,m}.}
+  \label{eq:point-weight-from-dual}
+\end{equation}
+这一步把“对偶控制体怎样生成”与“节点点值怎样恢复”建立了一一对应关系；任何一个微四面体漏枚举、重复枚举或使用了不同的面/体构造点，都会直接改变 $\bm\omega^U_{i,m}$。
+
+一个可靠的预计算实现不必手写复杂闭式：对每个微四面体，把 \cref{eq:tetquad} 中每个虚拟顶点梯度按 \cref{eq:gradinterp} 展开到真实节点，逐项累加到稀疏映射 $m\mapsto\bm\omega_{im}^{U}$，最后除以 $V_i$。这样天然支持四面体、棱柱、金字塔和六面体混合网格。
+
+\section{宏面平均值与限制器}
+
+把 \cref{eq:triquad} 对 $\Gamma_e$ 的微三角形求和并除以总面积 $S_e=\sum_kS_k$，可得边 $e=(i,j)$ 的左侧未限制宏面均值
+\begin{equation}
+ \overline u_{i,e}^{\mathrm{raw}}
+  =u_i+\delta_{i,e},\qquad
+  \delta_{i,e}=\sum_{m\in\mathcal M_e}
+  \bm\omega^{L}_{e,m}\cdot\bm g_m.
+  \label{eq:facemean}
+\end{equation}
+右侧从节点 $j$ 展开，使用另一组权重 $\bm\omega^{R}_{e,m}$。
+
+该宏面权重同样可以逐微三角形显式生成。对
+$S=S_{e,c,f}=\operatorname{conv}\{\bm x_e,\bm x_f,\bm x_c\}$，以节点 $i$ 为展开点，令
+$q_1=e,q_2=f,q_3=c$、$\bm d_r=\bm x_{q_r}-\bm x_i$、
+$\bm D_S=\sum_{r=1}^{3}\bm d_r$。由 \cref{eq:triquad} 得
+\begin{align}
+  \int_Su\dd S
+  &=A_Su_i+\sum_m\bm\ell^S_{i,m}\cdot\bm g_m,\\
+  \bm\ell^S_{i,m}
+  &=\frac{A_S}{3}\bm D_S\delta_{im}
+  +\frac{A_S}{24}\left[
+    \bm D_S\sum_{r=1}^{3}(C_{r,m}-\delta_{im})
+    +\sum_{r=1}^{3}\bm d_r(C_{r,m}-\delta_{im})
+  \right].
+  \label{eq:triangle-explicit-node-weight}
+\end{align}
+于是
+\begin{equation}
+  \boxed{
+  \bm\omega^L_{e,m}
+  =\frac1{S_e}\sum_{S\subset\Gamma_e}\bm\ell^S_{i,m},
+  \qquad
+  \bm\omega^R_{e,m}
+  =\frac1{S_e}\sum_{S\subset\Gamma_e}\bm\ell^S_{j,m}.}
+  \label{eq:macroface-weight-from-dual}
+\end{equation}
+左右权重使用同一组微三角形，但分别以边的两个端点展开；不能简单令
+$\bm\omega^R=-\bm\omega^L$。
+
+Barth--Jespersen 型界面均值限制写成
+\begin{equation}
+  \phi_{i,e}=\begin{cases}
+  \min\left(1,\dfrac{u_i^{\max}-u_i}{\delta_{i,e}}\right),&\delta_{i,e}>0,\\[0.8em]
+  \min\left(1,\dfrac{u_i^{\min}-u_i}{\delta_{i,e}}\right),&\delta_{i,e}<0,\\
+  1,&\delta_{i,e}=0,
+  \end{cases}
+  \qquad
+  \phi_i=\min_{e\in\mathcal E(i)}\phi_{i,e}.
+  \label{eq:bj}
+\end{equation}
+其中 $u_i^{\min},u_i^{\max}$ 来自节点 $i$ 及其边邻居。受限宏面均值为
+\begin{equation}
+  \overline u_{i,e}=u_i+\phi_i\delta_{i,e}.
+\end{equation}
+
+对 Euler/NS 方程，逐个守恒分量独立限制可能产生正密度但负压力。推荐实现顺序为：
+
+\begin{enumerate}
+  \item 在原始变量或局部特征变量上构造平滑度/极值系数；
+  \item 对一侧宏面增量整体缩放，确保 \cref{eq:bj} 的边界确实成立；
+  \item 复用 DNDSR 已有正性压缩思想，对 $\rho$ 与内能再求一个 $\theta_{\mathrm{PP}}\in[0,1]$；
+  \item 最终系数取各物理约束的最小值，并记录触发率用于验证。
+\end{enumerate}
+
+论文文字还要求限制所有参与宏面平均的节点梯度。工程上必须把“宏面增量系数”和“节点梯度系数”定义清楚，避免一个宏面用 $\phi_i\delta_{i,e}$、中心通量梯度却用另一套不一致的缩放。建议先实现严格可审计的侧增量限制，再比较 WBAP/CWBAP 与特征限制器。
+
+\section{通量映射和通量梯度}
+
+若点值 $\bm U_i^h=\bm U_i+\Order(h^3)$，梯度 $\bm G_i^h=\grad\bm U_i+\Order(h^2)$，且状态远离真空、物理通量光滑，则
+\begin{equation}
+  \Flux(\bm U_i^h)=\Flux(\bm U_i)+\Order(h^3).
+\end{equation}
+对每个空间方向 $\alpha$，链式法则给出
+\begin{equation}
+  \grad \bm F_{\alpha}(\bm U_i)
+  =\bm G_i\,\bm J_{\alpha}(\bm U_i)^{\transpose},
+  \qquad
+  \bm J_{\alpha}=\frac{\partial\bm F_{\alpha}}{\partial\bm U},
+  \label{eq:fluxgrad}
+\end{equation}
+这里采用 $\bm G_i\in\mathbb R^{d\times n_v}$。因此通量梯度保持二阶精度，可直接代入 \cref{eq:triquad}。
+
+\section{无粘宏面 Roe 通量：一条边一次线性化}
+
+令宏面 $\Gamma_e$ 由微三角形 $S_k$ 组成：
+\begin{equation}
+  \bm A_e=\sum_k S_k\bm n_k,
+  \qquad S_e=\sum_kS_k,
+  \qquad \bm n_e=\frac{\bm A_e}{\|\bm A_e\|}.
+  \label{eq:macrogeom}
+\end{equation}
+对宏面左右两侧，使用 \cref{eq:triquad} 对物理通量张量逐分量积分，记
+\begin{equation}
+  \bm I^F_{i,e}=\sum_k\left(\int_{S_k}\Flux_i(\bm x)\dd S\right)\bm n_k,
+  \qquad
+  \bm I^F_{j,e}=\sum_k\left(\int_{S_k}\Flux_j(\bm x)\dd S\right)\bm n_k.
+\end{equation}
+结合 \cref{eq:triangle-explicit-node-weight}，左侧积分还可完全展开为
+\begin{equation}
+  \boxed{
+  \bm I^F_{i,e}
+  =\sum_{S\subset\Gamma_e}\sum_{\alpha=1}^{d}n_{S,\alpha}
+   \left[
+      A_S\bm F_\alpha(\bm U_i)
+      +\sum_m\bm\ell^S_{i,m}\cdot
+        \grad\bm F_\alpha(\bm U_m)
+   \right].}
+  \label{eq:central-flux-from-dual-triangles}
+\end{equation}
+由此可见，中心通量的运行期权重也是逐个
+$S_{e,c,f}=(\bm x_e,\bm x_f,\bm x_c)$ 预累加得到的；不能用一个拟合平面、单一宏面质心或单一高斯点替代整组微三角形而仍声称是同一算法。
+再以受限宏面平均状态 $\overline{\bm U}_{i,e}$、$\overline{\bm U}_{j,e}$ 计算一次 Roe 平均和法向 Jacobian $\widetilde{\bm A}_n$，得到
+\begin{equation}
+  \boxed{
+  \widehat{\bm\Phi}^{I}_e
+  =\frac12\left(\bm I^F_{i,e}+\bm I^F_{j,e}\right)
+  -\frac{S_e}{2}\left|\widetilde{\bm A}_n
+       (\overline{\bm U}_{i,e},\overline{\bm U}_{j,e},\bm n_e)\right|
+       \left(\overline{\bm U}_{j,e}-\overline{\bm U}_{i,e}\right).}
+  \label{eq:roemacro}
+\end{equation}
+绝对值矩阵表示 $\bm R|\bm\Lambda|\bm L$，应包含现有 DNDSR Roe 内核采用的熵修正和低马赫/正性保护选项。\cref{eq:roemacro} 的负号是标准 Roe 耗散符号；附件公式转换中个别图像公式符号不清，程序应以一致性与稳定性检验为准。
+
+中心项还可在初始化时进一步压缩为
+\begin{equation}
+ \frac12(\Flux_i+\Flux_j)\bm A_e
+ +\sum_{m\in\mathcal M_e}\left(
+   \bm\omega^{F}_{e,m}\!:\grad\bm F_m+
+   \bm\omega^{G}_{e,m}\!:\grad\bm G_m+
+   \bm\omega^{H}_{e,m}\!:\grad\bm H_m\right),
+ \label{eq:fluxweights}
+\end{equation}
+其中权重只依赖几何。这样不存高斯点，也不在每个微三角形的三个高斯点上重复重构与求解 Roe 问题。
+
+\begin{riskbox}[翘曲宏面的面积定义]
+对平面宏面，$S_e=\|\bm A_e\|$。对非共面宏面二者不同。中心物理通量必须逐微面使用 $S_k\bm n_k$，才能满足几何闭合；耗散项可选 $S_e=\sum_kS_k$ 或 $\|\bm A_e\|$ 作为谱尺度。建议两者均保留为可测试策略，默认采用论文意义下的微面积和，并用高翘曲网格上的自由流保持、稳定 CFL 和误差试验决定最终选择。
+\end{riskbox}
+
+\section{粘性通量：明确其二阶上限}
+
+先用一次精确面矩得到左右原始变量平均 $\overline{\bm q}_{L,R}$，并对节点梯度线性插值后取面平均 $\overline{\bm G}_{L,R}$。定义长度尺度
+\begin{equation}
+  \ell_e=\frac{\min(V_i,V_j)}{S_e}.
+\end{equation}
+若梯度按 $d\times n_v$ 存储，dGRP 风格法向跳跃修正应写成外积
+\begin{equation}
+  \bm G_e
+  =\frac12(\overline{\bm G}_L+\overline{\bm G}_R)
+   +\frac{1}{2\ell_e}\bm n_e
+    (\overline{\bm U}_R-\overline{\bm U}_L)^{\transpose}.
+  \label{eq:dgrp}
+\end{equation}
+这消除了原文点乘记号在张量维度上的歧义。把 $\bm G_e$ 通过守恒量到原始量的 Jacobian 转为 $\grad\bm q_e$，可写近似粘性积分
+\begin{equation}
+  \widehat{\bm\Phi}^{V}_e
+  \approx \Flux^V\!\left(
+    \tfrac12(\overline{\bm q}_L+\overline{\bm q}_R),
+    \grad\bm q_e\right)\bm A_e.
+  \label{eq:viscflux}
+\end{equation}
+因为输入梯度只有二阶精度，论文明确指出三阶重构下的粘性通量积分最高只能达到二阶。对高长宽比边界层网格，$\ell_e=\min(V_i,V_j)/S_e$ 的各向同性尺度也可能过度或不足惩罚，必须与现有 DNDSR 粘性离散、BR2/dGRP 型替代和制造解比较。
+
+\section{边界通量}
+
+边界对偶面在原始边界面内，由“节点--边中点--原始面角点算术平均点”三角形组成，严格对应 \cref{eq:dual-boundary-triangle}。边界条件先在原始节点产生内外状态及节点数值通量，再对每个边界三角形用线性精确公式
+\begin{equation}
+  \int_{S_k}\bm F_{\partial}\dd S
+  =\frac{S_k}{3}\left(
+    \bm F_{k,0}+\bm F_{k,1}+\bm F_{k,2}\right)
+  +\Order(S_kh^2).
+  \label{eq:bndlinear}
+\end{equation}
+中点值由两端节点平均，面平均点值由该原始面的全部 O1 角点等权平均。论文认为边界局部降一阶不改变全局主导误差阶；本报告把它视为待验证假设，而不是普遍定理。特别是超声速入流、壁面热通量、曲边和混合边界交线需要独立验证。
+
+\section{时间推进、CFL 与守恒}
+
+第一版使用 SSPRK3：
+\begin{align}
+ \Ubar^{(1)}&=\Ubar^n+\Delta t\RHS(\Ubar^n),\\
+ \Ubar^{(2)}&=\tfrac34\Ubar^n+\tfrac14\left[\Ubar^{(1)}+\Delta t\RHS(\Ubar^{(1)})\right],\\
+ \Ubar^{n+1}&=\tfrac13\Ubar^n+\tfrac23\left[\Ubar^{(2)}+\Delta t\RHS(\Ubar^{(2)})\right].
+\end{align}
+每个 stage 都必须重新交换均值、计算梯度、限制并求边通量。全局时间步用一次 \pathcode{MPI_Allreduce(MIN)}；局部时间步只用于稳态迭代。隐式 LU--SGS/SDIRK 应在显式无粘路径完成验证后再接入，因为节点图 Jacobian、排序和预条件器都不同于现有格心图。
+
+若每条边只形成一份 $\widehat{\bm\Phi}_e$，且 $B_{ie}+B_{je}=0$，则忽略物理边界时
+\begin{equation}
+  \sum_iV_i\RHS_i
+  =-\sum_e(B_{ie}+B_{je})\widehat{\bm\Phi}_e=\bm0,
+\end{equation}
+即内部边严格成对守恒。限制器只改变边通量的状态，不改变这一代数结构。
+
+\section{格心型的同构改写}
+
+论文主算法是格点型，但其数学内核可用于低风险格心原型。令原始单元 $K_i$ 的体均值为未知量，参考点为体积质心 $\bm c_i$。定义
+\begin{equation}
+  \bm\mu_{1,i}=\avg{\bm x-\bm c_i}_{K_i}=\bm0,
+  \qquad
+  \bm\mu_{2,i}=\avg{(\bm x-\bm c_i)(\bm x-\bm c_i)^{\transpose}}_{K_i}.
+\end{equation}
+则
+\begin{equation}
+  \bar u_i=u(\bm c_i)+\tfrac12\bm H_i:\bm\mu_{2,i}+\Order(h^3).
+\end{equation}
+把单元分解为四面体并用邻接单元二阶梯度差替代 $\bm H_i\bm d$，同样能得到
+\begin{equation}
+  u(\bm c_i)=\bar u_i-\sum_m\bm\omega^{C}_{im}\cdot\bm g_m+\Order(h^3).
+\end{equation}
+原始面再分成三角形，中心通量用 \cref{eq:triquad}，耗散项每个原始面只做一次 Roe。该原型与 DNDSR 当前“格心未知量＋原始面循环”完全同构，适合验证数学内核和性能模型；但它没有格点型控制体数较少、原始边宏面的论文优势，不能代替最终节点型实现。
+
+\chapter{数据结构、预计算与计算量}
+
+\section{推荐的静态数据}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.19\textwidth}>{\raggedright\arraybackslash}p{0.31\textwidth}p{0.40\textwidth}}
+\toprule
+位置 & 数据 & 用途\\
+\midrule
+\endfirsthead
+\toprule
+位置 & 数据 & 用途\\
+\midrule
+\endhead
+节点 & $V_i$、边界面积、局部尺度 & 体平均、CFL、无量纲基\\
+节点 & LS 模板 CSR 与 $\bm P_i^{(1)}$ & 每 stage 从邻居均值计算二阶梯度\\
+节点 & 点值恢复权重 $\bm\omega^U_{im}$ & \cref{eq:pointrecover}\\
+边 & \code{edge2node}、\code{edge2cell}、规范方向 & 宏面拓扑与 MPI owner\\
+边 & $S_k\bm n_k$ 或压缩后的 $\bm A_e,S_e$ & 中心通量和 Roe 谱尺度\\
+边 & 左/右状态均值权重 & 宏面限制状态\\
+边 & $\bm\omega^{F/G/H}_{e,m}$ & 中心物理通量精确积分\\
+边界节点/面 & 边界微三角形及分区标签 & 边界状态和力/热流积分\\
+\bottomrule
+\end{longtable}
+
+权重采用 CSR/SoA 组织：连续存储节点索引和三个几何分量，以边或节点为外层。初始化完成后不保留全部微四面体/微三角形也可运行；调试构建可保留它们以便闭合检查。
+
+\section{运行期暂存量的两种策略}
+
+设三维 Euler 有 $n_v=5$。每个节点至少需要 $\Ubar$（5）、$\bm G$（15）、恢复点值（5）和限制信息。中心通量的三个方向梯度共 $3\times3\times5=45$ 个标量。
+
+\begin{description}
+  \item[计算优先] 每节点缓存 $\grad\bm F,\grad\bm G,\grad\bm H$，一份数据被多条边复用；算术少、临时内存和 halo 大。
+  \item[内存优先] 只交换点值和受限 $\bm G$，边 owner 在边核内计算通量 Jacobian 与梯度；内存少，但高价 Jacobian 会按边重复。
+\end{description}
+
+CPU 初版建议先实现计算优先版本，建立正确性和论文算术模型；随后用性能计数器决定是否改为分块缓存或边内重算。GPU 则可能更偏向重算以减少全局内存流量，但必须实测。
+
+\section{论文计算量与存储量的可复核结果}
+
+论文在纯四面体平均拓扑下取重构模板数 $|\mathcal S_i|=15$、节点平均边邻居数 $N_f=12$、一条原始边平均相邻单元数 $N_e=5$。其模型为
+\begin{align}
+ M_{\mathrm{trad}}&=16N_fN_e+14|\mathcal S_i|+99,\\
+ M_{\mathrm{eff}}&=6N_fN_e+20N_f+8|\mathcal S_i|+44,\\
+ C_{\mathrm{trad}}&=621N_fN_e+45|\mathcal S_i|,\\
+ C_{\mathrm{eff}}&=22.5N_fN_e+168.5N_f+15|\mathcal S_i|+84.
+\end{align}
+
+\begin{table}[htbp]
+\centering
+\caption{论文算术模型的复算}
+\begin{threeparttable}
+\begin{tabular}{lrrr}
+\toprule
+指标 & 传统三阶格点型 & 高效格点型 & 高效/传统\\
+\midrule
+每节点浮点存储量 & 1269 & 764 & 60.2\%\\
+每节点乘法次数 & 37935 & 3681 & 9.7\%\\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}\small
+\item 存储下降 $39.8\%$，乘法模型下降 $90.3\%$。统计不含限制器与粘性通量，并把部分共享面数据折半计入。
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+论文还估算传统格心型每四面体为
+\begin{equation}
+  C_{\mathrm{cell}}=45|\mathcal S_i|+2367=3042.
+\end{equation}
+若同一四面体网格中的单元数约为节点数的 5 倍，总量约为 $5\times3042/3681\approx4.13$ 倍。这个比较高度依赖网格类型；六面体/棱柱混合网格的单元--节点比、平均边度和缓存局部性不同，不能外推。
+
+\section{从乘法次数到真实加速还缺什么}
+
+端到端时间近似为
+\begin{equation}
+ T_{\mathrm{stage}}=\max(T_{\mathrm{compute}},T_{\mathrm{memory}})
+ +T_{\mathrm{halo}}+T_{\mathrm{edge\ flux}}+T_{\mathrm{global\ reduce}}+T_{\mathrm{imbalance}}.
+\end{equation}
+必须分别测量重构、点值恢复、限制、通量梯度、Roe、边通量交换和节点累加；至少报告 L1/L2/LLC miss、内存带宽、每边字节数、MPI 消息量及最长 rank 时间。只有在相同误差、相同稳定条件和相同硬件上，才能比较“每步速度”和“达到给定误差的总成本”。
+
+\chapter{MPI 并行设计}
+
+\section{实体所有权}
+
+建议保留 DNDSR 当前单元分区作为几何基础，并定义：
+
+\begin{itemize}
+  \item \textbf{节点 owner}：沿用 \code{coords.trans} 的全局节点映射；时间推进未知量只在 owner 节点更新；
+  \item \textbf{边 owner}：用分布式子实体插值得到全局唯一边，选择相邻原始单元 owner 中的最小 rank，或采用确定性的平衡规则；
+  \item \textbf{边 ghost}：任何拥有该边端点节点或需要该边通量的 rank 都保存边 ghost；
+  \item \textbf{模板 ghost}：每个 owner 节点的 LS、点值恢复和宏面权重涉及的远程节点集合在初始化时统一建图。
+\end{itemize}
+
+DNDSR 的通用 \pathcode{MeshConnectivity::InterpolateGlobal} 已支持边的多父单元、全局去重、周期位和 MPI 所有权，并有分布式六面体/周期边测试。建议第一版把边拓扑封装在 \pathcode{NCFVTopology} 内，成熟后再决定是否提升为 \code{UnstructuredMesh} 常驻字段。
+
+\section{为什么选择“边通量拉取”}
+
+有三种可选模式：
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.22\textwidth}p{0.32\textwidth}p{0.35\textwidth}}
+\toprule
+模式 & 优点 & 问题\\
+\midrule
+\endfirsthead
+\toprule
+模式 & 优点 & 问题\\
+\midrule
+\endhead
+两端 rank 重复算边通量 & 不传通量、不回传残差；最简单 & 跨 rank 可能因顺序/周期变换产生微小不一致，重复计算，守恒审计困难\\
+唯一边 owner 算后 push 节点残差 & 通量只算一次 & DNDSR 的普通 push 是覆盖语义，不是多源求和；需新增规约通信\\
+唯一边 owner 算，其他 rank pull 边通量 & 一份通量、复用现有 pull 语义、两端状态一致 & 每 stage 多一次边通量 halo；需要边 ghost 映射\\
+\bottomrule
+\end{longtable}
+
+推荐第三种。边 owner 计算 $\widehat{\bm\Phi}_e$ 后，所有需要该边的 rank 拉取同一向量；各节点 owner 只遍历自己的 \code{node2edge}，按规范方向符号累加。这样既无需原子跨 rank 加法，也避免重复 Roe。
+
+\section{每个 SSPRK stage 的通信流水}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  x=1cm,y=0.78cm,
+  stage/.style={draw,rounded corners,minimum width=2.8cm,minimum height=0.62cm,align=center},
+  comm/.style={stage,fill=DNDSLight,draw=DNDSBlue},
+  comp/.style={stage,fill=green!7,draw=DNDSGreen},
+  arr/.style={-{Latex[length=2mm]},thick}
+]
+\node[comm] (u) at (0,0) {1. 拉取节点均值 $\Ubar$};
+\node[comp] (g) at (3.4,0) {2. owner 节点算 $\bm G$};
+\node[comm] (gp) at (6.8,0) {3. 拉取节点梯度};
+\node[comp] (l) at (10.2,0) {4. 恢复点值与限制};
+\node[comm] (hp) at (10.2,-1.35) {5. 拉取高阶节点包};
+\node[comp] (ef) at (6.8,-1.35) {6. owner 边算通量};
+\node[comm] (ep) at (3.4,-1.35) {7. 拉取边通量};
+\node[comp] (r) at (0,-1.35) {8. owner 节点累加 RHS};
+\draw[arr] (u)--(g);\draw[arr] (g)--(gp);\draw[arr] (gp)--(l);
+\draw[arr] (l)--(hp);\draw[arr] (hp)--(ef);\draw[arr] (ef)--(ep);\draw[arr] (ep)--(r);
+\end{tikzpicture}
+\caption{推荐的 stage 依赖链。内部节点/内部边可与非阻塞通信重叠。}
+\label{fig:mpipipe}
+\end{figure}
+
+具体流程为：
+
+\begin{enumerate}
+  \item 对 $\Ubar$ 发起 persistent pull；先计算完全内部节点，等待后计算分区边界节点；
+  \item owner 节点按 \cref{eq:gradientonly} 计算无限制梯度，拉取 ghost 梯度；
+  \item 用完整梯度星按 \cref{eq:pointrecover,eq:facemean,eq:bj} 计算点值、极值系数和正性系数；
+  \item 拉取“点值＋受限梯度”高阶节点包。计算优先版本还可包含通量梯度；
+  \item owner 边计算左右宏面均值、一次 Roe 和粘性通量，写入边通量数组；
+  \item 拉取 ghost 边通量；owner 节点按 \code{node2edge} 与 $B_{ie}$ 累加，并加入本地边界对偶面通量；
+  \item 计算局部 CFL；仅需全局物理时间步时做一次 MIN 规约；完成 RK stage。
+\end{enumerate}
+
+若高阶节点包只含 $\bm U_i$ 和受限 $\bm G_i$，三维 Euler 每个相关 ghost 的阶段通信量模型约为
+\begin{equation}
+  8\left[5N_g^{U}+15N_g^{G}+20N_g^{HO}+5N_g^{E}\right]\ \text{bytes},
+\end{equation}
+其中四个 ghost 集合不一定相同。若缓存并交换三个方向的通量梯度，高阶包从 20 个 double 增至 65 个 double，必须通过性能试验选择。
+
+\section{幽灵层深度与模板完整性}
+
+直接边邻居通常不足 14--18 个二次模板点，节点模板可能扩至两环。现有“单元经节点相邻”的 ghost tree 可作为基础，但必须以最终权重实际引用的全局节点集合为准，而不是假设固定一层足够。初始化后执行以下一致性检查：
+
+\begin{itemize}
+  \item 每个 owner 节点的模板、点值权重和所有 incident edge 支撑节点均可本地解析；
+  \item 每条 owner 边的全部相邻原始单元、微三角形和支撑节点完整；
+  \item 每个 ghost 边都有 owner，且两端 rank 对全局边方向、面积向量和周期位理解一致；
+  \item 所有 LS 矩阵满秩；失败节点全局计数并输出位置，而不是静默降阶。
+\end{itemize}
+
+\section{周期边界的额外要求}
+
+节点值直接 pull 只复制数值，不会自动旋转动量和梯度。对旋转周期，必须像当前 Euler 格心路径一样，在“邻居参考框架”访问时应用周期变换：
+
+\begin{equation}
+  \bm m' =\bm R\bm m,
+  \qquad
+  \grad\bm m'=\bm R_x\,(\grad\bm m)\,\bm R_v^{\transpose},
+\end{equation}
+其中 $\bm R_x$ 作用于空间导数方向，$\bm R_v$ 作用于向量物理分量。标量密度/能量不旋转。边插值框架已保存 \pathcode{parent2entityPbi} 与 \pathcode{entity2nodePbi}，节点型后端应提供统一的 \pathcode{TransformNodeState/Gradient} 访问器，禁止在核函数中散落位运算。
+
+\section{负载均衡与可扩展性指标}
+
+现有分区目标主要反映原始单元数量，而节点型成本更接近
+\begin{equation}
+  w_i=c_1|\mathcal S_i|+c_2\sum_{e\ni i}|\mathcal M_e|+c_3N_{\mathrm{bnd},i}.
+\end{equation}
+初版沿用现有分区并统计每 rank 的节点数、边数、权重非零数和边环长度；若最长/平均 stage 时间超过 1.2，再考虑给 ParMETIS 增加顶点/边权，或建立节点图重分区。扩展性报告至少包括 1、2、4、8、16 个节点的强扩展和固定每核工作量的弱扩展，不能只报告“512 核成功运行”。
+
+\chapter{DNDSR 集成设计}
+
+\section{当前代码已经具备的能力}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.29\textwidth}p{0.22\textwidth}p{0.39\textwidth}}
+\toprule
+能力/位置 & 状态 & 对本项目的意义\\
+\midrule
+\endfirsthead
+\toprule
+能力/位置 & 状态 & 对本项目的意义\\
+\midrule
+\endhead
+\pathcode{CFV/DOFFactory.hpp} & 已支持 Node/Cell/Face DOF 与梯度数组 & 节点未知量可直接借用 \pathcode{coords.trans} 建通信\\
+\pathcode{MeshConnectivity.hpp} 与 \pathcode{MeshConnectivity_Interpolate.hxx} & 通用分布式面/边子实体，全局去重、多父实体、周期位 & 可构造全局唯一原始边，不必从零写 MPI 边编号\\
+\pathcode{test_MeshConnectivity_Interpolate.cpp} & 已有三维边、分布式六面体边和周期边测试 & 边拓扑基础已有回归保护\\
+\pathcode{Geom/Elements.hpp} & 三维单元可枚举并提取局部边 & 支持 Tet/Hex/Prism/Pyramid O1/O2 拓扑\\
+\pathcode{Euler/Gas.hpp} 与 \pathcode{IdealGasPhysics.hpp} & Roe、HLLC、HLLEP、热力学函数 & 可复用物理内核，不重写黎曼求解器\\
+\pathcode{EulerEvaluator_EvaluateRHS.hxx} & 格心自由度、原始面循环、多积分点 & 不能直接承载节点对偶边循环；应并列新 evaluator\\
+\pathcode{CFV/Limiters.hpp} 与 Euler 正性限制 & WBAP/CWBAP 和多层正性工具已存在 & 可复用思想/内核，但索引与几何耦合需适配节点\\
+\code{ArrayTransformer} & persistent pull/push；普通 push 为覆盖语义 & 推荐拉取唯一 edge flux，不做多源残差 push\\
+\code{Mesh\_Plts.cpp} 与 Euler 输出映射 & 已有节点数据输出基础 & 节点解可自然写 PointData，但守恒均值含义需标注\\
+\bottomrule
+\end{longtable}
+
+当前最大的结构性缺口不是“能否找出一条边”，而是：边尚未作为主 \code{UnstructuredMesh} 求解字段长期存在；对偶体几何与压缩权重没有实现；EulerEvaluator 的状态、源项、边界积分、隐式矩阵和输出均以格心为核心。
+
+\section{建议新增的并列后端}
+
+建议目录与职责如下，名称可按项目风格调整：
+
+\begin{lstlisting}[style=dnds]
+src/CFV/NCFV/
+  NCFVTopology.hpp/.cpp       global edges, node2edge, edge ghosts
+  NCFVGeometry.hpp/.cpp       dual volumes, micro-simplex moments
+  VertexReconstruction.hpp/.cpp   LS stencils, P^(1), point recovery
+  VertexLimiter.hpp/.cpp          face-mean and positivity limiting
+  VertexFluxWeights.hpp/.cpp      compressed macro-face weights
+
+src/Euler/
+  VertexEulerEvaluator.hpp/.hxx   edge flux and node RHS
+  VertexEulerSolver.hpp/.hxx      stage orchestration, dt, output
+\end{lstlisting}
+
+关键接口不应把现有 \code{VariationalReconstruction} 强行泛化到所有位置，而应共享更小的组件：DOF 工厂、物理通量、周期变换、时间积分工具、线性求解器接口和 I/O。配置层增加显式后端选择，例如：
+
+\begin{lstlisting}[style=dnds]
+"spatialDiscretization": {
+  "type": "EfficientNCFV3",
+  "stencil": {"targetSize": 16, "maxRings": 2, "solver": "CPQR"},
+  "limiter": {"type": "BJCharacteristic", "positivity": true},
+  "macroFaceArea": "sumMicroArea",
+  "edgeFluxOwnership": "uniqueOwnerPull"
+}
+\end{lstlisting}
+
+\section{为什么不是三个“方法插件”}
+
+现有格心路径中，重构结果属于 cell，通量遍历 primal face，残差累加到 face2cell；论文路径中，均值属于 node，通量遍历 primal edge，残差累加到 edge2node。它还需要完全不同的控制体体积、边界子面、CFL 面积和隐式图。因此可以复用“重构器/限制器/通量内核”的抽象概念，却不能只更换现有三处函数指针而保持 evaluator 不变。把两种离散硬合并会在每个热循环中增加位置分支，并让状态不变量难以检查。
+
+\section{格心高效原型的定位}
+
+格心原型可直接利用现有 cell DOF、face2cell、面四分点/三角分解和 Euler 边界处理，工作范围为：
+
+\begin{enumerate}
+  \item 新增“二次 LS 只存一次项”的重构策略；
+  \item 新增基于面矩的中心通量积分与每面一次 Roe 耗散；
+  \item 新增面均值 BJ/正性限制；
+  \item 与现有高阶 CFV 在相同网格、相同误差下比较。
+\end{enumerate}
+
+它是数值公式与性能核的试验台，不应成为推迟节点拓扑的永久替代品。
+
+\section{首版功能边界}
+
+为控制风险，首个可验收版本应限定为：静止 O1 网格、二维/三维单组分 Euler、显式 SSPRK3、Roe 与一个鲁棒备选通量、平移和旋转周期、远场/滑移壁/对称边界、CPU MPI。以下延后：粘性、RANS/SA/$k$--$\omega$、隐式、移动网格/ALE、O2 曲边、CUDA、多重网格和复杂源项。这个范围仍足以验证论文最核心的三阶无粘与效率主张。
+
+\chapter{两条开发路线的可行性比较}
+
+\section{路线定义}
+
+\begin{description}
+  \item[路线 1] 在 DNDSR 中建设高效空间离散。包含 1A：高效格心型试验策略；1B：并列的高效格点型 NCFV 后端。最终产品是 1B。
+  \item[路线 2] 新建独立格点型程序，自行建设网格、分区、通信、边界、物理、时间推进、I/O、重启和测试体系。
+\end{description}
+
+\section{工程比较}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.18\textwidth}p{0.36\textwidth}p{0.36\textwidth}}
+\toprule
+维度 & 路线 1：DNDSR 内新后端 & 路线 2：独立程序\\
+\midrule
+\endfirsthead
+\toprule
+维度 & 路线 1：DNDSR 内新后端 & 路线 2：独立程序\\
+\midrule
+\endhead
+算法忠实度 & 1B 可完整实现论文；1A 只验证内核 & 可完整实现，结构最自由\\
+网格与拓扑 & 复用 CGNS/H5、混合单元、周期、分区；补对偶几何 & 全部重写，边界和坏网格处理成本高\\
+MPI & 复用节点映射、边插值、persistent pull、计时器 & 要重建全局编号、halo、周期、重分区与诊断\\
+物理能力 & 复用 Roe/HLLC、热力学、BC、后续 RANS & 初期只能覆盖很小的 Euler 子集\\
+验证 & 可与现有格心解在同一代码/网格对照 & 独立误差可能同时来自网格、物理和离散\\
+性能自由度 & 受 DNDSR 数组与对象模型约束，但可并列 SoA 后端 & 数据布局完全自由，适合极端 GPU 专用设计\\
+维护 & 一套 I/O、配置和回归；新旧后端共享修复 & 两套求解器长期漂移，重复修复与文档\\
+主要风险 & 边常驻、对偶几何、周期张量、边界/源项适配 & 基础设施量远大于核心算法，科研验证周期长\\
+\bottomrule
+\end{longtable}
+
+\section{加权评分}
+
+评分为本报告的工程判断，5 分最好，不是实测数据。
+
+\begin{table}[htbp]
+\centering
+\caption{路线加权评分}
+\begin{tabular}{lcrrr}
+\toprule
+指标 & 权重 & 1A 格心原型 & 1B DNDSR 节点后端 & 路线 2\\
+\midrule
+对论文目标的忠实度 & 20\% & 2 & 5 & 5\\
+既有能力复用 & 20\% & 5 & 4 & 1\\
+MPI 成熟度 & 15\% & 5 & 4 & 2\\
+验证可控性 & 15\% & 4 & 3 & 2\\
+长期维护 & 10\% & 4 & 4 & 2\\
+性能可塑性 & 10\% & 4 & 4 & 5\\
+到首个结果速度 & 10\% & 5 & 3 & 1\\
+\midrule
+加权总分（/5） & & 4.05 & 3.95 & 2.60\\
+用途判断 & & 风险消减原型 & \textbf{推荐产品路线} & 仅限独立研究原型\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+1A 得分略高是因为它更快、更贴合现有代码，并不意味着它满足用户的最终格点型目标。1B 是综合推荐。路线 2 只有在以下条件之一成立时才合理：需要与 DNDSR 完全不同的许可证/发布边界；目标是几千行以内、只支持固定单元和 Euler 的教学/论文复现实验；或目标硬件要求彻底不同的数据布局且经过原型证明 DNDSR 无法承载。
+
+\section{粗略工作量与阶段门}
+
+以下为单名熟悉 DNDSR 与 CFD 的开发者的量级估计，不是承诺排期：
+
+\begin{longtable}{p{0.10\textwidth}p{0.46\textwidth}p{0.18\textwidth}p{0.12\textwidth}}
+\toprule
+阶段 & 交付物 & 验收门 & 人周量级\\
+\midrule
+G0 & 独立几何/公式 oracle，随机多项式精确积分 & 二次多项式机器精度 & 2--4\\
+G1 & DNDSR 边拓扑、对偶体、权重与 MPI ghost & 体积/面积闭合；1/2/4 rank 一致 & 3--6\\
+G2 & 标量线性对流节点型 RHS & 三阶收敛、严格守恒 & 3--5\\
+G3 & Euler 宏面 Roe、SSPRK3、基础 BC & 3D 等熵涡三阶 & 4--8\\
+G4 & 限制器与正性 & 激波算例无负状态 & 3--6\\
+G5 & 性能、周期、混合网格 & 强/弱扩展与基线对比 & 4--8\\
+G6 & 粘性与壁面 & MMS 二阶、平板边界层 & 5--10\\
+\bottomrule
+\end{longtable}
+
+研究级无粘节点后端约为 19--37 人周量级；生产级隐式、RANS、CUDA、曲边与完整 I/O 还会显著增加。独立程序若要求达到 DNDSR 同等功能，通常不是上述工作量的小倍数，而是重新建设多年积累的基础设施。
+
+\chapter{验证、性能试验与验收标准}
+
+\section{几何和代数单元测试}
+
+\begin{enumerate}
+  \item 随机线段/三角形/四面体上，对所有 $1,x,y,z,x^2,y^2,z^2,xy,yz,zx$ 验证 \cref{eq:firstmoment,eq:secondmoment}；
+  \item Tet/Hex/Prism/Pyramid 的对偶微四面体体积总和等于原始单元体积，内部节点面积向量闭合；
+  \item 用解析二次函数生成精确控制体均值，验证 LS 一阶梯度与点值恢复；
+  \item 对常量状态，所有内部边左右宏面状态相同，Roe 耗散为零，自由流残差接近舍入误差；
+  \item 对每条内部边验证 $\widehat{\bm\Phi}_{j\to i}=-\widehat{\bm\Phi}_{i\to j}$；
+  \item 对旋转周期验证坐标、动量和梯度张量变换往返一致。
+\end{enumerate}
+
+\section{离散收敛与鲁棒性}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.26\textwidth}p{0.32\textwidth}p{0.32\textwidth}}
+\toprule
+试验 & 目的 & 建议门槛\\
+\midrule
+\endfirsthead
+\toprule
+试验 & 目的 & 建议门槛\\
+\midrule
+\endhead
+2D/3D 标量制造解 & 隔离几何、LS、通量积分 & 三组以上系统加密，$L_1/L_2$ 阶数 $\ge2.8$\\
+3D 等熵涡 & Euler 光滑三阶 & 与格心高阶基线同网格对比，阶数 $\ge2.8$\\
+自由流＋随机分区 & 几何守恒与 MPI & 残差相对量级接近 $10^{-12}$（double）\\
+二维 Riemann/激波管 & 限制器与正性 & 无负密度/压力，守恒漂移可解释\\
+粘性 MMS & 粘性实际阶数 & 至少二阶；不得把无粘三阶混称为 NS 三阶\\
+平板 Blasius & 高长宽比壁面稳定性 & 速度剖面、$C_f$ 随网格收敛\\
+混合网格自由流/MMS & Tet/Prism/Pyramid/Hex 权重 & 无单元类型接口降阶\\
+\bottomrule
+\end{longtable}
+
+\section{MPI 一致性}
+
+同一全局网格以 1、2、4、8 rank 运行，检查：
+
+\begin{itemize}
+  \item 全局边数、边父单元数分布、对偶总体积与边界总面积不随分区变化；
+  \item 每 stage 的总质量、动量、能量变化仅由物理边界决定；
+  \item 唯一边 owner 的通量 hash 在拉取后完全一致；
+  \item 最终解允许因节点累加顺序产生舍入差，但范数差应随容差可控；
+  \item 改变 MPI rank 数不改变 LS 模板的全局节点集合与排序，否则会引入分区相关离散。
+\end{itemize}
+
+\section{性能基准}
+
+至少比较四条路径：现有一阶/二阶格心、现有高阶 CFV、1A 高效格心原型、1B 高效格点。统一报告：
+
+\begin{enumerate}
+  \item 每百万自由度每 RK stage 时间；
+  \item 每百万原始单元时间与达到同一误差的总时间；
+  \item 峰值内存、静态权重、运行期临时数组和 MPI 缓冲分别占比；
+  \item 每个阶段的最长 rank 时间、通信重叠率、全局规约时间；
+  \item 强/弱扩展效率及边界 rank 的 halo/owned 比。
+\end{enumerate}
+
+\chapter{关键风险与化解方案}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}p{0.34\textwidth}p{0.32\textwidth}}
+\toprule
+风险 & 影响 & 化解/阶段门\\
+\midrule
+\endfirsthead
+\toprule
+风险 & 影响 & 化解/阶段门\\
+\midrule
+\endhead
+LS 条件不良或模板分区相关 & 梯度失阶、MPI 结果漂移 & 全局确定性模板、CPQR/SVD、秩诊断、自动扩环\\
+混合/翘曲宏面几何 & 自由流误差、谱尺度不稳 & 微面面积向量闭合；两种耗散面积策略 A/B 测试\\
+边界线性处理 & 全局降阶或壁面误差 & 边界 MMS；必要时构造二次边界矩或 ghost stencil\\
+粘性仅二阶 & 与“三阶 NS”目标冲突 & 明确验收口径；后续引入更高阶梯度/BR2/dGRP\\
+BJ 过耗散且多变量不正 & 激波分辨率和鲁棒性差 & 特征限制＋正性压缩；与 WBAP/CWBAP 比较\\
+周期旋转张量处理错误 & 周期缝不连续、守恒破坏 & 集中式变换 API 和往返/跨缝单元测试\\
+静态权重内存过大 & 抵消论文存储优势 & CSR 去重、32 位局部索引、分块/重算策略、实测字节\\
+边 owner 负载不均衡 & 强扩展提前饱和 & 统计边环长度和权重 nnz；必要时加权重分区\\
+现有源项/隐式路径格心耦合 & 功能覆盖慢 & 首版只 Euler 显式；以接口隔离后分阶段迁移\\
+O2 曲边几何 & 设计阶数和 GCL 失效 & 首版禁止；后续做等参几何矩积分\\
+性能主张只基于乘法次数 & 实际可能受内存/MPI 限制 & 分阶段计时、硬件计数器、强弱扩展和等误差比较\\
+\bottomrule
+\end{longtable}
+
+\chapter{建议的最终决策与实施顺序}
+
+\begin{conclusionbox}[决策]
+选择\textbf{路线 1B：DNDSR 内并列节点型后端}；用\textbf{路线 1A：高效格心型策略}作为短周期公式与性能原型。暂不启动完整的独立格点型求解器。独立代码可以保留为几何/标量方程 oracle，但不承担生产功能。
+\end{conclusionbox}
+
+推荐实施顺序如下：
+
+\begin{enumerate}
+  \item 先提交设计 ADR：冻结未知量含义、边方向、宏面面积、周期变换和边 owner 规则；
+  \item 建立与 DNDSR 无关的多项式精确性 oracle，先证明所有几何权重；
+  \item 在 DNDSR 内完成 \code{NCFVTopology/Geometry}，只做初始化与 MPI 闭合测试；
+  \item 完成标量线性对流，验证三阶、守恒和 1/2/4 rank 一致；
+  \item 接入现有 Gas Roe 内核与 SSPRK3，完成 3D 等熵涡；
+  \item 再引入限制器、正性和边界条件；
+  \item 在无粘路径通过精度与扩展性门槛后，才实现粘性；
+  \item 最后评估隐式、RANS、CUDA 和 O2 几何，避免同时调试多个新维度。
+\end{enumerate}
+
+项目成功的首要判据不是“能跑 CRM”，而是依次满足：二次多项式精确、自由流保持、内部边守恒、光滑 Euler 三阶、MPI 分区不改变离散、性能数据优于等误差基线。只要其中任一门槛失败，就应停在当前阶段定位原因，而不是继续叠加物理模型。
+
+\appendix
+
+\chapter{初始化与运行期伪代码}
+
+\section{几何与权重预计算}
+
+\begin{lstlisting}[style=dnds]
+BuildNCFV(mesh):
+  ensure node-neighbor cell ghosts are complete
+  edges = InterpolateGlobal(cells -> local edges)
+  build edge ghosts and local cell2edge / edge2node / edge2cell
+  invert edge2node to node2edge
+
+  for each owned cell c:
+    Vc = unique O1 corner nodes of c
+    xc = sum(x[v] for v in Vc) / |Vc|       # vertex average, not centroid
+    for each topological face f of c:
+      Vf = unique O1 corner nodes of f
+      xf = sum(x[v] for v in Vf) / |Vf|     # vertex average, not centroid
+      for each topological edge e=(i,j) of f:
+        order (i,j) by global node ID
+        xe = (x[i] + x[j]) / 2
+        add tet(i, xe, xf, xc) to dual cell i
+        add tet(j, xe, xf, xc) to dual cell j
+        add tri(xe, xf, xc) to macro-face of e
+        orient its area vector from i to j
+
+  check chain uniqueness, volume partition, pairwise orientation,
+        and area-vector closure
+  build deterministic node stencils; compute moments and CPQR/SVD
+  store only first d rows of each quadratic pseudoinverse
+  accumulate point-value, face-mean, and flux-gradient weights
+  freeze all required ghost-node and ghost-edge communication plans
+\end{lstlisting}
+
+\section{一个 SSPRK stage}
+
+\begin{lstlisting}[style=dnds]
+EvaluateVertexRHS(Ubar):
+  pull Ubar ghosts, overlapping interior-node work
+  G_owned = quadratic_LS_first_rows(Ubar)
+  pull G ghosts
+
+  Upoint_owned = recover_point_value(Ubar, G)
+  phi_owned = face_mean_limiter(Upoint, G, neighbor extrema)
+  apply positivity compression
+  pull packed {Upoint, limited G [, flux gradients]}
+
+  for each owned edge e=(i,j):
+    ULbar, URbar = integrated face means
+    central = exact_integral_of_physical_flux_gradients
+    dissipation = one_Roe(ULbar, URbar, equivalent normal)
+    edgeFlux[e] = central - dissipation [- viscous]
+  pull ghost edgeFlux
+
+  for each owned node i:
+    rhs[i] = signed_sum(edgeFlux[node2edge[i]]) / dualVolume[i]
+    add boundary dual-face flux and sources
+  return rhs
+\end{lstlisting}
+
+\chapter{论文证据与工程验收的对应关系}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.29\textwidth}p{0.28\textwidth}p{0.33\textwidth}}
+\toprule
+论文主张/结果 & 本报告采用方式 & DNDSR 中必须新增的证据\\
+\midrule
+\endfirsthead
+\toprule
+论文主张/结果 & 本报告采用方式 & DNDSR 中必须新增的证据\\
+\midrule
+只存二次 LS 的一阶行块 & 直接采用，改用 CPQR/SVD & 随机二次场梯度精确、条件诊断\\
+全微分消去 Hessian & 以 \cref{eq:tetquad,eq:triquad} 补全 & 体/面多项式 exactness 单测\\
+宏面只解一次 Roe & 直接采用，明确负耗散符号 & 常态耗散为零、熵修正和激波稳定性\\
+无粘三阶 & 作为目标 & 标量 MMS 与 3D 等熵涡三阶\\
+粘性方案有效 & 仅接受为候选二阶方法 & NS MMS 二阶与高长宽比网格稳定性\\
+边界降阶不影响全局 & 视为条件性假设 & 多边界类型 MMS 收敛\\
+存储下降约 40\%、乘法约 1/10 & 作为理论上限/方向 & DNDSR 字节、带宽、阶段时间实测\\
+512 核 CRM 可运行 & 仅证明大算例可执行 & 强/弱扩展、负载与通信占比\\
+\bottomrule
+\end{longtable}
+
+\chapter{参考资料}
+
+\begin{thebibliography}{99}
+\bibitem{thesis}
+马润之. \emph{高效三阶格点型有限体积方法研究}[D]. 北京：清华大学，2026.（本报告的主要算法来源，用户所附文档。）
+
+\bibitem{liu-vinokur}
+Liu Y, Vinokur M. Exact integrations of polynomials and symmetric quadrature formulas over arbitrary polyhedral grids. \emph{Journal of Computational Physics}, 1998, 140(1): 122--147.
+
+\bibitem{nishikawa}
+Nishikawa H, White J A. An efficient quadratic interpolation scheme for a third-order cell-centered finite-volume method on tetrahedral grids. \emph{Journal of Computational Physics}, 2023, 490: 112324.
+
+\bibitem{barth-jespersen}
+Barth T J, Jespersen D C. The design and application of upwind schemes on unstructured meshes. AIAA Paper 89-0366, 1989.
+
+\bibitem{roe}
+Roe P L. Approximate Riemann solvers, parameter vectors, and difference schemes. \emph{Journal of Computational Physics}, 1981, 43(2): 357--372.
+
+\bibitem{roe-pike}
+Roe P L, Pike J. Efficient construction and utilisation of approximate Riemann solutions. In: \emph{Computing Methods in Applied Sciences and Engineering VI}. North-Holland, 1985: 499--518.
+
+\bibitem{diskin}
+Diskin B, Thomas J L. Accuracy of node-centered finite-volume discretizations on irregular grids. \emph{Journal of Computational Physics}, 2008, 227(20): 9120--9154.
+
+\bibitem{wang-cfv1}
+Wang Q, Ren Y X, Pan J, et al. Compact high order finite volume method on unstructured grids I: Basic formulation. \emph{Journal of Computational Physics}, 2016, 314: 749--773.
+
+\bibitem{wang-cfv2}
+Wang Q, Ren Y X, Pan J, et al. Compact high order finite volume method on unstructured grids II: Multi-dimensional extension. \emph{Journal of Computational Physics}, 2017, 331: 1--23.
+
+\bibitem{dnds-code}
+DNDSR 源码快照，提交 \code{cfed6a3}：重点检查 \code{src/Geom/Mesh}、\code{src/CFV}、\code{src/Euler} 与 \code{test/cpp/Geom}，2026-09-04.
+\end{thebibliography}
+
+\end{document}

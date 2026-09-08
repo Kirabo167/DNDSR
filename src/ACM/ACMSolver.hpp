@@ -66,6 +66,12 @@ namespace DNDS::ACM
          */
         TDof &GetState() { return _u; }
 
+        /** @brief Access geometry/reconstruction metrics for implicit-operator tests. */
+        const ssp<TVFV> &GetReconstruction() const { return _vfv; }
+
+        /** @brief Access the constant-density spatial evaluator for implicit-operator tests. */
+        const ssp<TEvaluator> &GetEvaluator() const { return _evaluator; }
+
         /**
          * @brief Access the optional segregated turbulence state.
          * @return Pointer to the two-entry turbulence field, or `nullptr` in Laminar mode.

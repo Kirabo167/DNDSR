@@ -1,0 +1,18 @@
+{
+  "sha256": {
+    "src/NCFV/NCFVSpatial.cpp": "dc084b75a54f9658cfef1c689813bb3d24e9281fe37e8c9db3ad798cd680761d",
+    "src/NCFV/NCFVReconstruction.cpp": "5e780e8498009efaae6ba25e40265d095e513d5eeeecab331cfc39ee31ec2238",
+    "src/Euler/Gas.hpp": "3addca92bdd376a4d20ecc676dac77108cd8f115807ee0fc4ceec9a0dd89f9e4",
+    "build/src/NCFV/libncfv.a": "c6a7448d3b503e13f85c3ba628d8f76ba7f6b9e39f5d13b8e0344efd3c29e481",
+    "cases/NCFV/diagnostics/first_roe_dissipation_probe.cpp": "4b746ee8e020ad5a347042d6641142ec9ba921ce18cda8306009527dff8d50a2"
+  },
+  "mpi_reproducibility": {
+    "passed": true,
+    "mesh": "iv10",
+    "ranks": [
+      1,
+      2
+    ],
+    "max_norm_difference": 4.440892098500626e-15
+  }
+}

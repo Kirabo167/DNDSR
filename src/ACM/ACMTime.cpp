@@ -304,7 +304,8 @@ namespace DNDS::ACM
                     diagonalJacobian[ii].allFinite(),
                     "ACM implicit Jacobian callback returned a non-finite block");
                 const Matrix4 diagonal =
-                    GammaLocal(states[ii], settings.beta2, settings.alpha) / pseudoTimeStep[ii] -
+                    PseudoTimeProductJacobian(
+                        states[ii], statesOld[ii], pseudoTimeStep[ii], settings) -
                     diagonalJacobian[ii];
                 const Eigen::FullPivLU<Matrix4> factorization(diagonal);
                 DNDS_check_throw_info(factorization.isInvertible(), "ACM implicit diagonal block is singular");

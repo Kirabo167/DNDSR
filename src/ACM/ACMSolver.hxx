@@ -328,6 +328,23 @@ namespace DNDS::ACM
                 diagonal,
                 faceJacobians,
                 time);
+            // AssembleImplicitLinearization already contains Gamma(U)/dTau. Add only
+            // the product-rule contribution from d[Gamma(U)(U-Uold)]/dU here.
+            // BDF2 deliberately does not use this finite pseudo-time history term.
+            for (index iCell = 0; iCell < _mesh->NumCell(); iCell++)
+            {
+                const std::size_t ii = static_cast<std::size_t>(iCell);
+                diagonal[ii] += PseudoTimeProductJacobian(
+                                    states[ii],
+                                    statesOld[ii],
+                                    pseudoTimeStep[ii],
+                                    _configuration.acmSettings) -
+                                GammaLocal(
+                                    states[ii],
+                                    _configuration.acmSettings.beta2,
+                                    _configuration.acmSettings.alpha) /
+                                    pseudoTimeStep[ii];
+            }
             SolveImplicitCorrection(
                 diagonal,
                 faceJacobians,

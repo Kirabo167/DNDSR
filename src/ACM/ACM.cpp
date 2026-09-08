@@ -183,6 +183,26 @@ namespace DNDS::ACM
         return gammaInv;
     }
 
+    /** @copydoc PseudoTimeProductJacobian */
+    Matrix4 PseudoTimeProductJacobian(
+        const State &state,
+        const State &previous,
+        real pseudoTimeStep,
+        const Settings &settings)
+    {
+        DNDS_check_throw_info(
+            IsFiniteState(state) && IsFiniteState(previous) &&
+                std::isfinite(pseudoTimeStep) && pseudoTimeStep > 0,
+            "Invalid ACM pseudo-time product Jacobian input");
+        Matrix4 result = GammaLocal(state, settings.beta2, settings.alpha);
+        const real pressureJumpScaled =
+            (state(3) - previous(3)) / settings.beta2;
+        for (int component = 0; component < 3; component++)
+            result(component, component) +=
+                (settings.alpha + 1) * pressureJumpScaled;
+        return result / pseudoTimeStep;
+    }
+
     /** @copydoc ApplyGammaLocal */
     State ApplyGammaLocal(
         const State &meanLocalState,

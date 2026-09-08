@@ -1,0 +1,5648 @@
+{
+  "runs": [
+    {
+      "method": "Node Center Finite Volume Method",
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv10_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": false,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": false,
+          "writeFinal": false,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/convergence/iv10/solution",
+          "vtkSeriesName": "../data/out/NCFV/convergence/iv10/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/convergence/iv10/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "source_configuration": "../cases/NCFV/NCFV_iv10.json",
+      "time": 0.0,
+      "iteration": 0,
+      "compute_coefficients_calls": 1,
+      "recover_point_values_calls": 1,
+      "rhs_evaluations": 0,
+      "time_steps": 0,
+      "gauss_points_stored": 0,
+      "mpi_ranks": 2,
+      "nodes": 745,
+      "cells": 1024,
+      "periodic_unknowns": 512,
+      "volume": 399.9999999999999,
+      "h_3d": 0.9210078746600966,
+      "stencil_min": 30.0,
+      "stencil_max": 39.0,
+      "stencil_mean_owned_nodes": 33.41610738255034,
+      "condition_max": 2.720531763439156,
+      "wall_seconds": 0.190947998,
+      "errors": {
+        "conservative.rho.dx": {
+          "L1": 0.01261036624574288,
+          "L2": 0.041957239883584053,
+          "Linf": 0.27215458789969466
+        },
+        "conservative.rho.dy": {
+          "L1": 0.012795676675642492,
+          "L2": 0.04203799995856598,
+          "Linf": 0.27605169072378394
+        },
+        "conservative.rho.dz": {
+          "L1": 0.0003565563568332161,
+          "L2": 0.0010035990635424603,
+          "Linf": 0.009167535824764896
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.019537706556140275,
+          "L2": 0.059402109644736974,
+          "Linf": 0.28567908109901774
+        },
+        "conservative.rho.value": {
+          "L1": 0.0012711828173328685,
+          "L2": 0.003638114539796492,
+          "Linf": 0.017091037412003907
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.08148803123499303,
+          "L2": 0.23510751955460804,
+          "Linf": 1.6812852244552563
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.08316589216622026,
+          "L2": 0.23603785089695295,
+          "Linf": 1.6652076792626103
+        },
+        "conservative.rhoE.dz": {
+          "L1": 0.002133549598464334,
+          "L2": 0.00567787773291447,
+          "Linf": 0.04833148831623296
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.12676999347526507,
+          "L2": 0.3331991162994323,
+          "Linf": 1.7771588059769712
+        },
+        "conservative.rhoE.value": {
+          "L1": 0.00691004406040622,
+          "L2": 0.018206076101365796,
+          "Linf": 0.0886468559164002
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.027890965971082114,
+          "L2": 0.06484149877608134,
+          "Linf": 0.28445755411326473
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.04198674702983494,
+          "L2": 0.09744878731191503,
+          "Linf": 0.5515712227875458
+        },
+        "conservative.rhou.dz": {
+          "L1": 0.0009444583766578407,
+          "L2": 0.0020084810333074925,
+          "Linf": 0.009391135852065118
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.055848749037989115,
+          "L2": 0.11706716067348935,
+          "Linf": 0.5571890834460976
+        },
+        "conservative.rhou.value": {
+          "L1": 0.0023921543470271428,
+          "L2": 0.005051249228303017,
+          "Linf": 0.025017966122916846
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.0419434182120224,
+          "L2": 0.09790957763800423,
+          "Linf": 0.5668399867658733
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.028113609478635018,
+          "L2": 0.0649435473448206,
+          "Linf": 0.2777160569650843
+        },
+        "conservative.rhov.dz": {
+          "L1": 0.0009438866816999825,
+          "L2": 0.002000982216101111,
+          "Linf": 0.009204162664125087
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.05587775926706305,
+          "L2": 0.11750724941385735,
+          "Linf": 0.5724594743381446
+        },
+        "conservative.rhov.value": {
+          "L1": 0.0023866092392864227,
+          "L2": 0.005085298568712315,
+          "Linf": 0.0249855166102515
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.dx": {
+          "L1": 0.015744620646611546,
+          "L2": 0.06021272979241093,
+          "Linf": 0.3935638877395995
+        },
+        "primitive.p.dy": {
+          "L1": 0.015958437800267854,
+          "L2": 0.060285797143532875,
+          "Linf": 0.3987832194558991
+        },
+        "primitive.p.dz": {
+          "L1": 0.00045546991451635545,
+          "L2": 0.0014956321844220104,
+          "Linf": 0.015567752300948187
+        },
+        "primitive.p.gradient": {
+          "L1": 0.024407683303137532,
+          "L2": 0.08521846678928323,
+          "Linf": 0.4127030094731291
+        },
+        "primitive.p.value": {
+          "L1": 0.0018392921199936,
+          "L2": 0.005824435714752558,
+          "Linf": 0.028384389676777866
+        },
+        "primitive.rho.dx": {
+          "L1": 0.01261036624574288,
+          "L2": 0.041957239883584053,
+          "Linf": 0.27215458789969466
+        },
+        "primitive.rho.dy": {
+          "L1": 0.012795676675642492,
+          "L2": 0.04203799995856598,
+          "Linf": 0.27605169072378394
+        },
+        "primitive.rho.dz": {
+          "L1": 0.0003565563568332161,
+          "L2": 0.0010035990635424603,
+          "Linf": 0.009167535824764896
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.019537706556140275,
+          "L2": 0.059402109644736974,
+          "Linf": 0.28567908109901774
+        },
+        "primitive.rho.value": {
+          "L1": 0.0012711828173328685,
+          "L2": 0.003638114539796492,
+          "Linf": 0.017091037412003907
+        },
+        "primitive.u.dx": {
+          "L1": 0.02325815174195937,
+          "L2": 0.054962886719484495,
+          "Linf": 0.20607023726837095
+        },
+        "primitive.u.dy": {
+          "L1": 0.04136122980879462,
+          "L2": 0.09181350539020118,
+          "Linf": 0.38083696842777415
+        },
+        "primitive.u.dz": {
+          "L1": 0.0008556701313433111,
+          "L2": 0.0018859724200114415,
+          "Linf": 0.008391126153490124
+        },
+        "primitive.u.gradient": {
+          "L1": 0.05231738535343332,
+          "L2": 0.1070242756599849,
+          "Linf": 0.3808499691449226
+        },
+        "primitive.u.value": {
+          "L1": 0.0021253051961869886,
+          "L2": 0.00463136994683824,
+          "Linf": 0.02203198734599665
+        },
+        "primitive.v.dx": {
+          "L1": 0.04135998180025273,
+          "L2": 0.09186225021636113,
+          "Linf": 0.38443348494767604
+        },
+        "primitive.v.dy": {
+          "L1": 0.023213047876623854,
+          "L2": 0.054902954202990344,
+          "Linf": 0.2054762126068468
+        },
+        "primitive.v.dz": {
+          "L1": 0.0008522428392901903,
+          "L2": 0.0018893860270366531,
+          "Linf": 0.008480336650471949
+        },
+        "primitive.v.gradient": {
+          "L1": 0.05232324542450084,
+          "L2": 0.10703540150150398,
+          "Linf": 0.3844355395005754
+        },
+        "primitive.v.value": {
+          "L1": 0.0020094808256103697,
+          "L2": 0.0043268234037144035,
+          "Linf": 0.02188237500773771
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        }
+      },
+      "mesh": "iv10",
+      "nominal_resolution": 10,
+      "h_nominal": 1.0,
+      "independently_audited": true,
+      "source_directory": "data/out/NCFV/thesis_normalization_recheck_20260907/iv10",
+      "independent_errors": {
+        "conservative.rho.value": {
+          "L1": 0.0012711828173328909,
+          "L2": 0.003638114539796491,
+          "Linf": 0.017091037412003907
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.019537706556140268,
+          "L2": 0.05940210964473697,
+          "Linf": 0.2856790810990178
+        },
+        "conservative.rho.dx": {
+          "L1": 0.01261036624574287,
+          "L2": 0.04195723988358405,
+          "Linf": 0.2721545878996946
+        },
+        "conservative.rho.dy": {
+          "L1": 0.012795676675642485,
+          "L2": 0.04203799995856598,
+          "Linf": 0.276051690723784
+        },
+        "conservative.rho.dz": {
+          "L1": 0.00035655635683321603,
+          "L2": 0.0010035990635424606,
+          "Linf": 0.009167535824764896
+        },
+        "conservative.rhou.value": {
+          "L1": 0.0023921543470271493,
+          "L2": 0.0050512492283030196,
+          "Linf": 0.025017966122916846
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.05584874903798905,
+          "L2": 0.11706716067348931,
+          "Linf": 0.5571890834460975
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.027890965971082125,
+          "L2": 0.06484149877608134,
+          "Linf": 0.28445755411326484
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.04198674702983492,
+          "L2": 0.09744878731191502,
+          "Linf": 0.5515712227875457
+        },
+        "conservative.rhou.dz": {
+          "L1": 0.0009444583766578406,
+          "L2": 0.0020084810333074916,
+          "Linf": 0.009391135852065118
+        },
+        "conservative.rhov.value": {
+          "L1": 0.0023866092392864193,
+          "L2": 0.005085298568712309,
+          "Linf": 0.0249855166102515
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.05587775926706305,
+          "L2": 0.11750724941385733,
+          "Linf": 0.5724594743381446
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.041943418212022375,
+          "L2": 0.09790957763800417,
+          "Linf": 0.5668399867658733
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.028113609478635018,
+          "L2": 0.06494354734482058,
+          "Linf": 0.2777160569650842
+        },
+        "conservative.rhov.dz": {
+          "L1": 0.0009438866816999821,
+          "L2": 0.00200098221610111,
+          "Linf": 0.009204162664125087
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhoE.value": {
+          "L1": 0.006910044060406215,
+          "L2": 0.018206076101365803,
+          "Linf": 0.0886468559164002
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.126769993475265,
+          "L2": 0.33319911629943216,
+          "Linf": 1.777158805976971
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.08148803123499299,
+          "L2": 0.23510751955460807,
+          "Linf": 1.6812852244552563
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.08316589216622024,
+          "L2": 0.2360378508969529,
+          "Linf": 1.6652076792626098
+        },
+        "conservative.rhoE.dz": {
+          "L1": 0.002133549598464333,
+          "L2": 0.005677877732914472,
+          "Linf": 0.04833148831623296
+        },
+        "primitive.rho.value": {
+          "L1": 0.0012711828173328909,
+          "L2": 0.003638114539796491,
+          "Linf": 0.017091037412003907
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.019537706556140268,
+          "L2": 0.05940210964473697,
+          "Linf": 0.2856790810990178
+        },
+        "primitive.rho.dx": {
+          "L1": 0.01261036624574287,
+          "L2": 0.04195723988358405,
+          "Linf": 0.2721545878996946
+        },
+        "primitive.rho.dy": {
+          "L1": 0.012795676675642485,
+          "L2": 0.04203799995856598,
+          "Linf": 0.276051690723784
+        },
+        "primitive.rho.dz": {
+          "L1": 0.00035655635683321603,
+          "L2": 0.0010035990635424606,
+          "Linf": 0.009167535824764896
+        },
+        "primitive.u.value": {
+          "L1": 0.00212530519618699,
+          "L2": 0.004631369946838244,
+          "Linf": 0.02203198734599665
+        },
+        "primitive.u.gradient": {
+          "L1": 0.05231738535343329,
+          "L2": 0.10702427565998487,
+          "Linf": 0.38084996914492236
+        },
+        "primitive.u.dx": {
+          "L1": 0.023258151741959374,
+          "L2": 0.054962886719484495,
+          "Linf": 0.2060702372683709
+        },
+        "primitive.u.dy": {
+          "L1": 0.0413612298087946,
+          "L2": 0.09181350539020117,
+          "Linf": 0.3808369684277739
+        },
+        "primitive.u.dz": {
+          "L1": 0.0008556701313433107,
+          "L2": 0.0018859724200114417,
+          "Linf": 0.008391126153490124
+        },
+        "primitive.v.value": {
+          "L1": 0.0020094808256103697,
+          "L2": 0.004326823403714398,
+          "Linf": 0.02188237500773771
+        },
+        "primitive.v.gradient": {
+          "L1": 0.052323245424500835,
+          "L2": 0.10703540150150394,
+          "Linf": 0.38443553950057563
+        },
+        "primitive.v.dx": {
+          "L1": 0.0413599818002527,
+          "L2": 0.0918622502163611,
+          "Linf": 0.38443348494767626
+        },
+        "primitive.v.dy": {
+          "L1": 0.023213047876623837,
+          "L2": 0.05490295420299034,
+          "Linf": 0.2054762126068469
+        },
+        "primitive.v.dz": {
+          "L1": 0.0008522428392901901,
+          "L2": 0.0018893860270366527,
+          "Linf": 0.008480336650471949
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.value": {
+          "L1": 0.0018392921199935851,
+          "L2": 0.0058244357147525525,
+          "Linf": 0.02838438967677781
+        },
+        "primitive.p.gradient": {
+          "L1": 0.024407683303137535,
+          "L2": 0.08521846678928323,
+          "Linf": 0.4127030094731293
+        },
+        "primitive.p.dx": {
+          "L1": 0.015744620646611543,
+          "L2": 0.060212729792410935,
+          "Linf": 0.3935638877395996
+        },
+        "primitive.p.dy": {
+          "L1": 0.015958437800267854,
+          "L2": 0.06028579714353288,
+          "Linf": 0.39878321945589934
+        },
+        "primitive.p.dz": {
+          "L1": 0.000455469914516355,
+          "L2": 0.0014956321844220098,
+          "Linf": 0.015567752300948187
+        }
+      },
+      "worst_nodes": {
+        "conservative.rho.value": {
+          "original_node": 297,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            1.0
+          ],
+          "error": 0.017091037412003907
+        },
+        "conservative.rho.gradient": {
+          "original_node": 443,
+          "coordinate": [
+            4.805206476121758,
+            5.775154993321964,
+            2.0
+          ],
+          "error": 0.2856790810990178
+        },
+        "conservative.rho.dx": {
+          "original_node": 296,
+          "coordinate": [
+            5.786586616163881,
+            5.1872219835134805,
+            1.0
+          ],
+          "error": -0.2721545878996946
+        },
+        "conservative.rho.dy": {
+          "original_node": 443,
+          "coordinate": [
+            4.805206476121758,
+            5.775154993321964,
+            2.0
+          ],
+          "error": -0.276051690723784
+        },
+        "conservative.rho.dz": {
+          "original_node": 595,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            3.0
+          ],
+          "error": -0.009167535824764896
+        },
+        "conservative.rhou.value": {
+          "original_node": 436,
+          "coordinate": [
+            5.000000000000001,
+            3.464101615137756,
+            2.0
+          ],
+          "error": -0.025017966122916846
+        },
+        "conservative.rhou.gradient": {
+          "original_node": 441,
+          "coordinate": [
+            5.198548526763456,
+            4.206837302159182,
+            2.0
+          ],
+          "error": 0.5571890834460975
+        },
+        "conservative.rhou.dx": {
+          "original_node": 144,
+          "coordinate": [
+            4.217078344779924,
+            4.794789517787989,
+            0.0
+          ],
+          "error": 0.28445755411326484
+        },
+        "conservative.rhou.dy": {
+          "original_node": 441,
+          "coordinate": [
+            5.198548526763456,
+            4.206837302159182,
+            2.0
+          ],
+          "error": 0.5515712227875457
+        },
+        "conservative.rhou.dz": {
+          "original_node": 595,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            3.0
+          ],
+          "error": -0.009391135852065118
+        },
+        "conservative.rhov.value": {
+          "original_node": 284,
+          "coordinate": [
+            6.535898384862247,
+            5.000000000000005,
+            1.0
+          ],
+          "error": -0.0249855166102515
+        },
+        "conservative.rhov.gradient": {
+          "original_node": 147,
+          "coordinate": [
+            5.786586616163881,
+            5.1872219835134805,
+            0.0
+          ],
+          "error": 0.5724594743381446
+        },
+        "conservative.rhov.dx": {
+          "original_node": 147,
+          "coordinate": [
+            5.786586616163881,
+            5.1872219835134805,
+            0.0
+          ],
+          "error": -0.5668399867658733
+        },
+        "conservative.rhov.dy": {
+          "original_node": 292,
+          "coordinate": [
+            5.198548526763456,
+            4.206837302159182,
+            1.0
+          ],
+          "error": 0.2777160569650842
+        },
+        "conservative.rhov.dz": {
+          "original_node": 595,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            3.0
+          ],
+          "error": -0.009204162664125087
+        },
+        "conservative.rhow.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhoE.value": {
+          "original_node": 590,
+          "coordinate": [
+            5.198548526763456,
+            4.206837302159182,
+            3.0
+          ],
+          "error": 0.0886468559164002
+        },
+        "conservative.rhoE.gradient": {
+          "original_node": 441,
+          "coordinate": [
+            5.198548526763456,
+            4.206837302159182,
+            2.0
+          ],
+          "error": 1.777158805976971
+        },
+        "conservative.rhoE.dx": {
+          "original_node": 147,
+          "coordinate": [
+            5.786586616163881,
+            5.1872219835134805,
+            0.0
+          ],
+          "error": -1.6812852244552563
+        },
+        "conservative.rhoE.dy": {
+          "original_node": 292,
+          "coordinate": [
+            5.198548526763456,
+            4.206837302159182,
+            1.0
+          ],
+          "error": 1.6652076792626098
+        },
+        "conservative.rhoE.dz": {
+          "original_node": 595,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            3.0
+          ],
+          "error": -0.04833148831623296
+        },
+        "primitive.rho.value": {
+          "original_node": 297,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            1.0
+          ],
+          "error": 0.017091037412003907
+        },
+        "primitive.rho.gradient": {
+          "original_node": 443,
+          "coordinate": [
+            4.805206476121758,
+            5.775154993321964,
+            2.0
+          ],
+          "error": 0.2856790810990178
+        },
+        "primitive.rho.dx": {
+          "original_node": 296,
+          "coordinate": [
+            5.786586616163881,
+            5.1872219835134805,
+            1.0
+          ],
+          "error": -0.2721545878996946
+        },
+        "primitive.rho.dy": {
+          "original_node": 443,
+          "coordinate": [
+            4.805206476121758,
+            5.775154993321964,
+            2.0
+          ],
+          "error": -0.276051690723784
+        },
+        "primitive.rho.dz": {
+          "original_node": 595,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            3.0
+          ],
+          "error": -0.009167535824764896
+        },
+        "primitive.u.value": {
+          "original_node": 436,
+          "coordinate": [
+            5.000000000000001,
+            3.464101615137756,
+            2.0
+          ],
+          "error": -0.02203198734599665
+        },
+        "primitive.u.gradient": {
+          "original_node": 446,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            2.0
+          ],
+          "error": 0.38084996914492236
+        },
+        "primitive.u.dx": {
+          "original_node": 133,
+          "coordinate": [
+            6.516366608371817,
+            5.955641628109553,
+            0.0
+          ],
+          "error": -0.2060702372683709
+        },
+        "primitive.u.dy": {
+          "original_node": 446,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            2.0
+          ],
+          "error": 0.3808369684277739
+        },
+        "primitive.u.dz": {
+          "original_node": 444,
+          "coordinate": [
+            5.508543609841031,
+            5.737450871572183,
+            2.0
+          ],
+          "error": -0.008391126153490124
+        },
+        "primitive.v.value": {
+          "original_node": 284,
+          "coordinate": [
+            6.535898384862247,
+            5.000000000000005,
+            1.0
+          ],
+          "error": -0.02188237500773771
+        },
+        "primitive.v.gradient": {
+          "original_node": 446,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            2.0
+          ],
+          "error": 0.38443553950057563
+        },
+        "primitive.v.dx": {
+          "original_node": 446,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            2.0
+          ],
+          "error": -0.38443348494767626
+        },
+        "primitive.v.dy": {
+          "original_node": 581,
+          "coordinate": [
+            4.032486071435839,
+            6.519894523287317,
+            3.0
+          ],
+          "error": -0.2054762126068469
+        },
+        "primitive.v.dz": {
+          "original_node": 290,
+          "coordinate": [
+            4.256299833073866,
+            5.500114643777762,
+            1.0
+          ],
+          "error": 0.008480336650471949
+        },
+        "primitive.w.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.p.value": {
+          "original_node": 297,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            1.0
+          ],
+          "error": 0.02838438967677781
+        },
+        "primitive.p.gradient": {
+          "original_node": 592,
+          "coordinate": [
+            4.805206476121758,
+            5.775154993321964,
+            3.0
+          ],
+          "error": 0.4127030094731293
+        },
+        "primitive.p.dx": {
+          "original_node": 594,
+          "coordinate": [
+            5.786586616163881,
+            5.1872219835134805,
+            3.0
+          ],
+          "error": -0.3935638877395996
+        },
+        "primitive.p.dy": {
+          "original_node": 592,
+          "coordinate": [
+            4.805206476121758,
+            5.775154993321964,
+            3.0
+          ],
+          "error": -0.39878321945589934
+        },
+        "primitive.p.dz": {
+          "original_node": 595,
+          "coordinate": [
+            5.018095543413246,
+            4.918656605607554,
+            3.0
+          ],
+          "error": -0.015567752300948187
+        }
+      },
+      "orders": {
+        "conservative.rho.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        }
+      }
+    },
+    {
+      "method": "Node Center Finite Volume Method",
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv20_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": false,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": false,
+          "writeFinal": false,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/convergence/iv20/solution",
+          "vtkSeriesName": "../data/out/NCFV/convergence/iv20/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/convergence/iv20/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "source_configuration": "../cases/NCFV/NCFV_iv20.json",
+      "time": 0.0,
+      "iteration": 0,
+      "compute_coefficients_calls": 1,
+      "recover_point_values_calls": 1,
+      "rhs_evaluations": 0,
+      "time_steps": 0,
+      "gauss_points_stored": 0,
+      "mpi_ranks": 2,
+      "nodes": 4752,
+      "cells": 7792,
+      "periodic_unknowns": 3896,
+      "volume": 400.0000000000075,
+      "h_3d": 0.4682527619525807,
+      "stencil_min": 30.0,
+      "stencil_max": 40.0,
+      "stencil_mean_owned_nodes": 34.15909090909091,
+      "condition_max": 2.76805316496649,
+      "wall_seconds": 0.999732233,
+      "errors": {
+        "conservative.rho.dx": {
+          "L1": 0.005134585164024785,
+          "L2": 0.017275519495980714,
+          "Linf": 0.13284150806768397
+        },
+        "conservative.rho.dy": {
+          "L1": 0.00513769267502879,
+          "L2": 0.017337184588712334,
+          "Linf": 0.13316313550922404
+        },
+        "conservative.rho.dz": {
+          "L1": 1.0526222375586412e-16,
+          "L2": 3.019105107772347e-16,
+          "Linf": 4.058469353263428e-15
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.008006532236897717,
+          "L2": 0.024474916615161196,
+          "Linf": 0.13382727344125278
+        },
+        "conservative.rho.value": {
+          "L1": 0.00014106990174613763,
+          "L2": 0.00045845325612270795,
+          "Linf": 0.003693730127706907
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.031291739496960735,
+          "L2": 0.09911347671284787,
+          "Linf": 0.9209127858310813
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.031257177989657464,
+          "L2": 0.09913343927222718,
+          "Linf": 0.9247116058942777
+        },
+        "conservative.rhoE.dz": {
+          "L1": 5.885096118248258e-16,
+          "L2": 1.5083904870279947e-15,
+          "Linf": 1.831606271573163e-14
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.048847611514205184,
+          "L2": 0.14018173935305744,
+          "Linf": 0.9311456377445131
+        },
+        "conservative.rhoE.value": {
+          "L1": 0.0008737859246606299,
+          "L2": 0.0026760862615876945,
+          "Linf": 0.023610449679110967
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.01114996702198653,
+          "L2": 0.026960019014863813,
+          "Linf": 0.13806883669533185
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.015404978828411698,
+          "L2": 0.04027114917998535,
+          "Linf": 0.3295501461865521
+        },
+        "conservative.rhou.dz": {
+          "L1": 2.807097226005452e-16,
+          "L2": 6.630024250711457e-16,
+          "Linf": 5.7774137351402455e-15
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.02077616671350509,
+          "L2": 0.0484624399051312,
+          "Linf": 0.32964336990926735
+        },
+        "conservative.rhou.value": {
+          "L1": 0.0003397145398507042,
+          "L2": 0.0008545166972613738,
+          "Linf": 0.00577246083035432
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.015402639664156309,
+          "L2": 0.04020928117086694,
+          "Linf": 0.3287461429776226
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.011070178934588625,
+          "L2": 0.026881644216300016,
+          "Linf": 0.15819263994841493
+        },
+        "conservative.rhov.dz": {
+          "L1": 2.826368436877804e-16,
+          "L2": 7.011829896178785e-16,
+          "Linf": 6.702971511174371e-15
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.02073515532423583,
+          "L2": 0.048367438303569106,
+          "Linf": 0.3287520766558758
+        },
+        "conservative.rhov.value": {
+          "L1": 0.00034910545480120136,
+          "L2": 0.0008748761390036076,
+          "Linf": 0.005671414514740625
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.dx": {
+          "L1": 0.006534059331072801,
+          "L2": 0.02479851725338117,
+          "Linf": 0.1948400624986658
+        },
+        "primitive.p.dy": {
+          "L1": 0.006545511659957169,
+          "L2": 0.024907276285901312,
+          "Linf": 0.19529870019148143
+        },
+        "primitive.p.dz": {
+          "L1": 1.5017072081747654e-16,
+          "L2": 4.283966180688597e-16,
+          "Linf": 6.558213916892205e-15
+        },
+        "primitive.p.gradient": {
+          "L1": 0.010172967141795117,
+          "L2": 0.03514738781116548,
+          "Linf": 0.19573604677944656
+        },
+        "primitive.p.value": {
+          "L1": 0.00018437252428708955,
+          "L2": 0.0006886461035005673,
+          "Linf": 0.00596798931650433
+        },
+        "primitive.rho.dx": {
+          "L1": 0.005134585164024785,
+          "L2": 0.017275519495980714,
+          "Linf": 0.13284150806768397
+        },
+        "primitive.rho.dy": {
+          "L1": 0.00513769267502879,
+          "L2": 0.017337184588712334,
+          "Linf": 0.13316313550922404
+        },
+        "primitive.rho.dz": {
+          "L1": 1.0526222375586412e-16,
+          "L2": 3.019105107772347e-16,
+          "Linf": 4.058469353263428e-15
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.008006532236897717,
+          "L2": 0.024474916615161196,
+          "Linf": 0.13382727344125278
+        },
+        "primitive.rho.value": {
+          "L1": 0.00014106990174613763,
+          "L2": 0.00045845325612270795,
+          "Linf": 0.003693730127706907
+        },
+        "primitive.u.dx": {
+          "L1": 0.009108909091566867,
+          "L2": 0.02233162196722393,
+          "Linf": 0.10929613491599871
+        },
+        "primitive.u.dy": {
+          "L1": 0.015183291938960902,
+          "L2": 0.03637404416629243,
+          "Linf": 0.17311702993033806
+        },
+        "primitive.u.dz": {
+          "L1": 2.9171649973065017e-16,
+          "L2": 6.846213002577116e-16,
+          "Linf": 5.9605232327572545e-15
+        },
+        "primitive.u.gradient": {
+          "L1": 0.019542065965669625,
+          "L2": 0.042682226145064076,
+          "Linf": 0.17386670403223195
+        },
+        "primitive.u.value": {
+          "L1": 0.0002963717773212733,
+          "L2": 0.0007324480128766296,
+          "Linf": 0.004153977492908828
+        },
+        "primitive.v.dx": {
+          "L1": 0.01521415546312316,
+          "L2": 0.036340398324648124,
+          "Linf": 0.172946044697684
+        },
+        "primitive.v.dy": {
+          "L1": 0.009073617048328791,
+          "L2": 0.022194427100849203,
+          "Linf": 0.1092902700773627
+        },
+        "primitive.v.dz": {
+          "L1": 2.8825090310285045e-16,
+          "L2": 7.211812839705599e-16,
+          "Linf": 1.0507628538073698e-14
+        },
+        "primitive.v.gradient": {
+          "L1": 0.019515678364914905,
+          "L2": 0.042581887519566305,
+          "Linf": 0.17350695659086995
+        },
+        "primitive.v.value": {
+          "L1": 0.00030160653153009267,
+          "L2": 0.0007662592774356014,
+          "Linf": 0.005350041242537351
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        }
+      },
+      "mesh": "iv20",
+      "nominal_resolution": 20,
+      "h_nominal": 0.5,
+      "independently_audited": true,
+      "source_directory": "data/out/NCFV/thesis_normalization_recheck_20260907/iv20",
+      "independent_errors": {
+        "conservative.rho.value": {
+          "L1": 0.00014106990174615993,
+          "L2": 0.000458453256122712,
+          "Linf": 0.003693730127706907
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.00800653223689788,
+          "L2": 0.024474916615161456,
+          "Linf": 0.13382727344125286
+        },
+        "conservative.rho.dx": {
+          "L1": 0.0051345851640248776,
+          "L2": 0.017275519495980888,
+          "Linf": 0.13284150806768397
+        },
+        "conservative.rho.dy": {
+          "L1": 0.005137692675028896,
+          "L2": 0.0173371845887125,
+          "Linf": 0.13316313550922404
+        },
+        "conservative.rho.dz": {
+          "L1": 1.052622237558661e-16,
+          "L2": 3.019105107772377e-16,
+          "Linf": 4.058469353263428e-15
+        },
+        "conservative.rhou.value": {
+          "L1": 0.0003397145398507091,
+          "L2": 0.0008545166972613801,
+          "Linf": 0.00577246083035432
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.020776166713505483,
+          "L2": 0.048462439905131646,
+          "Linf": 0.32964336990926735
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.011149967021986739,
+          "L2": 0.026960019014864074,
+          "Linf": 0.13806883669533163
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.015404978828411988,
+          "L2": 0.040271149179985706,
+          "Linf": 0.3295501461865521
+        },
+        "conservative.rhou.dz": {
+          "L1": 2.8070972260055085e-16,
+          "L2": 6.630024250711524e-16,
+          "Linf": 5.7774137351402455e-15
+        },
+        "conservative.rhov.value": {
+          "L1": 0.0003491054548012057,
+          "L2": 0.0008748761390036142,
+          "Linf": 0.005671414514740625
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.020735155324236195,
+          "L2": 0.04836743830356959,
+          "Linf": 0.3287520766558756
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.015402639664156585,
+          "L2": 0.040209281170867264,
+          "Linf": 0.3287461429776224
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.011070178934588823,
+          "L2": 0.02688164421630028,
+          "Linf": 0.15819263994841504
+        },
+        "conservative.rhov.dz": {
+          "L1": 2.8263684368778567e-16,
+          "L2": 7.011829896178846e-16,
+          "Linf": 6.702971511174371e-15
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhoE.value": {
+          "L1": 0.0008737859246606435,
+          "L2": 0.002676086261587711,
+          "Linf": 0.023610449679110967
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.048847611514206184,
+          "L2": 0.1401817393530589,
+          "Linf": 0.9311456377445135
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.03129173949696126,
+          "L2": 0.0991134767128487,
+          "Linf": 0.9209127858310808
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.03125717798965807,
+          "L2": 0.09913343927222809,
+          "Linf": 0.9247116058942781
+        },
+        "conservative.rhoE.dz": {
+          "L1": 5.885096118248372e-16,
+          "L2": 1.5083904870280087e-15,
+          "Linf": 1.831606271573163e-14
+        },
+        "primitive.rho.value": {
+          "L1": 0.00014106990174615993,
+          "L2": 0.000458453256122712,
+          "Linf": 0.003693730127706907
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.00800653223689788,
+          "L2": 0.024474916615161456,
+          "Linf": 0.13382727344125286
+        },
+        "primitive.rho.dx": {
+          "L1": 0.0051345851640248776,
+          "L2": 0.017275519495980888,
+          "Linf": 0.13284150806768397
+        },
+        "primitive.rho.dy": {
+          "L1": 0.005137692675028896,
+          "L2": 0.0173371845887125,
+          "Linf": 0.13316313550922404
+        },
+        "primitive.rho.dz": {
+          "L1": 1.052622237558661e-16,
+          "L2": 3.019105107772377e-16,
+          "Linf": 4.058469353263428e-15
+        },
+        "primitive.u.value": {
+          "L1": 0.0002963717773212789,
+          "L2": 0.0007324480128766361,
+          "Linf": 0.004153977492908828
+        },
+        "primitive.u.gradient": {
+          "L1": 0.01954206596566994,
+          "L2": 0.04268222614506445,
+          "Linf": 0.17386670403223195
+        },
+        "primitive.u.dx": {
+          "L1": 0.009108909091567032,
+          "L2": 0.022331621967224127,
+          "Linf": 0.1092961349159986
+        },
+        "primitive.u.dy": {
+          "L1": 0.015183291938961205,
+          "L2": 0.03637404416629276,
+          "Linf": 0.17311702993033806
+        },
+        "primitive.u.dz": {
+          "L1": 2.917164997306556e-16,
+          "L2": 6.84621300257718e-16,
+          "Linf": 5.960523232757255e-15
+        },
+        "primitive.v.value": {
+          "L1": 0.00030160653153009863,
+          "L2": 0.0007662592774356066,
+          "Linf": 0.005350041242537351
+        },
+        "primitive.v.gradient": {
+          "L1": 0.01951567836491526,
+          "L2": 0.0425818875195667,
+          "Linf": 0.17350695659086998
+        },
+        "primitive.v.dx": {
+          "L1": 0.015214155463123444,
+          "L2": 0.03634039832464846,
+          "Linf": 0.17294604469768404
+        },
+        "primitive.v.dy": {
+          "L1": 0.009073617048328953,
+          "L2": 0.022194427100849404,
+          "Linf": 0.1092902700773628
+        },
+        "primitive.v.dz": {
+          "L1": 2.8825090310285577e-16,
+          "L2": 7.211812839705672e-16,
+          "Linf": 1.0507628538073698e-14
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.value": {
+          "L1": 0.00018437252428707806,
+          "L2": 0.0006886461035005743,
+          "Linf": 0.005967989316504274
+        },
+        "primitive.p.gradient": {
+          "L1": 0.01017296714179531,
+          "L2": 0.035147387811165824,
+          "Linf": 0.19573604677944675
+        },
+        "primitive.p.dx": {
+          "L1": 0.0065340593310729165,
+          "L2": 0.024798517253381395,
+          "Linf": 0.1948400624986657
+        },
+        "primitive.p.dy": {
+          "L1": 0.006545511659957291,
+          "L2": 0.02490727628590155,
+          "Linf": 0.19529870019148166
+        },
+        "primitive.p.dz": {
+          "L1": 1.5017072081747933e-16,
+          "L2": 4.283966180688635e-16,
+          "Linf": 6.558213916892205e-15
+        }
+      },
+      "worst_nodes": {
+        "conservative.rho.value": {
+          "original_node": 4751,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            4.0
+          ],
+          "error": 0.003693730127706907
+        },
+        "conservative.rho.gradient": {
+          "original_node": 520,
+          "coordinate": [
+            5.473488886620079,
+            5.683626706879768,
+            0.0
+          ],
+          "error": 0.13382727344125286
+        },
+        "conservative.rho.dx": {
+          "original_node": 1578,
+          "coordinate": [
+            4.330127018922215,
+            4.999999999999976,
+            1.0
+          ],
+          "error": 0.13284150806768397
+        },
+        "conservative.rho.dy": {
+          "original_node": 2108,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            1.5
+          ],
+          "error": 0.13316313550922404
+        },
+        "conservative.rho.dz": {
+          "original_node": 1055,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            0.5
+          ],
+          "error": -4.058469353263428e-15
+        },
+        "conservative.rhou.value": {
+          "original_node": 3695,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            3.0
+          ],
+          "error": 0.00577246083035432
+        },
+        "conservative.rhou.gradient": {
+          "original_node": 524,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            0.0
+          ],
+          "error": 0.32964336990926735
+        },
+        "conservative.rhou.dx": {
+          "original_node": 2624,
+          "coordinate": [
+            5.6952146682877896,
+            4.544317774900356,
+            2.0
+          ],
+          "error": -0.13806883669533163
+        },
+        "conservative.rhou.dy": {
+          "original_node": 524,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            0.0
+          ],
+          "error": 0.3295501461865521
+        },
+        "conservative.rhou.dz": {
+          "original_node": 4153,
+          "coordinate": [
+            6.968911086754475,
+            6.249999999999981,
+            3.5
+          ],
+          "error": 5.7774137351402455e-15
+        },
+        "conservative.rhov.value": {
+          "original_node": 3695,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            3.0
+          ],
+          "error": 0.005671414514740625
+        },
+        "conservative.rhov.gradient": {
+          "original_node": 2626,
+          "coordinate": [
+            5.669872981077711,
+            4.999999999999967,
+            2.0
+          ],
+          "error": 0.3287520766558756
+        },
+        "conservative.rhov.dx": {
+          "original_node": 2626,
+          "coordinate": [
+            5.669872981077711,
+            4.999999999999967,
+            2.0
+          ],
+          "error": -0.3287461429776224
+        },
+        "conservative.rhov.dy": {
+          "original_node": 2104,
+          "coordinate": [
+            5.473488886620079,
+            5.683626706879768,
+            1.5
+          ],
+          "error": -0.15819263994841504
+        },
+        "conservative.rhov.dz": {
+          "original_node": 4151,
+          "coordinate": [
+            5.24999999999999,
+            6.968911086754462,
+            3.5
+          ],
+          "error": -6.702971511174371e-15
+        },
+        "conservative.rhow.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhoE.value": {
+          "original_node": 2111,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            1.5
+          ],
+          "error": 0.023610449679110967
+        },
+        "conservative.rhoE.gradient": {
+          "original_node": 2636,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            2.0
+          ],
+          "error": 0.9311456377445135
+        },
+        "conservative.rhoE.dx": {
+          "original_node": 1042,
+          "coordinate": [
+            5.669872981077711,
+            4.999999999999967,
+            0.5
+          ],
+          "error": -0.9209127858310808
+        },
+        "conservative.rhoE.dy": {
+          "original_node": 2108,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            1.5
+          ],
+          "error": 0.9247116058942781
+        },
+        "conservative.rhoE.dz": {
+          "original_node": 1055,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            0.5
+          ],
+          "error": -1.831606271573163e-14
+        },
+        "primitive.rho.value": {
+          "original_node": 4751,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            4.0
+          ],
+          "error": 0.003693730127706907
+        },
+        "primitive.rho.gradient": {
+          "original_node": 520,
+          "coordinate": [
+            5.473488886620079,
+            5.683626706879768,
+            0.0
+          ],
+          "error": 0.13382727344125286
+        },
+        "primitive.rho.dx": {
+          "original_node": 1578,
+          "coordinate": [
+            4.330127018922215,
+            4.999999999999976,
+            1.0
+          ],
+          "error": 0.13284150806768397
+        },
+        "primitive.rho.dy": {
+          "original_node": 2108,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            1.5
+          ],
+          "error": 0.13316313550922404
+        },
+        "primitive.rho.dz": {
+          "original_node": 1055,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            0.5
+          ],
+          "error": -4.058469353263428e-15
+        },
+        "primitive.u.value": {
+          "original_node": 2608,
+          "coordinate": [
+            4.750000000000016,
+            6.102885682969996,
+            2.0
+          ],
+          "error": 0.004153977492908828
+        },
+        "primitive.u.gradient": {
+          "original_node": 1547,
+          "coordinate": [
+            5.500000000000012,
+            6.535898384862267,
+            1.0
+          ],
+          "error": 0.17386670403223195
+        },
+        "primitive.u.dx": {
+          "original_node": 478,
+          "coordinate": [
+            6.092030649030256,
+            4.2505332550574915,
+            0.0
+          ],
+          "error": 0.1092961349159986
+        },
+        "primitive.u.dy": {
+          "original_node": 2058,
+          "coordinate": [
+            4.999999999999995,
+            6.535898384862238,
+            1.5
+          ],
+          "error": -0.17311702993033806
+        },
+        "primitive.u.dz": {
+          "original_node": 1038,
+          "coordinate": [
+            5.2499999999999805,
+            3.8971143170299576,
+            0.5
+          ],
+          "error": 5.960523232757255e-15
+        },
+        "primitive.v.value": {
+          "original_node": 2100,
+          "coordinate": [
+            4.52653125577092,
+            4.316370188725541,
+            1.5
+          ],
+          "error": 0.005350041242537351
+        },
+        "primitive.v.gradient": {
+          "original_node": 99,
+          "coordinate": [
+            6.535898384862211,
+            4.4999999999999805,
+            0.0
+          ],
+          "error": 0.17350695659086998
+        },
+        "primitive.v.dx": {
+          "original_node": 100,
+          "coordinate": [
+            6.535898384862296,
+            5.000000000000018,
+            0.0
+          ],
+          "error": 0.17294604469768404
+        },
+        "primitive.v.dy": {
+          "original_node": 502,
+          "coordinate": [
+            5.7498945468002285,
+            6.091966609274033,
+            0.0
+          ],
+          "error": 0.1092902700773628
+        },
+        "primitive.v.dz": {
+          "original_node": 1040,
+          "coordinate": [
+            5.6952146682877896,
+            4.544317774900356,
+            0.5
+          ],
+          "error": 1.0507628538073698e-14
+        },
+        "primitive.w.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.p.value": {
+          "original_node": 1583,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            1.0
+          ],
+          "error": 0.005967989316504274
+        },
+        "primitive.p.gradient": {
+          "original_node": 520,
+          "coordinate": [
+            5.473488886620079,
+            5.683626706879768,
+            0.0
+          ],
+          "error": 0.19573604677944675
+        },
+        "primitive.p.dx": {
+          "original_node": 1578,
+          "coordinate": [
+            4.330127018922215,
+            4.999999999999976,
+            1.0
+          ],
+          "error": 0.1948400624986657
+        },
+        "primitive.p.dy": {
+          "original_node": 2108,
+          "coordinate": [
+            5.000000000000026,
+            4.330127018922226,
+            1.5
+          ],
+          "error": 0.19529870019148166
+        },
+        "primitive.p.dz": {
+          "original_node": 1055,
+          "coordinate": [
+            5.266433510058948,
+            4.722422964150784,
+            0.5
+          ],
+          "error": -6.558213916892205e-15
+        }
+      },
+      "orders": {
+        "conservative.rho.dx": {
+          "L1": 1.3282672724772353,
+          "L2": 1.3117702535345586,
+          "Linf": 1.0602446948971556
+        },
+        "conservative.rho.dy": {
+          "L1": 1.3489383021535437,
+          "L2": 1.309345598147759,
+          "Linf": 1.077687964630312
+        },
+        "conservative.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.gradient": {
+          "L1": 1.3187595317116976,
+          "L2": 1.3107656119998519,
+          "Linf": 1.1210104572738961
+        },
+        "conservative.rho.value": {
+          "L1": 3.249928225329238,
+          "L2": 3.06206049832447,
+          "Linf": 2.264607798122168
+        },
+        "conservative.rhoE.dx": {
+          "L1": 1.414867862421459,
+          "L2": 1.2769078346797686,
+          "Linf": 0.8898503228410934
+        },
+        "conservative.rhoE.dy": {
+          "L1": 1.446630646319134,
+          "L2": 1.2824482140116544,
+          "Linf": 0.8695605269646282
+        },
+        "conservative.rhoE.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 1.409792741440197,
+          "L2": 1.279898435316541,
+          "Linf": 0.9554965022456845
+        },
+        "conservative.rhoE.value": {
+          "L1": 3.056935850481669,
+          "L2": 2.834460323922458,
+          "Linf": 1.9557261194830933
+        },
+        "conservative.rhou.dx": {
+          "L1": 1.3553880881323033,
+          "L2": 1.2973278104084365,
+          "Linf": 1.068549951217293
+        },
+        "conservative.rhou.dy": {
+          "L1": 1.4822203089086894,
+          "L2": 1.3063465949056992,
+          "Linf": 0.7613786168508945
+        },
+        "conservative.rhou.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.gradient": {
+          "L1": 1.4617865378346955,
+          "L2": 1.3037848182208136,
+          "Linf": 0.7759409398127091
+        },
+        "conservative.rhou.value": {
+          "L1": 2.885378238264125,
+          "L2": 2.626694720340873,
+          "Linf": 2.167896082078478
+        },
+        "conservative.rhov.dx": {
+          "L1": 1.4809184724039988,
+          "L2": 1.3155930517005643,
+          "Linf": 0.8053557098101719
+        },
+        "conservative.rhov.dy": {
+          "L1": 1.377758321513782,
+          "L2": 1.3039562659705588,
+          "Linf": 0.8319566493710385
+        },
+        "conservative.rhov.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.gradient": {
+          "L1": 1.4654751826913148,
+          "L2": 1.3122324291764307,
+          "Linf": 0.8199121326968783
+        },
+        "conservative.rhov.value": {
+          "L1": 2.841637177501352,
+          "L2": 2.6018179932296235,
+          "Linf": 2.1920837914334927
+        },
+        "conservative.rhow.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.dx": {
+          "L1": 1.3001063131646795,
+          "L2": 1.3113849608262782,
+          "Linf": 1.0393283009016447
+        },
+        "primitive.p.dy": {
+          "L1": 1.3174580558180082,
+          "L2": 1.3067086086789785,
+          "Linf": 1.0553283437967675
+        },
+        "primitive.p.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.gradient": {
+          "L1": 1.2937403570996822,
+          "L2": 1.3092679580763322,
+          "Linf": 1.1027419140772063
+        },
+        "primitive.p.value": {
+          "L1": 3.4003142555590977,
+          "L2": 3.1562676369333564,
+          "Linf": 2.305278158443503
+        },
+        "primitive.rho.dx": {
+          "L1": 1.3282672724772353,
+          "L2": 1.3117702535345586,
+          "Linf": 1.0602446948971556
+        },
+        "primitive.rho.dy": {
+          "L1": 1.3489383021535437,
+          "L2": 1.309345598147759,
+          "Linf": 1.077687964630312
+        },
+        "primitive.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.gradient": {
+          "L1": 1.3187595317116976,
+          "L2": 1.3107656119998519,
+          "Linf": 1.1210104572738961
+        },
+        "primitive.rho.value": {
+          "L1": 3.249928225329238,
+          "L2": 3.06206049832447,
+          "Linf": 2.264607798122168
+        },
+        "primitive.u.dx": {
+          "L1": 1.3857467510728898,
+          "L2": 1.3314224191416384,
+          "Linf": 0.9374622460926625
+        },
+        "primitive.u.dy": {
+          "L1": 1.4814591281773508,
+          "L2": 1.3687483103834301,
+          "Linf": 1.165483747531719
+        },
+        "primitive.u.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.gradient": {
+          "L1": 1.4557532686944998,
+          "L2": 1.3589460264201954,
+          "Linf": 1.1591464051362517
+        },
+        "primitive.u.value": {
+          "L1": 2.912300820119855,
+          "L2": 2.726273064356478,
+          "Linf": 2.466410734675944
+        },
+        "primitive.v.dx": {
+          "L1": 1.478412622829789,
+          "L2": 1.370900978133748,
+          "Linf": 1.1808395296192855
+        },
+        "primitive.v.dy": {
+          "L1": 1.3886158392618222,
+          "L2": 1.338919474589071,
+          "Linf": 0.9332740726203769
+        },
+        "primitive.v.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.gradient": {
+          "L1": 1.4579163128643735,
+          "L2": 1.3625789779074586,
+          "Linf": 1.1760607064694975
+        },
+        "primitive.v.value": {
+          "L1": 2.803576572390124,
+          "L2": 2.5590093207383244,
+          "Linf": 2.0822761541073453
+        },
+        "primitive.w.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        }
+      }
+    },
+    {
+      "method": "Node Center Finite Volume Method",
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv40_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": false,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": false,
+          "writeFinal": false,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/iv40_efficient/solution",
+          "vtkSeriesName": "../data/out/NCFV/iv40_efficient/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/iv40_efficient/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "source_configuration": "../cases/NCFV/NCFV_iv40.json",
+      "time": 0.0,
+      "iteration": 0,
+      "compute_coefficients_calls": 1,
+      "recover_point_values_calls": 1,
+      "rhs_evaluations": 0,
+      "time_steps": 0,
+      "gauss_points_stored": 0,
+      "mpi_ranks": 2,
+      "nodes": 33694,
+      "cells": 60832,
+      "periodic_unknowns": 30416,
+      "volume": 399.9999999999561,
+      "h_3d": 0.2360401945567716,
+      "stencil_min": 26.0,
+      "stencil_max": 40.0,
+      "stencil_mean_owned_nodes": 34.085771947527746,
+      "condition_max": 4.107001888523852,
+      "wall_seconds": 6.77049254,
+      "errors": {
+        "conservative.rho.dx": {
+          "L1": 0.001458323838058431,
+          "L2": 0.005091670013590104,
+          "Linf": 0.03994586864363692
+        },
+        "conservative.rho.dy": {
+          "L1": 0.0014711203941966927,
+          "L2": 0.005158344672536799,
+          "Linf": 0.040015419061919855
+        },
+        "conservative.rho.dz": {
+          "L1": 2.48183173679276e-16,
+          "L2": 7.834914984782031e-16,
+          "Linf": 1.5007660416177334e-14
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.002309167764107957,
+          "L2": 0.007248008229022744,
+          "Linf": 0.0403407333679275
+        },
+        "conservative.rho.value": {
+          "L1": 1.3601994585287816e-05,
+          "L2": 4.4770741346624985e-05,
+          "Linf": 0.0003529334588775468
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.00913309088627877,
+          "L2": 0.030485039447078716,
+          "Linf": 0.29295770979414293
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.00923643392384405,
+          "L2": 0.030902515578004698,
+          "Linf": 0.2932709042901678
+        },
+        "conservative.rhoE.dz": {
+          "L1": 1.4638477697938205e-15,
+          "L2": 4.116918341006308e-15,
+          "Linf": 7.220437072727145e-14
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.014417710075033816,
+          "L2": 0.04340856020577909,
+          "Linf": 0.3207090304627972
+        },
+        "conservative.rhoE.value": {
+          "L1": 8.583170417517588e-05,
+          "L2": 0.000284660904877137,
+          "Linf": 0.0027221550585077026
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.003167815270480572,
+          "L2": 0.008047622692812315,
+          "Linf": 0.05415106017157417
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.004568232300395583,
+          "L2": 0.012488550979651389,
+          "Linf": 0.10827161480435699
+        },
+        "conservative.rhou.dz": {
+          "L1": 6.521076782764977e-16,
+          "L2": 1.5606098823605668e-15,
+          "Linf": 1.7555401576885288e-14
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.0060574199036213024,
+          "L2": 0.014856922177127342,
+          "Linf": 0.10827161851698718
+        },
+        "conservative.rhou.value": {
+          "L1": 3.30953331643818e-05,
+          "L2": 9.351890841533324e-05,
+          "Linf": 0.0007275703014897328
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.004540686845623015,
+          "L2": 0.0123939990883542,
+          "Linf": 0.10813362917576619
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.0031848743340613904,
+          "L2": 0.008124657565966748,
+          "Linf": 0.05428318230769141
+        },
+        "conservative.rhov.dz": {
+          "L1": 7.112260090522472e-16,
+          "L2": 1.922889936239477e-15,
+          "Linf": 3.2144426009850235e-14
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.00605118094404913,
+          "L2": 0.01481962462299043,
+          "Linf": 0.10813396299078278
+        },
+        "conservative.rhov.value": {
+          "L1": 3.3358815710847306e-05,
+          "L2": 9.656246646744348e-05,
+          "Linf": 0.0009321581463005435
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.dx": {
+          "L1": 0.0018445924407505994,
+          "L2": 0.007304839364901826,
+          "Linf": 0.058692530812217925
+        },
+        "primitive.p.dy": {
+          "L1": 0.0018637709743022886,
+          "L2": 0.007408110423934047,
+          "Linf": 0.058791000534795745
+        },
+        "primitive.p.dz": {
+          "L1": 3.3586902434468787e-16,
+          "L2": 1.0747475710803137e-15,
+          "Linf": 2.3511020272037732e-14
+        },
+        "primitive.p.gradient": {
+          "L1": 0.002923868438026691,
+          "L2": 0.010403882842488213,
+          "Linf": 0.05990125214191953
+        },
+        "primitive.p.value": {
+          "L1": 1.856634509089945e-05,
+          "L2": 6.55926282329823e-05,
+          "Linf": 0.0005435699706939912
+        },
+        "primitive.rho.dx": {
+          "L1": 0.001458323838058431,
+          "L2": 0.005091670013590104,
+          "Linf": 0.03994586864363692
+        },
+        "primitive.rho.dy": {
+          "L1": 0.0014711203941966927,
+          "L2": 0.005158344672536799,
+          "Linf": 0.040015419061919855
+        },
+        "primitive.rho.dz": {
+          "L1": 2.48183173679276e-16,
+          "L2": 7.834914984782031e-16,
+          "Linf": 1.5007660416177334e-14
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.002309167764107957,
+          "L2": 0.007248008229022744,
+          "Linf": 0.0403407333679275
+        },
+        "primitive.rho.value": {
+          "L1": 1.3601994585287816e-05,
+          "L2": 4.4770741346624985e-05,
+          "Linf": 0.0003529334588775468
+        },
+        "primitive.u.dx": {
+          "L1": 0.0026391318488861878,
+          "L2": 0.006507472919973891,
+          "Linf": 0.03425988136915398
+        },
+        "primitive.u.dy": {
+          "L1": 0.004418873196025644,
+          "L2": 0.011204731318251906,
+          "Linf": 0.06176626124626605
+        },
+        "primitive.u.dz": {
+          "L1": 6.514455837802022e-16,
+          "L2": 1.5618935135593994e-15,
+          "Linf": 2.1262144033353438e-14
+        },
+        "primitive.u.gradient": {
+          "L1": 0.0056622935542255375,
+          "L2": 0.012957361140232467,
+          "Linf": 0.06176627833268003
+        },
+        "primitive.u.value": {
+          "L1": 3.1135595989988256e-05,
+          "L2": 8.913030539312327e-05,
+          "Linf": 0.0007538250763213794
+        },
+        "primitive.v.dx": {
+          "L1": 0.0043965636788432854,
+          "L2": 0.011149046337938137,
+          "Linf": 0.061730749915760996
+        },
+        "primitive.v.dy": {
+          "L1": 0.0026391849556976496,
+          "L2": 0.006508241407214928,
+          "Linf": 0.0342884579052527
+        },
+        "primitive.v.dz": {
+          "L1": 6.951410043598208e-16,
+          "L2": 1.8013267395664218e-15,
+          "Linf": 2.2776166504775165e-14
+        },
+        "primitive.v.gradient": {
+          "L1": 0.005642874539390892,
+          "L2": 0.012909625883815423,
+          "Linf": 0.0617307545483506
+        },
+        "primitive.v.value": {
+          "L1": 3.139612247882668e-05,
+          "L2": 9.080964360357463e-05,
+          "Linf": 0.0007456433930188577
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        }
+      },
+      "mesh": "iv40",
+      "nominal_resolution": 40,
+      "h_nominal": 0.25,
+      "independently_audited": true,
+      "source_directory": "data/out/NCFV/thesis_normalization_recheck_20260907/iv40",
+      "independent_errors": {
+        "conservative.rho.value": {
+          "L1": 1.360199458531205e-05,
+          "L2": 4.47707413466223e-05,
+          "Linf": 0.0003529334588775468
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.002309167764107719,
+          "L2": 0.00724800822902235,
+          "Linf": 0.04034073336792745
+        },
+        "conservative.rho.dx": {
+          "L1": 0.0014583238380582843,
+          "L2": 0.005091670013589832,
+          "Linf": 0.03994586864363697
+        },
+        "conservative.rho.dy": {
+          "L1": 0.0014711203941965415,
+          "L2": 0.005158344672536512,
+          "Linf": 0.0400154190619198
+        },
+        "conservative.rho.dz": {
+          "L1": 2.481831736792499e-16,
+          "L2": 7.834914984781612e-16,
+          "Linf": 1.5007660416177334e-14
+        },
+        "conservative.rhou.value": {
+          "L1": 3.309533316437788e-05,
+          "L2": 9.351890841532558e-05,
+          "Linf": 0.0007275703014897328
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.006057419903620604,
+          "L2": 0.014856922177126551,
+          "Linf": 0.10827161851698697
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.003167815270480224,
+          "L2": 0.008047622692811899,
+          "Linf": 0.05415106017157417
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.004568232300395056,
+          "L2": 0.012488550979650669,
+          "Linf": 0.10827161480435676
+        },
+        "conservative.rhou.dz": {
+          "L1": 6.521076782764241e-16,
+          "L2": 1.5606098823604846e-15,
+          "Linf": 1.7555401576885288e-14
+        },
+        "conservative.rhov.value": {
+          "L1": 3.3358815710843694e-05,
+          "L2": 9.656246646743593e-05,
+          "Linf": 0.0009321581463005435
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.006051180944048456,
+          "L2": 0.014819624622989672,
+          "Linf": 0.108133962990783
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.004540686845622517,
+          "L2": 0.012393999088353511,
+          "Linf": 0.10813362917576641
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.003184874334061051,
+          "L2": 0.008124657565966338,
+          "Linf": 0.05428318230769136
+        },
+        "conservative.rhov.dz": {
+          "L1": 7.112260090521682e-16,
+          "L2": 1.9228899362393726e-15,
+          "Linf": 3.2144426009850235e-14
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhoE.value": {
+          "L1": 8.583170417516089e-05,
+          "L2": 0.00028466090487712543,
+          "Linf": 0.0027221550585077026
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.014417710075032208,
+          "L2": 0.043408560205776985,
+          "Linf": 0.3207090304627969
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.009133090886277806,
+          "L2": 0.030485039447077103,
+          "Linf": 0.29295770979414293
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.009236433923843044,
+          "L2": 0.030902515578002998,
+          "Linf": 0.2932709042901669
+        },
+        "conservative.rhoE.dz": {
+          "L1": 1.4638477697936582e-15,
+          "L2": 4.1169183410060865e-15,
+          "Linf": 7.220437072727145e-14
+        },
+        "primitive.rho.value": {
+          "L1": 1.360199458531205e-05,
+          "L2": 4.47707413466223e-05,
+          "Linf": 0.0003529334588775468
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.002309167764107719,
+          "L2": 0.00724800822902235,
+          "Linf": 0.04034073336792745
+        },
+        "primitive.rho.dx": {
+          "L1": 0.0014583238380582843,
+          "L2": 0.005091670013589832,
+          "Linf": 0.03994586864363697
+        },
+        "primitive.rho.dy": {
+          "L1": 0.0014711203941965415,
+          "L2": 0.005158344672536512,
+          "Linf": 0.0400154190619198
+        },
+        "primitive.rho.dz": {
+          "L1": 2.481831736792499e-16,
+          "L2": 7.834914984781612e-16,
+          "Linf": 1.5007660416177334e-14
+        },
+        "primitive.u.value": {
+          "L1": 3.1135595989984984e-05,
+          "L2": 8.913030539311708e-05,
+          "Linf": 0.0007538250763213794
+        },
+        "primitive.u.gradient": {
+          "L1": 0.005662293554224953,
+          "L2": 0.01295736114023184,
+          "Linf": 0.06176627833268003
+        },
+        "primitive.u.dx": {
+          "L1": 0.002639131848885903,
+          "L2": 0.006507472919973543,
+          "Linf": 0.03425988136915392
+        },
+        "primitive.u.dy": {
+          "L1": 0.004418873196025171,
+          "L2": 0.011204731318251285,
+          "Linf": 0.06176626124626605
+        },
+        "primitive.u.dz": {
+          "L1": 6.51445583780133e-16,
+          "L2": 1.561893513559316e-15,
+          "Linf": 2.1262144033353435e-14
+        },
+        "primitive.v.value": {
+          "L1": 3.139612247882299e-05,
+          "L2": 9.08096436035671e-05,
+          "Linf": 0.0007456433930188577
+        },
+        "primitive.v.gradient": {
+          "L1": 0.005642874539390292,
+          "L2": 0.01290962588381479,
+          "Linf": 0.06173075454835072
+        },
+        "primitive.v.dx": {
+          "L1": 0.004396563678842828,
+          "L2": 0.011149046337937531,
+          "Linf": 0.06173074991576111
+        },
+        "primitive.v.dy": {
+          "L1": 0.002639184955697369,
+          "L2": 0.006508241407214588,
+          "Linf": 0.034288457905252756
+        },
+        "primitive.v.dz": {
+          "L1": 6.951410043597414e-16,
+          "L2": 1.801326739566322e-15,
+          "Linf": 2.2776166504775165e-14
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.value": {
+          "L1": 1.8566345090872688e-05,
+          "L2": 6.559262823298063e-05,
+          "Linf": 0.0005435699706940467
+        },
+        "primitive.p.gradient": {
+          "L1": 0.0029238684380263804,
+          "L2": 0.010403882842487647,
+          "Linf": 0.059901252141919534
+        },
+        "primitive.p.dx": {
+          "L1": 0.0018445924407504044,
+          "L2": 0.007304839364901459,
+          "Linf": 0.058692530812217814
+        },
+        "primitive.p.dy": {
+          "L1": 0.001863770974302094,
+          "L2": 0.007408110423933684,
+          "Linf": 0.058791000534795745
+        },
+        "primitive.p.dz": {
+          "L1": 3.358690243446494e-16,
+          "L2": 1.0747475710802543e-15,
+          "Linf": 2.3511020272037732e-14
+        }
+      },
+      "worst_nodes": {
+        "conservative.rho.value": {
+          "original_node": 3944,
+          "coordinate": [
+            4.546633369848998,
+            4.875000000010903,
+            0.25
+          ],
+          "error": 0.0003529334588775468
+        },
+        "conservative.rho.gradient": {
+          "original_node": 1953,
+          "coordinate": [
+            5.250000000003427,
+            5.669872981062019,
+            0.0
+          ],
+          "error": 0.04034073336792745
+        },
+        "conservative.rho.dx": {
+          "original_node": 5910,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            0.5
+          ],
+          "error": -0.03994586864363697
+        },
+        "conservative.rho.dy": {
+          "original_node": 9877,
+          "coordinate": [
+            4.999999999996366,
+            4.3301270189261665,
+            1.0
+          ],
+          "error": 0.0400154190619198
+        },
+        "conservative.rho.dz": {
+          "original_node": 25759,
+          "coordinate": [
+            5.261950999684876,
+            4.747926767593538,
+            3.0
+          ],
+          "error": 1.5007660416177334e-14
+        },
+        "conservative.rhou.value": {
+          "original_node": 3957,
+          "coordinate": [
+            5.261950999684876,
+            4.747926767593538,
+            0.25
+          ],
+          "error": 0.0007275703014897328
+        },
+        "conservative.rhou.gradient": {
+          "original_node": 9877,
+          "coordinate": [
+            4.999999999996366,
+            4.3301270189261665,
+            1.0
+          ],
+          "error": 0.10827161851698697
+        },
+        "conservative.rhou.dx": {
+          "original_node": 5909,
+          "coordinate": [
+            4.330127018928483,
+            4.749999999988141,
+            0.5
+          ],
+          "error": 0.05415106017157417
+        },
+        "conservative.rhou.dy": {
+          "original_node": 9877,
+          "coordinate": [
+            4.999999999996366,
+            4.3301270189261665,
+            1.0
+          ],
+          "error": 0.10827161480435676
+        },
+        "conservative.rhou.dz": {
+          "original_node": 25671,
+          "coordinate": [
+            4.749999999997053,
+            6.102885682967663,
+            3.0
+          ],
+          "error": 1.7555401576885288e-14
+        },
+        "conservative.rhov.value": {
+          "original_node": 13860,
+          "coordinate": [
+            5.45336663011651,
+            4.874999999996502,
+            1.5
+          ],
+          "error": 0.0009321581463005435
+        },
+        "conservative.rhov.gradient": {
+          "original_node": 5910,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            0.5
+          ],
+          "error": 0.108133962990783
+        },
+        "conservative.rhov.dx": {
+          "original_node": 5910,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            0.5
+          ],
+          "error": -0.10813362917576641
+        },
+        "conservative.rhov.dy": {
+          "original_node": 1953,
+          "coordinate": [
+            5.250000000003427,
+            5.669872981062019,
+            0.0
+          ],
+          "error": -0.05428318230769136
+        },
+        "conservative.rhov.dz": {
+          "original_node": 23682,
+          "coordinate": [
+            6.102885682975628,
+            5.499999999996572,
+            2.75
+          ],
+          "error": 3.2144426009850235e-14
+        },
+        "conservative.rhow.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhoE.value": {
+          "original_node": 3950,
+          "coordinate": [
+            5.45336663011651,
+            4.874999999996502,
+            0.25
+          ],
+          "error": 0.0027221550585077026
+        },
+        "conservative.rhoE.gradient": {
+          "original_node": 29699,
+          "coordinate": [
+            5.4986101142554435,
+            4.3376762400924775,
+            3.5
+          ],
+          "error": 0.3207090304627969
+        },
+        "conservative.rhoE.dx": {
+          "original_node": 5910,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            0.5
+          ],
+          "error": -0.29295770979414293
+        },
+        "conservative.rhoE.dy": {
+          "original_node": 9877,
+          "coordinate": [
+            4.999999999996366,
+            4.3301270189261665,
+            1.0
+          ],
+          "error": 0.2932709042901669
+        },
+        "conservative.rhoE.dz": {
+          "original_node": 25759,
+          "coordinate": [
+            5.261950999684876,
+            4.747926767593538,
+            3.0
+          ],
+          "error": 7.220437072727145e-14
+        },
+        "primitive.rho.value": {
+          "original_node": 3944,
+          "coordinate": [
+            4.546633369848998,
+            4.875000000010903,
+            0.25
+          ],
+          "error": 0.0003529334588775468
+        },
+        "primitive.rho.gradient": {
+          "original_node": 1953,
+          "coordinate": [
+            5.250000000003427,
+            5.669872981062019,
+            0.0
+          ],
+          "error": 0.04034073336792745
+        },
+        "primitive.rho.dx": {
+          "original_node": 5910,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            0.5
+          ],
+          "error": -0.03994586864363697
+        },
+        "primitive.rho.dy": {
+          "original_node": 9877,
+          "coordinate": [
+            4.999999999996366,
+            4.3301270189261665,
+            1.0
+          ],
+          "error": 0.0400154190619198
+        },
+        "primitive.rho.dz": {
+          "original_node": 25759,
+          "coordinate": [
+            5.261950999684876,
+            4.747926767593538,
+            3.0
+          ],
+          "error": 1.5007660416177334e-14
+        },
+        "primitive.u.value": {
+          "original_node": 1980,
+          "coordinate": [
+            4.999661526339333,
+            5.229847824604509,
+            0.0
+          ],
+          "error": -0.0007538250763213794
+        },
+        "primitive.u.gradient": {
+          "original_node": 13846,
+          "coordinate": [
+            4.999999999997684,
+            5.6698729810831034,
+            1.5
+          ],
+          "error": 0.06176627833268003
+        },
+        "primitive.u.dx": {
+          "original_node": 29629,
+          "coordinate": [
+            6.102885682962515,
+            4.0000000000049045,
+            3.5
+          ],
+          "error": 0.03425988136915392
+        },
+        "primitive.u.dy": {
+          "original_node": 13846,
+          "coordinate": [
+            4.999999999997684,
+            5.6698729810831034,
+            1.5
+          ],
+          "error": 0.06176626124626605
+        },
+        "primitive.u.dz": {
+          "original_node": 25671,
+          "coordinate": [
+            4.749999999997053,
+            6.102885682967663,
+            3.0
+          ],
+          "error": 2.1262144033353435e-14
+        },
+        "primitive.v.value": {
+          "original_node": 5940,
+          "coordinate": [
+            5.2299531939289015,
+            5.0002189490726145,
+            0.5
+          ],
+          "error": 0.0007456433930188577
+        },
+        "primitive.v.gradient": {
+          "original_node": 23748,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            2.75
+          ],
+          "error": 0.06173075454835072
+        },
+        "primitive.v.dx": {
+          "original_node": 23748,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            2.75
+          ],
+          "error": -0.06173074991576111
+        },
+        "primitive.v.dy": {
+          "original_node": 28009,
+          "coordinate": [
+            4.000000000000143,
+            3.8971143170298763,
+            3.5
+          ],
+          "error": 0.034288457905252756
+        },
+        "primitive.v.dz": {
+          "original_node": 1934,
+          "coordinate": [
+            5.88637933202322,
+            5.124999999991486,
+            0.0
+          ],
+          "error": 2.2776166504775165e-14
+        },
+        "primitive.w.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.p.value": {
+          "original_node": 1962,
+          "coordinate": [
+            4.546633369848998,
+            4.875000000010903,
+            0.0
+          ],
+          "error": 0.0005435699706940467
+        },
+        "primitive.p.gradient": {
+          "original_node": 27717,
+          "coordinate": [
+            5.4986101142554435,
+            4.3376762400924775,
+            3.25
+          ],
+          "error": 0.059901252141919534
+        },
+        "primitive.p.dx": {
+          "original_node": 5910,
+          "coordinate": [
+            5.6698729810690365,
+            4.999999999995234,
+            0.5
+          ],
+          "error": -0.058692530812217814
+        },
+        "primitive.p.dy": {
+          "original_node": 9877,
+          "coordinate": [
+            4.999999999996366,
+            4.3301270189261665,
+            1.0
+          ],
+          "error": 0.058791000534795745
+        },
+        "primitive.p.dz": {
+          "original_node": 25759,
+          "coordinate": [
+            5.261950999684876,
+            4.747926767593538,
+            3.0
+          ],
+          "error": 2.3511020272037732e-14
+        }
+      },
+      "orders": {
+        "conservative.rho.dx": {
+          "L1": 1.837518341572507,
+          "L2": 1.7834651518816145,
+          "Linf": 1.7541908558386676
+        },
+        "conservative.rho.dy": {
+          "L1": 1.8256475942811152,
+          "L2": 1.7696744685110681,
+          "Linf": 1.7551815151554804
+        },
+        "conservative.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.gradient": {
+          "L1": 1.8151232423895,
+          "L2": 1.7765126736590175,
+          "Linf": 1.7506241096752804
+        },
+        "conservative.rho.value": {
+          "L1": 3.414625020335874,
+          "L2": 3.3960331048845673,
+          "Linf": 3.427870860620679
+        },
+        "conservative.rhoE.dx": {
+          "L1": 1.7977210858419446,
+          "L2": 1.7211953476649569,
+          "Linf": 1.6720099537074904
+        },
+        "conservative.rhoE.dy": {
+          "L1": 1.7796821283647848,
+          "L2": 1.701633264907715,
+          "Linf": 1.6764596486882617
+        },
+        "conservative.rhoE.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 1.7813682336735543,
+          "L2": 1.7113468048611153,
+          "Linf": 1.5560173548976386
+        },
+        "conservative.rhoE.value": {
+          "L1": 3.3874834757594656,
+          "L2": 3.2712290920614135,
+          "Linf": 3.153644068913352
+        },
+        "conservative.rhou.dx": {
+          "L1": 1.837055637682243,
+          "L2": 1.7649159655365474,
+          "Linf": 1.366374372745483
+        },
+        "conservative.rhou.dy": {
+          "L1": 1.7745307285175387,
+          "L2": 1.7092153652495092,
+          "Linf": 1.6249278001028338
+        },
+        "conservative.rhou.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.gradient": {
+          "L1": 1.7992868789951741,
+          "L2": 1.7260037668876584,
+          "Linf": 1.6253406540098967
+        },
+        "conservative.rhou.value": {
+          "L1": 3.3995511610393176,
+          "L2": 3.2297118087591747,
+          "Linf": 3.0235395366088476
+        },
+        "conservative.rhov.dx": {
+          "L1": 1.7831382142206231,
+          "L2": 1.718065540789821,
+          "Linf": 1.6232235413278076
+        },
+        "conservative.rhov.dy": {
+          "L1": 1.818731274383785,
+          "L2": 1.7467582299478435,
+          "Linf": 1.561444515063082
+        },
+        "conservative.rhov.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.gradient": {
+          "L1": 1.7979067256820644,
+          "L2": 1.7268086765777062,
+          "Linf": 1.6232453837671466
+        },
+        "conservative.rhov.value": {
+          "L1": 3.427782392752583,
+          "L2": 3.2173320702926924,
+          "Linf": 2.636022169886756
+        },
+        "conservative.rhow.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.dx": {
+          "L1": 1.8463630881605404,
+          "L2": 1.784285933429102,
+          "Linf": 1.7516143228589398
+        },
+        "primitive.p.dy": {
+          "L1": 1.833819684304961,
+          "L2": 1.7701806142202798,
+          "Linf": 1.7525994775130744
+        },
+        "primitive.p.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.gradient": {
+          "L1": 1.8201681914540062,
+          "L2": 1.7771683406846297,
+          "Linf": 1.7285533444689243
+        },
+        "primitive.p.value": {
+          "L1": 3.3512222003326673,
+          "L2": 3.4324717278595234,
+          "Linf": 3.4977889919471252
+        },
+        "primitive.rho.dx": {
+          "L1": 1.837518341572507,
+          "L2": 1.7834651518816145,
+          "Linf": 1.7541908558386676
+        },
+        "primitive.rho.dy": {
+          "L1": 1.8256475942811152,
+          "L2": 1.7696744685110681,
+          "Linf": 1.7551815151554804
+        },
+        "primitive.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.gradient": {
+          "L1": 1.8151232423895,
+          "L2": 1.7765126736590175,
+          "Linf": 1.7506241096752804
+        },
+        "primitive.rho.value": {
+          "L1": 3.414625020335874,
+          "L2": 3.3960331048845673,
+          "Linf": 3.427870860620679
+        },
+        "primitive.u.dx": {
+          "L1": 1.8084552494150403,
+          "L2": 1.800060529315443,
+          "Linf": 1.6935410439983907
+        },
+        "primitive.u.dy": {
+          "L1": 1.8018975570074973,
+          "L2": 1.718990914712316,
+          "Linf": 1.5045274901696712
+        },
+        "primitive.u.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.gradient": {
+          "L1": 1.8083638658297456,
+          "L2": 1.7403034390342076,
+          "Linf": 1.5108352013489321
+        },
+        "primitive.u.value": {
+          "L1": 3.2894054969740356,
+          "L2": 3.0748527045452723,
+          "Linf": 2.491453954065081
+        },
+        "primitive.v.dx": {
+          "L1": 1.8122509578275396,
+          "L2": 1.7249131102110051,
+          "Linf": 1.5039244624647337
+        },
+        "primitive.v.dy": {
+          "L1": 1.8027588024525985,
+          "L2": 1.7908919111945472,
+          "Linf": 1.692245545220962
+        },
+        "primitive.v.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.gradient": {
+          "L1": 1.8114064898060191,
+          "L2": 1.742255585113635,
+          "Linf": 1.5086513598052746
+        },
+        "primitive.v.value": {
+          "L1": 3.3028009309068462,
+          "L2": 3.1134832287732825,
+          "Linf": 2.876780210302587
+        },
+        "primitive.w.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        }
+      }
+    },
+    {
+      "method": "Node Center Finite Volume Method",
+      "configuration": {
+        "dimension": 3,
+        "mesh": {
+          "meshFile": "../cases/NCFV/iv80_3d_1_dnds.cgns",
+          "ghostLayers": 2,
+          "reorderCells": 0,
+          "periodicTolerance": 1e-08,
+          "periodicLengths": [
+            10.0,
+            10.0,
+            4.0
+          ],
+          "partitionOptions": {
+            "metisType": "KWAY",
+            "metisUfactor": 20,
+            "metisSeed": 0,
+            "edgeWeightMethod": 0,
+            "metisNcuts": 3
+          }
+        },
+        "algorithm": {
+          "mode": "EfficientDifferential",
+          "quadratureOrder": 4,
+          "retainMicroGeometry": false,
+          "checkGeometryClosure": true,
+          "closureTolerance": 2e-10
+        },
+        "reconstruction": {
+          "stencilSizeFactor": 1.7,
+          "maximumStencilRings": 4,
+          "distanceWeightPower": 1.0,
+          "distanceWeightFloor": 0.15,
+          "svdTolerance": 1e-11,
+          "maximumConditionNumber": 1000000000000.0,
+          "enableLimiter": false
+        },
+        "physics": {
+          "gamma": 1.4,
+          "riemannSolver": "Roe_M2",
+          "boundaryMode": "FarField",
+          "initialPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "farFieldPrimitive": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0
+          ],
+          "requireBoundaryZoneCoverage": true,
+          "boundaryZones": [
+            {
+              "name": "bc-2",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-2-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-3-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            },
+            {
+              "name": "bc-4-1",
+              "mode": "Periodic",
+              "primitive": [],
+              "wallVelocity": [],
+              "wallTemperature": 1.0,
+              "staticPressure": 1.0,
+              "strongState": true
+            }
+          ],
+          "viscous": {
+            "enabled": false,
+            "model": "Sutherland",
+            "dynamicViscosity": 1e-05,
+            "gasConstant": 1.0,
+            "prandtlNumber": 0.72,
+            "referenceTemperature": 273.15,
+            "sutherlandConstant": 110.4,
+            "spectralRadiusFactor": 4.0
+          }
+        },
+        "initialField": {
+          "nodeFile": "",
+          "isentropicVortex": true,
+          "vortexStrength": 5.0,
+          "vortexCenter": [
+            5.0,
+            5.0,
+            0.0
+          ],
+          "nodeFileVariables": "Primitive",
+          "nodeFileIndexBase": 0,
+          "requireCompleteNodeFile": true,
+          "boxes": [],
+          "planes": [],
+          "expressions": []
+        },
+        "time": {
+          "iterations": 0,
+          "timeStep": 0.0001,
+          "useCFLTimeStep": true,
+          "useLocalTimeStep": false,
+          "cfl": 0.5,
+          "minimumTimeStep": 1e-12,
+          "maximumTimeStep": 0.01,
+          "endTime": 0.0,
+          "reportInterval": 20
+        },
+        "io": {
+          "writeVTK": false,
+          "writeInitial": false,
+          "writeFinal": false,
+          "outputInterval": 100,
+          "outputPrefix": "../data/out/NCFV/convergence/iv80/solution",
+          "vtkSeriesName": "../data/out/NCFV/convergence/iv80/series",
+          "vtkFloatEncoding": "binary",
+          "asciiPrecision": 12,
+          "restartInput": "",
+          "restartInterval": 0,
+          "writeFinalRestart": false,
+          "restartPrefix": "../data/out/NCFV/convergence/iv80/restart",
+          "restartSerializer": {
+            "type": "H5",
+            "hdfDeflateLevel": 0,
+            "hdfChunkSize": 0,
+            "hdfCollOnData": false,
+            "hdfCollOnMeta": true,
+            "jsonBinaryDeflateLevel": 5,
+            "jsonUseCodecOnUInt8": true
+          },
+          "writeResolvedConfiguration": false
+        }
+      },
+      "source_configuration": "../cases/NCFV/NCFV_iv80.json",
+      "time": 0.0,
+      "iteration": 0,
+      "compute_coefficients_calls": 1,
+      "recover_point_values_calls": 1,
+      "rhs_evaluations": 0,
+      "time_steps": 0,
+      "gauss_points_stored": 0,
+      "mpi_ranks": 2,
+      "nodes": 252780,
+      "cells": 479936,
+      "periodic_unknowns": 239968,
+      "volume": 399.9999999996651,
+      "h_3d": 0.11856838008964392,
+      "stencil_min": 26.0,
+      "stencil_max": 40.0,
+      "stencil_mean_owned_nodes": 34.03838120104439,
+      "condition_max": 4.1018799967342625,
+      "wall_seconds": 52.326629848,
+      "errors": {
+        "conservative.rho.dx": {
+          "L1": 0.00038449085396161553,
+          "L2": 0.0013609449005968957,
+          "Linf": 0.010865364685045065
+        },
+        "conservative.rho.dy": {
+          "L1": 0.0003832587264133184,
+          "L2": 0.0013574072124625358,
+          "Linf": 0.01086547802153126
+        },
+        "conservative.rho.dz": {
+          "L1": 4.739058535466317e-16,
+          "L2": 1.599811593937592e-15,
+          "Linf": 3.610306498202905e-14
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.0006034954101985805,
+          "L2": 0.0019221668405489836,
+          "Linf": 0.011440135425424198
+        },
+        "conservative.rho.value": {
+          "L1": 9.947566759587789e-07,
+          "L2": 3.841913928130718e-06,
+          "Linf": 0.00010123430467001704
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.002427789018144526,
+          "L2": 0.008269097220623297,
+          "Linf": 0.08399042907038545
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.00242086940924084,
+          "L2": 0.008228108161370394,
+          "Linf": 0.0840412454382431
+        },
+        "conservative.rhoE.dz": {
+          "L1": 2.8241245358788914e-15,
+          "L2": 8.47723919990251e-15,
+          "Linf": 2.054272165116392e-13
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.0038019353975672814,
+          "L2": 0.011665321802647873,
+          "Linf": 0.09554996423247523
+        },
+        "conservative.rhoE.value": {
+          "L1": 6.573174688744985e-06,
+          "L2": 2.48430793019627e-05,
+          "Linf": 0.0007189567584080514
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.0008466731143877264,
+          "L2": 0.002203893983760334,
+          "Linf": 0.01611154042843399
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.0011968977711797248,
+          "L2": 0.0033250897914436426,
+          "Linf": 0.030344311473645136
+        },
+        "conservative.rhou.dz": {
+          "L1": 1.2578598483511706e-15,
+          "L2": 3.25064544339889e-15,
+          "Linf": 6.322039245376803e-14
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.0016011882923323193,
+          "L2": 0.003989156654334095,
+          "Linf": 0.030402766017258956
+        },
+        "conservative.rhou.value": {
+          "L1": 2.522848883351392e-06,
+          "L2": 8.153634641564729e-06,
+          "Linf": 0.00017079619410509395
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.0011971041005740945,
+          "L2": 0.0033355525541918373,
+          "Linf": 0.03032449360425138
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.0008452949927161849,
+          "L2": 0.0021971100938023335,
+          "Linf": 0.015651709599113273
+        },
+        "conservative.rhov.dz": {
+          "L1": 1.3475181939844126e-15,
+          "L2": 3.900821843686403e-15,
+          "Linf": 1.1152355881303168e-13
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.0016005069398502148,
+          "L2": 0.003994146167338451,
+          "Linf": 0.030384545512791794
+        },
+        "conservative.rhov.value": {
+          "L1": 2.539090571662381e-06,
+          "L2": 8.460932187777353e-06,
+          "Linf": 0.0002645555923086462
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.dx": {
+          "L1": 0.0004857891386451431,
+          "L2": 0.0019591357889010425,
+          "Linf": 0.016415147983627865
+        },
+        "primitive.p.dy": {
+          "L1": 0.0004839661645572532,
+          "L2": 0.0019541521735905436,
+          "Linf": 0.016415300926814758
+        },
+        "primitive.p.dz": {
+          "L1": 6.363897681861557e-16,
+          "L2": 2.179735650025474e-15,
+          "Linf": 5.5145073287373364e-14
+        },
+        "primitive.p.gradient": {
+          "L1": 0.0007621703287204783,
+          "L2": 0.0027671146989059836,
+          "Linf": 0.01702171767054333
+        },
+        "primitive.p.value": {
+          "L1": 1.4079009391110642e-06,
+          "L2": 5.616397409586644e-06,
+          "Linf": 0.00015298591773638126
+        },
+        "primitive.rho.dx": {
+          "L1": 0.00038449085396161553,
+          "L2": 0.0013609449005968957,
+          "Linf": 0.010865364685045065
+        },
+        "primitive.rho.dy": {
+          "L1": 0.0003832587264133184,
+          "L2": 0.0013574072124625358,
+          "Linf": 0.01086547802153126
+        },
+        "primitive.rho.dz": {
+          "L1": 4.739058535466317e-16,
+          "L2": 1.599811593937592e-15,
+          "Linf": 3.610306498202905e-14
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.0006034954101985805,
+          "L2": 0.0019221668405489836,
+          "Linf": 0.011440135425424198
+        },
+        "primitive.rho.value": {
+          "L1": 9.947566759587789e-07,
+          "L2": 3.841913928130718e-06,
+          "Linf": 0.00010123430467001704
+        },
+        "primitive.u.dx": {
+          "L1": 0.0007160725711334806,
+          "L2": 0.0017941063415307878,
+          "Linf": 0.009598047169774082
+        },
+        "primitive.u.dy": {
+          "L1": 0.0011743637090784976,
+          "L2": 0.0030185764578336645,
+          "Linf": 0.017854238651617282
+        },
+        "primitive.u.dz": {
+          "L1": 1.281227907868108e-15,
+          "L2": 3.4735974287498443e-15,
+          "Linf": 8.874992996824935e-14
+        },
+        "primitive.u.gradient": {
+          "L1": 0.0015109624162307823,
+          "L2": 0.0035114984545787822,
+          "Linf": 0.017854238651621276
+        },
+        "primitive.u.value": {
+          "L1": 2.421424549689522e-06,
+          "L2": 7.740988041027692e-06,
+          "Linf": 0.00014516753435678265
+        },
+        "primitive.v.dx": {
+          "L1": 0.0011736469487892843,
+          "L2": 0.0030202851692236565,
+          "Linf": 0.01785281319895493
+        },
+        "primitive.v.dy": {
+          "L1": 0.0007157480228655061,
+          "L2": 0.0017935289964267258,
+          "Linf": 0.0096113429607661
+        },
+        "primitive.v.dz": {
+          "L1": 1.272855924929614e-15,
+          "L2": 3.4256545176832377e-15,
+          "Linf": 9.303233308703435e-14
+        },
+        "primitive.v.gradient": {
+          "L1": 0.001510384946527807,
+          "L2": 0.0035126725956820927,
+          "Linf": 0.01785281336515385
+        },
+        "primitive.v.value": {
+          "L1": 2.447518126599312e-06,
+          "L2": 8.060525993612182e-06,
+          "Linf": 0.00017748510121728955
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        }
+      },
+      "mesh": "iv80",
+      "nominal_resolution": 80,
+      "h_nominal": 0.125,
+      "independently_audited": true,
+      "source_directory": "data/out/NCFV/thesis_normalization_recheck_20260907/iv80",
+      "independent_errors": {
+        "conservative.rho.value": {
+          "L1": 9.947566759830415e-07,
+          "L2": 3.841913928129399e-06,
+          "Linf": 0.00010123430467023908
+        },
+        "conservative.rho.gradient": {
+          "L1": 0.0006034954101981068,
+          "L2": 0.0019221668405482288,
+          "Linf": 0.011440135425424163
+        },
+        "conservative.rho.dx": {
+          "L1": 0.0003844908539613004,
+          "L2": 0.0013609449005963796,
+          "Linf": 0.01086536468504512
+        },
+        "conservative.rho.dy": {
+          "L1": 0.0003832587264130073,
+          "L2": 0.001357407212462005,
+          "Linf": 0.01086547802153126
+        },
+        "conservative.rho.dz": {
+          "L1": 4.739058535462352e-16,
+          "L2": 1.5998115939369103e-15,
+          "Linf": 3.610306498202905e-14
+        },
+        "conservative.rhou.value": {
+          "L1": 2.5228488833486495e-06,
+          "L2": 8.153634641560178e-06,
+          "Linf": 0.00017079619410509395
+        },
+        "conservative.rhou.gradient": {
+          "L1": 0.0016011882923310217,
+          "L2": 0.003989156654332402,
+          "Linf": 0.030402766017258956
+        },
+        "conservative.rhou.dx": {
+          "L1": 0.0008466731143870047,
+          "L2": 0.002203893983759442,
+          "Linf": 0.01611154042843399
+        },
+        "conservative.rhou.dy": {
+          "L1": 0.0011968977711787018,
+          "L2": 0.003325089791442243,
+          "Linf": 0.030344311473645136
+        },
+        "conservative.rhou.dz": {
+          "L1": 1.2578598483501228e-15,
+          "L2": 3.2506454433975365e-15,
+          "Linf": 6.322039245376803e-14
+        },
+        "conservative.rhov.value": {
+          "L1": 2.5390905716596334e-06,
+          "L2": 8.460932187773965e-06,
+          "Linf": 0.0002645555923089793
+        },
+        "conservative.rhov.gradient": {
+          "L1": 0.0016005069398488975,
+          "L2": 0.0039941461673367335,
+          "Linf": 0.030384545512791794
+        },
+        "conservative.rhov.dx": {
+          "L1": 0.0011971041005730953,
+          "L2": 0.0033355525541904447,
+          "Linf": 0.03032449360425138
+        },
+        "conservative.rhov.dy": {
+          "L1": 0.0008452949927154678,
+          "L2": 0.0021971100938014726,
+          "Linf": 0.015651709599113217
+        },
+        "conservative.rhov.dz": {
+          "L1": 1.3475181939832936e-15,
+          "L2": 3.900821843684785e-15,
+          "Linf": 1.1152355881303168e-13
+        },
+        "conservative.rhow.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhow.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "conservative.rhoE.value": {
+          "L1": 6.573174688738923e-06,
+          "L2": 2.484307930195417e-05,
+          "Linf": 0.0007189567584080514
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 0.0038019353975641025,
+          "L2": 0.011665321802642984,
+          "Linf": 0.09554996423247529
+        },
+        "conservative.rhoE.dx": {
+          "L1": 0.002427789018142453,
+          "L2": 0.008269097220619956,
+          "Linf": 0.08399042907038501
+        },
+        "conservative.rhoE.dy": {
+          "L1": 0.0024208694092387544,
+          "L2": 0.008228108161366932,
+          "Linf": 0.08404124543824265
+        },
+        "conservative.rhoE.dz": {
+          "L1": 2.824124535876543e-15,
+          "L2": 8.477239199899033e-15,
+          "Linf": 2.054272165116392e-13
+        },
+        "primitive.rho.value": {
+          "L1": 9.947566759830415e-07,
+          "L2": 3.841913928129399e-06,
+          "Linf": 0.00010123430467023908
+        },
+        "primitive.rho.gradient": {
+          "L1": 0.0006034954101981068,
+          "L2": 0.0019221668405482288,
+          "Linf": 0.011440135425424163
+        },
+        "primitive.rho.dx": {
+          "L1": 0.0003844908539613004,
+          "L2": 0.0013609449005963796,
+          "Linf": 0.01086536468504512
+        },
+        "primitive.rho.dy": {
+          "L1": 0.0003832587264130073,
+          "L2": 0.001357407212462005,
+          "Linf": 0.01086547802153126
+        },
+        "primitive.rho.dz": {
+          "L1": 4.739058535462352e-16,
+          "L2": 1.5998115939369103e-15,
+          "Linf": 3.610306498202905e-14
+        },
+        "primitive.u.value": {
+          "L1": 2.421424549688047e-06,
+          "L2": 7.740988041025537e-06,
+          "Linf": 0.00014516753435678265
+        },
+        "primitive.u.gradient": {
+          "L1": 0.0015109624162295116,
+          "L2": 0.003511498454577378,
+          "Linf": 0.017854238651621276
+        },
+        "primitive.u.dx": {
+          "L1": 0.0007160725711328736,
+          "L2": 0.00179410634153009,
+          "Linf": 0.009598047169774082
+        },
+        "primitive.u.dy": {
+          "L1": 0.0011743637090774956,
+          "L2": 0.0030185764578325378,
+          "Linf": 0.017854238651617282
+        },
+        "primitive.u.dz": {
+          "L1": 1.281227907867029e-15,
+          "L2": 3.4735974287483968e-15,
+          "Linf": 8.874992996824935e-14
+        },
+        "primitive.v.value": {
+          "L1": 2.447518126597465e-06,
+          "L2": 8.060525993608816e-06,
+          "Linf": 0.00017748510121728955
+        },
+        "primitive.v.gradient": {
+          "L1": 0.0015103849465265434,
+          "L2": 0.0035126725956807197,
+          "Linf": 0.01785281336515385
+        },
+        "primitive.v.dx": {
+          "L1": 0.0011736469487882981,
+          "L2": 0.0030202851692224873,
+          "Linf": 0.01785281319895493
+        },
+        "primitive.v.dy": {
+          "L1": 0.0007157480228648986,
+          "L2": 0.0017935289964260458,
+          "Linf": 0.00961134296076599
+        },
+        "primitive.v.dz": {
+          "L1": 1.2728559249285439e-15,
+          "L2": 3.4256545176818127e-15,
+          "Linf": 9.303233308703434e-14
+        },
+        "primitive.w.value": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.gradient": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dx": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dy": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.w.dz": {
+          "L1": 0.0,
+          "L2": 0.0,
+          "Linf": 0.0
+        },
+        "primitive.p.value": {
+          "L1": 1.4079009390911043e-06,
+          "L2": 5.616397409585565e-06,
+          "Linf": 0.00015298591773649228
+        },
+        "primitive.p.gradient": {
+          "L1": 0.0007621703287199283,
+          "L2": 0.002767114698904884,
+          "Linf": 0.017021717670543297
+        },
+        "primitive.p.dx": {
+          "L1": 0.00048578913864474725,
+          "L2": 0.001959135788900273,
+          "Linf": 0.016415147983627754
+        },
+        "primitive.p.dy": {
+          "L1": 0.00048396616455686754,
+          "L2": 0.0019541521735897565,
+          "Linf": 0.01641530092681498
+        },
+        "primitive.p.dz": {
+          "L1": 6.36389768185623e-16,
+          "L2": 2.1797356500245748e-15,
+          "Linf": 5.5145073287373364e-14
+        }
+      },
+      "worst_nodes": {
+        "conservative.rho.value": {
+          "original_node": 122440,
+          "coordinate": [
+            5.451249888684475,
+            5.481743000378034,
+            1.875
+          ],
+          "error": 0.00010123430467023908
+        },
+        "conservative.rho.gradient": {
+          "original_node": 161385,
+          "coordinate": [
+            5.561621140402057,
+            4.562499808749974,
+            2.625
+          ],
+          "error": 0.011440135425424163
+        },
+        "conservative.rho.dx": {
+          "original_node": 53468,
+          "coordinate": [
+            4.221873855657426,
+            5.062500061971122,
+            0.75
+          ],
+          "error": 0.01086536468504512
+        },
+        "conservative.rho.dy": {
+          "original_node": 84054,
+          "coordinate": [
+            5.062499535311385,
+            5.778125426440204,
+            1.25
+          ],
+          "error": -0.01086547802153126
+        },
+        "conservative.rho.dz": {
+          "original_node": 245080,
+          "coordinate": [
+            5.062500899250018,
+            4.6548841445149804,
+            3.875
+          ],
+          "error": -3.610306498202905e-14
+        },
+        "conservative.rhou.value": {
+          "original_node": 523,
+          "coordinate": [
+            5.455873879122904,
+            4.5185184668885565,
+            0.0
+          ],
+          "error": 0.00017079619410509395
+        },
+        "conservative.rhou.gradient": {
+          "original_node": 38058,
+          "coordinate": [
+            4.937499938700338,
+            4.221874080803872,
+            0.5
+          ],
+          "error": 0.030402766017258956
+        },
+        "conservative.rhou.dx": {
+          "original_node": 222665,
+          "coordinate": [
+            5.561621140402057,
+            4.562499808749974,
+            3.625
+          ],
+          "error": -0.01611154042843399
+        },
+        "conservative.rhou.dy": {
+          "original_node": 38058,
+          "coordinate": [
+            4.937499938700338,
+            4.221874080803872,
+            0.5
+          ],
+          "error": 0.030344311473645136
+        },
+        "conservative.rhou.dz": {
+          "original_node": 99272,
+          "coordinate": [
+            5.374999797826619,
+            5.886378812493165,
+            1.5
+          ],
+          "error": -6.322039245376803e-14
+        },
+        "conservative.rhov.value": {
+          "original_node": 114780,
+          "coordinate": [
+            5.451249888684475,
+            5.481743000378034,
+            1.75
+          ],
+          "error": 0.0002645555923089793
+        },
+        "conservative.rhov.gradient": {
+          "original_node": 7464,
+          "coordinate": [
+            5.778126112268919,
+            5.062499873945467,
+            0.0
+          ],
+          "error": 0.030384545512791794
+        },
+        "conservative.rhov.dx": {
+          "original_node": 7464,
+          "coordinate": [
+            5.778126112268919,
+            5.062499873945467,
+            0.0
+          ],
+          "error": -0.03032449360425138
+        },
+        "conservative.rhov.dy": {
+          "original_node": 76486,
+          "coordinate": [
+            5.317706827149811,
+            5.558581314727876,
+            1.125
+          ],
+          "error": -0.015651709599113217
+        },
+        "conservative.rhov.dz": {
+          "original_node": 244825,
+          "coordinate": [
+            5.994632453064254,
+            5.312500024570149,
+            3.875
+          ],
+          "error": -1.1152355881303168e-13
+        },
+        "conservative.rhow.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhow.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "conservative.rhoE.value": {
+          "original_node": 237983,
+          "coordinate": [
+            5.455873879122904,
+            4.5185184668885565,
+            3.875
+          ],
+          "error": 0.0007189567584080514
+        },
+        "conservative.rhoE.gradient": {
+          "original_node": 161385,
+          "coordinate": [
+            5.561621140402057,
+            4.562499808749974,
+            2.625
+          ],
+          "error": 0.09554996423247529
+        },
+        "conservative.rhoE.dx": {
+          "original_node": 45763,
+          "coordinate": [
+            5.778126354125547,
+            4.937500098573348,
+            0.625
+          ],
+          "error": -0.08399042907038501
+        },
+        "conservative.rhoE.dy": {
+          "original_node": 22739,
+          "coordinate": [
+            5.062500098302058,
+            4.221873584410156,
+            0.25
+          ],
+          "error": 0.08404124543824265
+        },
+        "conservative.rhoE.dz": {
+          "original_node": 244825,
+          "coordinate": [
+            5.994632453064254,
+            5.312500024570149,
+            3.875
+          ],
+          "error": -2.054272165116392e-13
+        },
+        "primitive.rho.value": {
+          "original_node": 122440,
+          "coordinate": [
+            5.451249888684475,
+            5.481743000378034,
+            1.875
+          ],
+          "error": 0.00010123430467023908
+        },
+        "primitive.rho.gradient": {
+          "original_node": 161385,
+          "coordinate": [
+            5.561621140402057,
+            4.562499808749974,
+            2.625
+          ],
+          "error": 0.011440135425424163
+        },
+        "primitive.rho.dx": {
+          "original_node": 53468,
+          "coordinate": [
+            4.221873855657426,
+            5.062500061971122,
+            0.75
+          ],
+          "error": 0.01086536468504512
+        },
+        "primitive.rho.dy": {
+          "original_node": 84054,
+          "coordinate": [
+            5.062499535311385,
+            5.778125426440204,
+            1.25
+          ],
+          "error": -0.01086547802153126
+        },
+        "primitive.rho.dz": {
+          "original_node": 245080,
+          "coordinate": [
+            5.062500899250018,
+            4.6548841445149804,
+            3.875
+          ],
+          "error": -3.610306498202905e-14
+        },
+        "primitive.u.value": {
+          "original_node": 107161,
+          "coordinate": [
+            4.518390567765135,
+            5.455849436400166,
+            1.625
+          ],
+          "error": -0.00014516753435678265
+        },
+        "primitive.u.gradient": {
+          "original_node": 214313,
+          "coordinate": [
+            5.000000448389668,
+            4.330126869859395,
+            3.375
+          ],
+          "error": 0.017854238651621276
+        },
+        "primitive.u.dx": {
+          "original_node": 114543,
+          "coordinate": [
+            5.997258549754254,
+            3.8949175339631643,
+            1.75
+          ],
+          "error": 0.009598047169774082
+        },
+        "primitive.u.dy": {
+          "original_node": 214313,
+          "coordinate": [
+            5.000000448389668,
+            4.330126869859395,
+            3.375
+          ],
+          "error": 0.017854238651617282
+        },
+        "primitive.u.dz": {
+          "original_node": 99272,
+          "coordinate": [
+            5.374999797826619,
+            5.886378812493165,
+            1.5
+          ],
+          "error": -8.874992996824935e-14
+        },
+        "primitive.v.value": {
+          "original_node": 7540,
+          "coordinate": [
+            5.451249888684475,
+            5.481743000378034,
+            0.0
+          ],
+          "error": 0.00017748510121728955
+        },
+        "primitive.v.gradient": {
+          "original_node": 22824,
+          "coordinate": [
+            4.330126885416668,
+            4.9999999616977915,
+            0.25
+          ],
+          "error": 0.01785281336515385
+        },
+        "primitive.v.dx": {
+          "original_node": 22824,
+          "coordinate": [
+            4.330126885416668,
+            4.9999999616977915,
+            0.25
+          ],
+          "error": -0.01785281319895493
+        },
+        "primitive.v.dy": {
+          "original_node": 30307,
+          "coordinate": [
+            3.893910298996781,
+            4.005071812720332,
+            0.375
+          ],
+          "error": 0.00961134296076599
+        },
+        "primitive.v.dz": {
+          "original_node": 15090,
+          "coordinate": [
+            5.886379347940654,
+            4.750000211067481,
+            0.125
+          ],
+          "error": -9.303233308703434e-14
+        },
+        "primitive.w.value": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.gradient": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dx": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dy": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.w.dz": {
+          "original_node": 0,
+          "coordinate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": 0.0
+        },
+        "primitive.p.value": {
+          "original_node": 145420,
+          "coordinate": [
+            5.451249888684475,
+            5.481743000378034,
+            2.25
+          ],
+          "error": 0.00015298591773649228
+        },
+        "primitive.p.gradient": {
+          "original_node": 161385,
+          "coordinate": [
+            5.561621140402057,
+            4.562499808749974,
+            2.625
+          ],
+          "error": 0.017021717670543297
+        },
+        "primitive.p.dx": {
+          "original_node": 53468,
+          "coordinate": [
+            4.221873855657426,
+            5.062500061971122,
+            0.75
+          ],
+          "error": 0.016415147983627754
+        },
+        "primitive.p.dy": {
+          "original_node": 114694,
+          "coordinate": [
+            5.062499535311385,
+            5.778125426440204,
+            1.75
+          ],
+          "error": -0.01641530092681498
+        },
+        "primitive.p.dz": {
+          "original_node": 245080,
+          "coordinate": [
+            5.062500899250018,
+            4.6548841445149804,
+            3.875
+          ],
+          "error": -5.5145073287373364e-14
+        }
+      },
+      "orders": {
+        "conservative.rho.dx": {
+          "L1": 1.936237108265132,
+          "L2": 1.9163444170938628,
+          "Linf": 1.890954077901756
+        },
+        "conservative.rho.dy": {
+          "L1": 1.9535879657089819,
+          "L2": 1.9390203734075635,
+          "Linf": 1.8934655389895614
+        },
+        "conservative.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rho.gradient": {
+          "L1": 1.9489907385695182,
+          "L2": 1.9277413908863315,
+          "Linf": 1.8303724597201236
+        },
+        "conservative.rho.value": {
+          "L1": 3.798731981489503,
+          "L2": 3.5665075181509662,
+          "Linf": 1.8138265972787906
+        },
+        "conservative.rhoE.dx": {
+          "L1": 1.9243276730037104,
+          "L2": 1.8949709097695664,
+          "Linf": 1.814528911096085
+        },
+        "conservative.rhoE.dy": {
+          "L1": 1.9448152260189617,
+          "L2": 1.9219432110100911,
+          "Linf": 1.8152023394790624
+        },
+        "conservative.rhoE.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhoE.gradient": {
+          "L1": 1.935981583090428,
+          "L2": 1.9085152667047536,
+          "Linf": 1.7586977456818287
+        },
+        "conservative.rhoE.value": {
+          "L1": 3.7318021119994342,
+          "L2": 3.5420130811415658,
+          "Linf": 1.9337025632363427
+        },
+        "conservative.rhou.dx": {
+          "L1": 1.9164259233286873,
+          "L2": 1.8810862309427,
+          "Linf": 1.7606683294843752
+        },
+        "conservative.rhou.dy": {
+          "L1": 1.9453441485689353,
+          "L2": 1.9219928116165512,
+          "Linf": 1.8475109553798699
+        },
+        "conservative.rhou.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhou.gradient": {
+          "L1": 1.932482516343016,
+          "L2": 1.9097496433745924,
+          "Linf": 1.8447158151853356
+        },
+        "conservative.rhou.value": {
+          "L1": 3.7385005882489257,
+          "L2": 3.5434370197024263,
+          "Linf": 2.104885713424004
+        },
+        "conservative.rhov.dx": {
+          "L1": 1.93630958376456,
+          "L2": 1.9063916917843426,
+          "Linf": 1.8466076468598944
+        },
+        "conservative.rhov.dy": {
+          "L1": 1.9265923188651524,
+          "L2": 1.899400700213219,
+          "Linf": 1.8062631172911194
+        },
+        "conservative.rhov.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhov.gradient": {
+          "L1": 1.9316039833326677,
+          "L2": 1.9042833742015222,
+          "Linf": 1.843738758148839
+        },
+        "conservative.rhov.value": {
+          "L1": 3.740697490486806,
+          "L2": 3.536219887325337,
+          "Linf": 1.829235499327249
+        },
+        "conservative.rhow.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "conservative.rhow.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.dx": {
+          "L1": 1.9378579608289115,
+          "L2": 1.9114163536354256,
+          "Linf": 1.850523184281554
+        },
+        "primitive.p.dy": {
+          "L1": 1.9583414730539104,
+          "L2": 1.9355050624306076,
+          "Linf": 1.8529443445960039
+        },
+        "primitive.p.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.p.gradient": {
+          "L1": 1.9527506406394284,
+          "L2": 1.9235299084786344,
+          "Linf": 1.8274291305189072
+        },
+        "primitive.p.value": {
+          "L1": 3.7461215568520254,
+          "L2": 3.569686426223062,
+          "Linf": 1.8413797795673421
+        },
+        "primitive.rho.dx": {
+          "L1": 1.936237108265132,
+          "L2": 1.9163444170938628,
+          "Linf": 1.890954077901756
+        },
+        "primitive.rho.dy": {
+          "L1": 1.9535879657089819,
+          "L2": 1.9390203734075635,
+          "Linf": 1.8934655389895614
+        },
+        "primitive.rho.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.rho.gradient": {
+          "L1": 1.9489907385695182,
+          "L2": 1.9277413908863315,
+          "Linf": 1.8303724597201236
+        },
+        "primitive.rho.value": {
+          "L1": 3.798731981489503,
+          "L2": 3.5665075181509662,
+          "Linf": 1.8138265972787906
+        },
+        "primitive.u.dx": {
+          "L1": 1.8945541638942458,
+          "L2": 1.8713452522056693,
+          "Linf": 1.8480649317561522
+        },
+        "primitive.u.dy": {
+          "L1": 1.9246690595884284,
+          "L2": 1.904905469350113,
+          "Linf": 1.802606001688613
+        },
+        "primitive.u.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.u.gradient": {
+          "L1": 1.918749002895832,
+          "L2": 1.8962933038218026,
+          "Linf": 1.8026064034678764
+        },
+        "primitive.u.value": {
+          "L1": 3.709441117838719,
+          "L2": 3.54905815764837,
+          "Linf": 2.3925091032625483
+        },
+        "primitive.v.dx": {
+          "L1": 1.9182044670642426,
+          "L2": 1.896847414850502,
+          "Linf": 1.8018866903365813
+        },
+        "primitive.v.dy": {
+          "L1": 1.895241819238254,
+          "L2": 1.8719842223653382,
+          "Linf": 1.84726532605108
+        },
+        "primitive.v.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.v.gradient": {
+          "L1": 1.9143145630469343,
+          "L2": 1.8904471576833588,
+          "Linf": 1.8018867858115533
+        },
+        "primitive.v.value": {
+          "L1": 3.7059759499383027,
+          "L2": 3.517419798578085,
+          "Linf": 2.084727991913209
+        },
+        "primitive.w.dx": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dy": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.dz": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.gradient": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        },
+        "primitive.w.value": {
+          "L1": null,
+          "L2": null,
+          "Linf": null
+        }
+      }
+    }
+  ],
+  "mpi_check": {
+    "mesh": "iv20",
+    "ranks": [
+      1,
+      2
+    ],
+    "maximum_field_difference": 1.709743457922741e-14
+  }
+}
